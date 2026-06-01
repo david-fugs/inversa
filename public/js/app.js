@@ -402,4 +402,4 @@ function timeToMinutes(timeStr) {
 }
 
 /* ── Constante BASE_URL para JS ───────────────────────── */
-const BASE_URL = document.querySelector('meta[name="base-url"]')?.content || '/inversa';
+const BASE_URL = document.querySelector('meta[name="base-url"]')?.content ?? '';

@@ -1,8 +1,8 @@
 Options -Indexes
 RewriteEngine On
-RewriteBase /
 
 # Redirigir al index.php principal (front controller)
+# Funciona tanto en subfolder local (/inversa/) como en dominio raíz (producción)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
