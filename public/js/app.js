@@ -1,0 +1,405 @@
+/**
+ * INVERSA - Operaciones Aeroportuarias
+ * JavaScript principal - app.js
+ */
+
+'use strict';
+
+/* ── Sidebar toggle (mobile) ──────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar       = document.getElementById('sidebar');
+    const overlay       = document.getElementById('sidebarOverlay');
+
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function () {
+            sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('show');
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', function () {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
+        });
+    }
+
+    /* ── Resaltar enlace activo en sidebar ─────────────── */
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach(function (link) {
+        const href = link.getAttribute('href');
+        if (href && currentPath.startsWith(href) && href !== '/inversa/') {
+            link.classList.add('active');
+        } else if (href === currentPath) {
+            link.classList.add('active');
+        }
+    });
+
+    /* ── Auto-dismiss de alertas ───────────────────────── */
+    document.querySelectorAll('.alert[data-auto-dismiss]').forEach(function (alert) {
+        const delay = parseInt(alert.dataset.autoDismiss) || 5000;
+        setTimeout(function () {
+            alert.style.opacity = '0';
+            alert.style.transition = 'opacity .5s';
+            setTimeout(function () { alert.remove(); }, 500);
+        }, delay);
+    });
+
+    /* ── Confirmar eliminación ─────────────────────────── */
+    document.querySelectorAll('[data-confirm]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            const msg = el.dataset.confirm || '¿Está seguro de eliminar este registro?';
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    /* ── Select2 global ────────────────────────────────── */
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('.select2').select2({
+            placeholder: 'Seleccione una opción',
+            allowClear: true,
+            language: {
+                noResults: function () { return 'No se encontraron resultados'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
+    }
+
+    /* ── DataTables global ─────────────────────────────── */
+    if (typeof $.fn.dataTable !== 'undefined') {
+        $('.data-table').DataTable({
+            language: {
+                url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+                emptyTable: 'No hay registros disponibles'
+            },
+            responsive: true,
+            dom: '<"row align-items-center mb-3"<"col-sm-6"l><"col-sm-6 text-end"f>>rtip',
+            pageLength: 15,
+            columnDefs: [
+                { orderable: false, targets: -1 }
+            ]
+        });
+    }
+
+    /* ── Cálculo automático tiempo de tránsito ─────────── */
+    initTransitCalculation();
+
+    /* ── Cálculo automático GPU ────────────────────────── */
+    initGpuCalculation();
+
+    /* ── Cálculo automático ACU ────────────────────────── */
+    initAcuCalculation();
+
+    /* ── Tipo de avión por aerolínea (AJAX) ────────────── */
+    initAircraftByAirline();
+});
+
+/* ── Tiempo de tránsito ───────────────────────────────── */
+function initTransitCalculation() {
+    const horaRealLlegada = document.getElementById('hora_real_llegada');
+    const horaRealSalida  = document.getElementById('hora_real_salida');
+    const tiempoDisplay   = document.getElementById('tiempo_transito_display');
+    const tiempoInput     = document.getElementById('tiempo_transito');
+    const cumpleDisplay   = document.getElementById('cumple_tiempo_display');
+    const cumpleInput     = document.getElementById('cumple_tiempo');
+
+    if (!horaRealLlegada || !horaRealSalida) return;
+
+    function calcular() {
+        const llegada = timeToMinutes(horaRealLlegada.value);
+        const salida  = timeToMinutes(horaRealSalida.value);
+
+        if (llegada === null || salida === null) {
+            if (tiempoDisplay) tiempoDisplay.textContent = '--';
+            return;
+        }
+
+        let diff = salida - llegada;
+        // Si la salida es al día siguiente
+        if (diff < 0) diff += 1440;
+
+        if (tiempoInput)   tiempoInput.value = diff;
+        if (tiempoDisplay) tiempoDisplay.textContent = diff + ' min';
+
+        // Verificar cumplimiento
+        const tiempoCumplimiento = parseInt(
+            document.getElementById('tiempo_cumplimiento_ref')?.value || '0'
+        );
+
+        if (tiempoCumplimiento > 0 && cumpleDisplay && cumpleInput) {
+            const cumple = diff <= tiempoCumplimiento;
+            cumpleInput.value = cumple ? '1' : '0';
+            if (cumple) {
+                cumpleDisplay.innerHTML = '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>';
+            } else {
+                cumpleDisplay.innerHTML = '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>';
+            }
+        }
+    }
+
+    horaRealLlegada.addEventListener('change', calcular);
+    horaRealSalida.addEventListener('change', calcular);
+    calcular();
+}
+
+/* ── Cálculo GPU ──────────────────────────────────────── */
+function initGpuCalculation() {
+    const conexion     = document.getElementById('hora_conexion_gpu');
+    const desconexion  = document.getElementById('hora_desconexion_gpu');
+    const tiempoGpu    = document.getElementById('tiempo_gpu');
+
+    if (!conexion || !desconexion) return;
+
+    function calcular() {
+        const c = timeToMinutes(conexion.value);
+        const d = timeToMinutes(desconexion.value);
+        if (c === null || d === null) return;
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoGpu) tiempoGpu.value = diff;
+    }
+
+    conexion.addEventListener('change', calcular);
+    desconexion.addEventListener('change', calcular);
+}
+
+/* ── Cálculo ACU ──────────────────────────────────────── */
+function initAcuCalculation() {
+    const conexion     = document.getElementById('hora_conexion_acu');
+    const desconexion  = document.getElementById('hora_desconexion_acu');
+    const tiempoAcu    = document.getElementById('tiempo_acu');
+
+    if (!conexion || !desconexion) return;
+
+    function calcular() {
+        const c = timeToMinutes(conexion.value);
+        const d = timeToMinutes(desconexion.value);
+        if (c === null || d === null) return;
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoAcu) tiempoAcu.value = diff;
+
+        // Fracciones hora
+        const fracHora = document.getElementById('fracciones_hora_acu');
+        const frac15   = document.getElementById('fracciones_15min_acu');
+        if (fracHora) fracHora.value = (diff / 60).toFixed(2);
+        if (frac15)   frac15.value   = (diff / 15).toFixed(2);
+    }
+
+    conexion.addEventListener('change', calcular);
+    desconexion.addEventListener('change', calcular);
+}
+
+/* ── Tipos de avión por aerolínea ─────────────────────── */
+function initAircraftByAirline() {
+    const airlineSelect  = document.getElementById('airline_id');
+    const aircraftSelect = document.getElementById('aircraft_type_id');
+
+    if (!airlineSelect || !aircraftSelect) return;
+
+    // Select2 no dispara eventos nativos — usar jQuery
+    $(airlineSelect).on('change', function () {
+        const airlineId = this.value;
+        aircraftSelect.innerHTML = '<option value="">Cargando...</option>';
+
+        // Destruir y recrear Select2 en aircraft mientras recargamos
+        if (typeof $.fn.select2 !== 'undefined') {
+            $(aircraftSelect).select2('destroy');
+        }
+
+        if (!airlineId) {
+            aircraftSelect.innerHTML = '<option value="">-- Seleccione aerolínea primero --</option>';
+            const ref = document.getElementById('tiempo_cumplimiento_ref');
+            if (ref) ref.value = '';
+            if (typeof $.fn.select2 !== 'undefined') {
+                $(aircraftSelect).select2({ placeholder: '-- Seleccione aerolínea primero --', allowClear: true, width: '100%' });
+            }
+            return;
+        }
+
+        fetch(BASE_URL + '/aircraft-types/by-airline/' + airlineId)
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (data) {
+                aircraftSelect.innerHTML = '<option value="">-- Seleccione tipo de avión --</option>';
+                data.forEach(function (item) {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.tipo + ' (' + item.tiempo_cumplimiento + ' min)';
+                    opt.dataset.tiempo = item.tiempo_cumplimiento;
+                    aircraftSelect.appendChild(opt);
+                });
+                if (typeof $.fn.select2 !== 'undefined') {
+                    $(aircraftSelect).select2({ placeholder: '-- Seleccione tipo de avión --', allowClear: true, width: '100%' });
+                }
+            })
+            .catch(function (err) {
+                console.error('Error cargando tipos de avión:', err);
+                aircraftSelect.innerHTML = '<option value="">Error al cargar</option>';
+                if (typeof $.fn.select2 !== 'undefined') {
+                    $(aircraftSelect).select2({ placeholder: 'Error al cargar', allowClear: true, width: '100%' });
+                }
+            });
+    });
+
+    // Actualizar tiempo de cumplimiento al cambiar tipo de avión
+    $(aircraftSelect).on('change', function () {
+        const selected = this.options[this.selectedIndex];
+        const ref = document.getElementById('tiempo_cumplimiento_ref');
+        if (ref && selected && selected.dataset.tiempo) {
+            ref.value = selected.dataset.tiempo;
+            const llegada = document.getElementById('hora_real_llegada');
+            if (llegada) llegada.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+/* ── Filas dinámicas GPU ──────────────────────────────── */
+function addGpuRow() {
+    const container = document.getElementById('gpu-fracciones-container');
+    const idx = container.querySelectorAll('.dynamic-row').length;
+    const row = document.createElement('div');
+    row.className = 'dynamic-row';
+    row.innerHTML = `
+        <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()">
+            <i class="bi bi-x"></i>
+        </button>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Hora Conexión</label>
+                <input type="time" class="form-control" name="gpu_fracciones[${idx}][hora_conexion]"
+                    oninput="calcFraccionGpu(this)">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Hora Desconexión</label>
+                <input type="time" class="form-control" name="gpu_fracciones[${idx}][hora_desconexion]"
+                    oninput="calcFraccionGpu(this)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Tiempo (min)</label>
+                <input type="number" class="form-control" name="gpu_fracciones[${idx}][tiempo]" readonly>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fracciones ADC GPU</label>
+                <input type="number" step="0.01" class="form-control" name="gpu_fracciones[${idx}][fracciones_adc]" value="0">
+            </div>
+        </div>`;
+    container.appendChild(row);
+}
+
+function calcFraccionGpu(anyInput) {
+    const row            = anyInput.closest('.dynamic-row');
+    const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
+    const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
+    const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
+    const c = timeToMinutes(conexionInp ? conexionInp.value : '');
+    const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
+    if (c !== null && d !== null) {
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoInp) tiempoInp.value = diff;
+    }
+}
+
+/* ── Filas dinámicas ACU ──────────────────────────────── */
+function addAcuRow() {
+    const container = document.getElementById('acu-fracciones-container');
+    const idx = container.querySelectorAll('.dynamic-row').length;
+    const row = document.createElement('div');
+    row.className = 'dynamic-row';
+    row.innerHTML = `
+        <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()">
+            <i class="bi bi-x"></i>
+        </button>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Hora Conexión</label>
+                <input type="time" class="form-control" name="acu_fracciones[${idx}][hora_conexion]"
+                    oninput="calcFraccionAcu(this)">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Hora Desconexión</label>
+                <input type="time" class="form-control" name="acu_fracciones[${idx}][hora_desconexion]"
+                    oninput="calcFraccionAcu(this)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Tiempo (min)</label>
+                <input type="number" class="form-control" name="acu_fracciones[${idx}][tiempo]" readonly>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Fracc. Hora</label>
+                <input type="number" step="0.01" class="form-control" name="acu_fracciones[${idx}][fracciones_hora]" readonly>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Fracc. 15 min</label>
+                <input type="number" step="0.01" class="form-control" name="acu_fracciones[${idx}][fracciones_15min]" readonly>
+            </div>
+        </div>`;
+    container.appendChild(row);
+}
+
+function calcFraccionAcu(anyInput) {
+    const row            = anyInput.closest('.dynamic-row');
+    const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
+    const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
+    const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
+    const fracHoraInp    = row.querySelector('input[name$="[fracciones_hora]"]');
+    const frac15Inp      = row.querySelector('input[name$="[fracciones_15min]"]');
+    const c = timeToMinutes(conexionInp ? conexionInp.value : '');
+    const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
+    if (c !== null && d !== null) {
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoInp)    tiempoInp.value    = diff;
+        if (fracHoraInp)  fracHoraInp.value  = (diff / 60).toFixed(2);
+        if (frac15Inp)    frac15Inp.value    = (diff / 15).toFixed(2);
+    }
+}
+
+/* ── Adicionales dinámicos ────────────────────────────── */
+function addAdicional() {
+    const container = document.getElementById('adicionales-container');
+    const idx = container.querySelectorAll('.dynamic-row').length;
+    const row = document.createElement('div');
+    row.className = 'dynamic-row';
+    row.innerHTML = `
+        <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()">
+            <i class="bi bi-x"></i>
+        </button>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label">Servicio Adicional</label>
+                <select class="form-select" name="adicionales[${idx}][servicio]" required>
+                    <option value="">-- Seleccione --</option>
+                    <option value="Traslado de carga">Traslado de carga</option>
+                    <option value="Arrancador ASU">Arrancador ASU</option>
+                    <option value="Hora hombre">Hora hombre</option>
+                    <option value="Pernocta">Pernocta</option>
+                    <option value="Cinta transportadora / Conveyor">Cinta transportadora / Conveyor</option>
+                    <option value="Escalera">Escalera</option>
+                    <option value="Drenado">Drenado</option>
+                    <option value="Remolque">Remolque</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Cantidad</label>
+                <input type="number" class="form-control" name="adicionales[${idx}][cantidad]" min="1" value="1">
+            </div>
+        </div>`;
+    container.appendChild(row);
+}
+
+/* ── Utilidad: convertir HH:MM a minutos ──────────────── */
+function timeToMinutes(timeStr) {
+    if (!timeStr || !timeStr.includes(':')) return null;
+    const parts = timeStr.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+/* ── Constante BASE_URL para JS ───────────────────────── */
+const BASE_URL = document.querySelector('meta[name="base-url"]')?.content || '/inversa';

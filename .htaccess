@@ -1,0 +1,26 @@
+Options -Indexes
+RewriteEngine On
+RewriteBase /
+
+# Redirigir al index.php principal (front controller)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Cabeceras de seguridad
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Bloquear acceso a archivos sensibles
+<FilesMatch "\.(env|log|sql|json|lock|md)$">
+    Require all denied
+</FilesMatch>
+
+# Bloquear acceso directo a carpeta app y config
+<IfModule mod_rewrite.c>
+    RewriteRule ^(app|config|database)/ - [F,L]
+</IfModule>
