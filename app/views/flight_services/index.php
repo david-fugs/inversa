@@ -1,3 +1,7 @@
+<?php
+$esColaborador  = Session::get('user_rol') === 'Colaborador';
+$puedeEditar    = (bool)Session::get('user_puede_editar');
+?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services/create" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Servicio
@@ -75,16 +79,20 @@
                                        class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle">
                                         <i class="bi bi-eye-fill"></i>
                                     </a>
+                                    <?php if (!$esColaborador || $puedeEditar): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-outline-secondary btn-sm" title="Editar">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
+                                    <?php endif; ?>
+                                    <?php if (!$esColaborador): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/delete/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-danger btn-sm"
                                        title="Eliminar"
                                        data-confirm="¿Está seguro de eliminar el servicio #<?= $s['id'] ?>?">
                                         <i class="bi bi-trash-fill"></i>
                                     </a>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

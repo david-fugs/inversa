@@ -66,9 +66,11 @@ class AuthController extends Controller {
         session_regenerate_id(true);
 
         // Guardar datos en sesión
-        Session::set('user_id',     $user['id']);
-        Session::set('user_nombre', $user['nombre_completo']);
-        Session::set('user_rol',    $user['rol_nombre']);
+        Session::set('user_id',              $user['id']);
+        Session::set('user_nombre',           $user['nombre_completo']);
+        Session::set('user_rol',              $user['rol_nombre']);
+        Session::set('user_base_asociada',    $user['base_asociada'] ?? null);
+        Session::set('user_puede_editar',     (int)($user['puede_editar'] ?? 0));
         Session::set('user',        [
             'id'             => $user['id'],
             'nombre_completo'=> $user['nombre_completo'],

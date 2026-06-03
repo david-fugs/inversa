@@ -54,10 +54,14 @@
 
             <div class="col-md-6">
                 <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
-                <select class="form-select <?= isset($errors['base']) ? 'is-invalid' : '' ?>" id="base" name="base">
-                    <option value="">-- Seleccione base --</option>
-                    <?php foreach (FlightService::$bases as $b): ?>
-                        <option value="<?= $b ?>" <?= ($old['base'] ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
+                <?php
+                    $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
+                    $basesDisponibles = $baseColaborador ? [$baseColaborador] : FlightService::$bases;
+                ?>
+                <select class="form-select <?= isset($errors['base']) ? 'is-invalid' : '' ?>" id="base" name="base"
+                    <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>                    <option value="">-- Seleccione base --</option>
+                    <?php foreach ($basesDisponibles as $b): ?>
+                        <option value="<?= $b ?>" <?= ($old['base'] ?? $baseColaborador ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
                     <?php endforeach; ?>
                 </select>
                 <?php if (isset($errors['base'])): ?><div class="invalid-feedback"><?= $errors['base'] ?></div><?php endif; ?>
@@ -72,6 +76,14 @@
                     <?php endforeach; ?>
                 </select>
                 <?php if (isset($errors['tipo_atencion'])): ?><div class="invalid-feedback"><?= $errors['tipo_atencion'] ?></div><?php endif; ?>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Despacho</label>
+                <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
+                    <span id="despacho_display">--</span>
+                </div>
+                <input type="hidden" name="despacho" id="despacho" value="<?= (int)($old['despacho'] ?? 0) ?>">
             </div>
 
         </div>
@@ -173,6 +185,12 @@
                     value="<?= (int)($old['pax_cancelado'] ?? 0) ?>" min="0">
             </div>
 
+            <div class="col-md-3">
+                <label for="ajes_transportados" class="form-label">Ajes Transportados</label>
+                <input type="number" class="form-control" id="ajes_transportados" name="ajes_transportados"
+                    value="<?= (int)($old['ajes_transportados'] ?? 0) ?>" min="0">
+            </div>
+
         </div>
     </div>
 </div>
@@ -190,11 +208,17 @@
                 <input type="time" class="form-control" id="hora_itinerada_llegada" name="hora_itinerada_llegada"
                     value="<?= htmlspecialchars($old['hora_itinerada_llegada'] ?? '') ?>">
             </div>
+            <div class="col-md-3">
+                <label for="hora_real_llegada" class="form-label">Hora Real Llegada</label>
+                <input type="time" class="form-control" id="hora_real_llegada" name="hora_real_llegada"
+                    value="<?= htmlspecialchars($old['hora_real_llegada'] ?? '') ?>">
+            </div>
 
             <div class="col-md-3">
                 <label for="demora_llegando" class="form-label">Demora Llegando (min)</label>
                 <input type="number" class="form-control" id="demora_llegando" name="demora_llegando"
-                    value="<?= (int)($old['demora_llegando'] ?? 0) ?>" min="0">
+                    value="<?= (int)($old['demora_llegando'] ?? 0) ?>" min="0"
+                    readonly style="background:var(--bg-body);">
             </div>
 
             <div class="col-md-3">
@@ -202,14 +226,7 @@
                 <input type="time" class="form-control" id="hora_itinerada_salida" name="hora_itinerada_salida"
                     value="<?= htmlspecialchars($old['hora_itinerada_salida'] ?? '') ?>">
             </div>
-
-            <div class="col-md-3"></div>
-
-            <div class="col-md-3">
-                <label for="hora_real_llegada" class="form-label">Hora Real Llegada</label>
-                <input type="time" class="form-control" id="hora_real_llegada" name="hora_real_llegada"
-                    value="<?= htmlspecialchars($old['hora_real_llegada'] ?? '') ?>">
-            </div>
+            
 
             <div class="col-md-3">
                 <label for="hora_real_salida" class="form-label">Hora Real Salida</label>
@@ -260,18 +277,19 @@
                 <input type="number" class="form-control" id="tiempo_gpu" name="tiempo_gpu"
                     value="<?= htmlspecialchars($old['tiempo_gpu'] ?? '') ?>" readonly style="background:var(--bg-body);">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label for="fracciones_adc_gpu" class="form-label">Fracciones ADC GPU</label>
                 <input type="number" step="0.01" class="form-control" id="fracciones_adc_gpu" name="fracciones_adc_gpu"
-                    value="<?= number_format((float)($old['fracciones_adc_gpu'] ?? 0), 2) ?>">
+                    value="<?= number_format((float)($old['fracciones_adc_gpu'] ?? 0), 2) ?>"
+                    readonly style="background:var(--bg-body);">
+            </div>
+            <div class="col-md-2">
+                <label for="fracciones_adicionales_gpu" class="form-label">Fracciones Adicionales GPU</label>
+                <input type="number" step="0.01" class="form-control" id="fracciones_adicionales_gpu" name="fracciones_adicionales_gpu"
+                    value="<?= number_format((float)($old['fracciones_adicionales_gpu'] ?? 0), 2) ?>"
+                    readonly style="background:var(--bg-body);">
             </div>
         </div>
-
-        <!-- Fracciones dinámicas GPU -->
-        <div id="gpu-fracciones-container"></div>
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addGpuRow()">
-            <i class="bi bi-plus-circle"></i> Agregar fracción GPU
-        </button>
     </div>
 </div>
 
@@ -339,8 +357,10 @@
 
             <div class="col-md-3">
                 <label for="ventiladores" class="form-label">Ventiladores</label>
-                <input type="number" class="form-control" id="ventiladores" name="ventiladores"
-                    value="<?= (int)($old['ventiladores'] ?? 0) ?>" min="0">
+                <select class="form-select" id="ventiladores" name="ventiladores">
+                    <option value="0" <?= !(int)($old['ventiladores'] ?? 0) ? 'selected' : '' ?>>No</option>
+                    <option value="1" <?= (int)($old['ventiladores'] ?? 0) ? 'selected' : '' ?>>Sí</option>
+                </select>
             </div>
 
             <div class="col-md-3">
@@ -406,15 +426,32 @@
     <div class="card-body">
         <div class="row g-3">
 
+            <?php
+                $gseOpciones     = ['ACU','TRA','CON','PAY','ASU','E318/A320'];
+                $gseSeleccionados = !empty($old['equipo_gse_inoperativo'])
+                    ? array_map('trim', explode(',', $old['equipo_gse_inoperativo']))
+                    : [];
+            ?>
             <div class="col-md-9">
-                <label for="equipo_gse_inoperativo" class="form-label">Equipo GSE Inoperativo</label>
-                <textarea class="form-control" id="equipo_gse_inoperativo" name="equipo_gse_inoperativo"
-                    rows="3" placeholder="Describa el equipo inoperativo..."><?= htmlspecialchars($old['equipo_gse_inoperativo'] ?? '') ?></textarea>
+                <label class="form-label">Equipo GSE Inoperativo</label>
+                <div class="border rounded p-3 d-flex flex-wrap gap-3" style="background:var(--bg-body);">
+                    <?php foreach ($gseOpciones as $gse): ?>
+                        <?php $gseId = 'gse_' . str_replace('/', '_', $gse); ?>
+                        <div class="form-check">
+                            <input class="form-check-input gse-check" type="checkbox"
+                                name="equipo_gse_inoperativo[]"
+                                id="<?= $gseId ?>" value="<?= $gse ?>"
+                                <?= in_array($gse, $gseSeleccionados) ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="<?= $gseId ?>"><?= $gse ?></label>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
 
             <div class="col-md-3">
                 <label for="afecto_operacion" class="form-label">¿Afectó la operación?</label>
-                <select class="form-select" id="afecto_operacion" name="afecto_operacion">
+                <select class="form-select" id="afecto_operacion" name="afecto_operacion"
+                    style="pointer-events:none;background:var(--bg-body);">
                     <option value="0" <?= !($old['afecto_operacion'] ?? 0) ? 'selected' : '' ?>>No</option>
                     <option value="1" <?= ($old['afecto_operacion'] ?? 0) ? 'selected' : '' ?>>Sí</option>
                 </select>
@@ -446,4 +483,14 @@ document.getElementById('dia').addEventListener('input', function() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
 });
+
+// GSE Inoperativo -> Afectó la operación (auto)
+function updateAfectoOperacion() {
+    const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
+    document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
+}
+document.querySelectorAll('.gse-check').forEach(function(cb) {
+    cb.addEventListener('change', updateAfectoOperacion);
+});
+updateAfectoOperacion();
 </script>

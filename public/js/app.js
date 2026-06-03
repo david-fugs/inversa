@@ -93,22 +93,27 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ── Cálculo automático ACU ────────────────────────── */
     initAcuCalculation();
 
+    /* ── Cálculo despacho según base ───────────────────── */
+    initDespachoCalc();
+
     /* ── Tipo de avión por aerolínea (AJAX) ────────────── */
     initAircraftByAirline();
 });
 
 /* ── Tiempo de tránsito ───────────────────────────────── */
 function initTransitCalculation() {
+    const horaItineradaLlegada = document.getElementById('hora_itinerada_llegada');
     const horaRealLlegada = document.getElementById('hora_real_llegada');
     const horaRealSalida  = document.getElementById('hora_real_salida');
     const tiempoDisplay   = document.getElementById('tiempo_transito_display');
     const tiempoInput     = document.getElementById('tiempo_transito');
     const cumpleDisplay   = document.getElementById('cumple_tiempo_display');
     const cumpleInput     = document.getElementById('cumple_tiempo');
+    const demoraInput     = document.getElementById('demora_llegando');
 
     if (!horaRealLlegada || !horaRealSalida) return;
 
-    function calcular() {
+    function calcularTransito() {
         const llegada = timeToMinutes(horaRealLlegada.value);
         const salida  = timeToMinutes(horaRealSalida.value);
 
@@ -140,9 +145,22 @@ function initTransitCalculation() {
         }
     }
 
-    horaRealLlegada.addEventListener('change', calcular);
-    horaRealSalida.addEventListener('change', calcular);
-    calcular();
+    function calcularDemora() {
+        if (!demoraInput) return;
+        const itinerada = timeToMinutes(horaItineradaLlegada ? horaItineradaLlegada.value : '');
+        const real      = timeToMinutes(horaRealLlegada.value);
+        if (itinerada === null || real === null) { demoraInput.value = 0; return; }
+        let diff = real - itinerada;
+        if (diff < 0) diff = 0;
+        demoraInput.value = diff;
+    }
+
+    horaRealLlegada.addEventListener('change', calcularTransito);
+    horaRealLlegada.addEventListener('change', calcularDemora);
+    horaRealSalida.addEventListener('change', calcularTransito);
+    if (horaItineradaLlegada) horaItineradaLlegada.addEventListener('change', calcularDemora);
+    calcularTransito();
+    calcularDemora();
 }
 
 /* ── Cálculo GPU ──────────────────────────────────────── */
@@ -160,6 +178,15 @@ function initGpuCalculation() {
         let diff = d - c;
         if (diff < 0) diff += 1440;
         if (tiempoGpu) tiempoGpu.value = diff;
+
+        // Fracciones ADC GPU = (tiempo_gpu - 70) / 15
+        const fracGpu     = document.getElementById('fracciones_adc_gpu');
+        const fracAdicGpu = document.getElementById('fracciones_adicionales_gpu');
+        if (fracGpu) {
+            const val = (diff - 70) / 15;
+            fracGpu.value = val.toFixed(2);
+            if (fracAdicGpu) fracAdicGpu.value = Math.max(0, val).toFixed(2);
+        }
     }
 
     conexion.addEventListener('change', calcular);
@@ -171,6 +198,7 @@ function initAcuCalculation() {
     const conexion     = document.getElementById('hora_conexion_acu');
     const desconexion  = document.getElementById('hora_desconexion_acu');
     const tiempoAcu    = document.getElementById('tiempo_acu');
+    const acuSelect    = document.getElementById('acu');
 
     if (!conexion || !desconexion) return;
 
@@ -182,15 +210,24 @@ function initAcuCalculation() {
         if (diff < 0) diff += 1440;
         if (tiempoAcu) tiempoAcu.value = diff;
 
-        // Fracciones hora
+        // Fracciones hora ACU: 1 si ACU=Sí, 0 si No
         const fracHora = document.getElementById('fracciones_hora_acu');
         const frac15   = document.getElementById('fracciones_15min_acu');
-        if (fracHora) fracHora.value = (diff / 60).toFixed(2);
-        if (frac15)   frac15.value   = (diff / 15).toFixed(2);
+        const acuVal   = acuSelect ? parseInt(acuSelect.value) : 0;
+        if (fracHora) fracHora.value = acuVal ? '1.00' : '0.00';
+        // Fracciones 15 min ACU = (tiempo_acu - 60) / 15
+        if (frac15)   frac15.value   = ((diff - 60) / 15).toFixed(2);
+    }
+
+    function calcularFracHora() {
+        const fracHora = document.getElementById('fracciones_hora_acu');
+        const acuVal   = acuSelect ? parseInt(acuSelect.value) : 0;
+        if (fracHora) fracHora.value = acuVal ? '1.00' : '0.00';
     }
 
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
+    if (acuSelect) acuSelect.addEventListener('change', calcularFracHora);
 }
 
 /* ── Tipos de avión por aerolínea ─────────────────────── */
@@ -257,6 +294,25 @@ function initAircraftByAirline() {
             if (llegada) llegada.dispatchEvent(new Event('input'));
         }
     });
+}
+
+/* ── Cálculo de despacho según base ──────────────────── */
+function initDespachoCalc() {
+    const baseSelect      = document.getElementById('base');
+    const despachoInput   = document.getElementById('despacho');
+    const despachoDisplay = document.getElementById('despacho_display');
+    const BASES_DESPACHO  = ['VUP', 'PPN', 'EJA', 'VVC', 'EYP'];
+
+    if (!baseSelect) return;
+
+    function calcular() {
+        const esSi = BASES_DESPACHO.includes(baseSelect.value);
+        if (despachoInput)   despachoInput.value       = esSi ? '1' : '0';
+        if (despachoDisplay) despachoDisplay.textContent = esSi ? 'Sí' : 'No';
+    }
+
+    baseSelect.addEventListener('change', calcular);
+    calcular();
 }
 
 /* ── Filas dinámicas GPU ──────────────────────────────── */

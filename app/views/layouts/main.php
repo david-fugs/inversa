@@ -50,6 +50,7 @@
             </a>
         </div>
 
+        <?php if (Session::get('user_rol') === 'Administrador'): ?>
         <p class="nav-section-title">Catálogos</p>
 
         <div class="nav-item">
@@ -66,7 +67,6 @@
             </a>
         </div>
 
-        <?php if (Session::get('user_rol') === 'Administrador'): ?>
         <p class="nav-section-title">Administración</p>
 
         <div class="nav-item">

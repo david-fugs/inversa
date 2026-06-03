@@ -46,9 +46,14 @@
 
             <div class="col-md-6">
                 <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
-                <select class="form-select" id="base" name="base">
-                    <?php foreach (FlightService::$bases as $b): ?>
-                        <option value="<?= $b ?>" <?= $service['base'] === $b ? 'selected' : '' ?>><?= $b ?></option>
+                <?php
+                    $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
+                    $basesDisponibles = $baseColaborador ? [$baseColaborador] : FlightService::$bases;
+                ?>
+                <select class="form-select" id="base" name="base"
+                    <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>
+                    <?php foreach ($basesDisponibles as $b): ?>
+                        <option value="<?= $b ?>" <?= ($service['base'] === $b || $baseColaborador === $b) ? 'selected' : '' ?>><?= $b ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -60,6 +65,14 @@
                         <option value="<?= $ta ?>" <?= $service['tipo_atencion'] === $ta ? 'selected' : '' ?>><?= $ta ?></option>
                     <?php endforeach; ?>
                 </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Despacho</label>
+                <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
+                    <span id="despacho_display"><?= $service['despacho'] ? 'Sí' : 'No' ?></span>
+                </div>
+                <input type="hidden" name="despacho" id="despacho" value="<?= (int)$service['despacho'] ?>">
             </div>
 
         </div>
@@ -142,6 +155,11 @@
                 <input type="number" class="form-control" id="pax_cancelado" name="pax_cancelado"
                     value="<?= $service['pax_cancelado'] ?>" min="0">
             </div>
+            <div class="col-md-3">
+                <label for="ajes_transportados" class="form-label">Ajes Transportados</label>
+                <input type="number" class="form-control" id="ajes_transportados" name="ajes_transportados"
+                    value="<?= (int)($service['ajes_transportados'] ?? 0) ?>" min="0">
+            </div>
 
         </div>
     </div>
@@ -160,7 +178,8 @@
             <div class="col-md-3">
                 <label for="demora_llegando" class="form-label">Demora Llegando (min)</label>
                 <input type="number" class="form-control" id="demora_llegando" name="demora_llegando"
-                    value="<?= $service['demora_llegando'] ?>" min="0">
+                    value="<?= $service['demora_llegando'] ?>" min="0"
+                    readonly style="background:var(--bg-body);">
             </div>
             <div class="col-md-3">
                 <label for="hora_itinerada_salida" class="form-label">Hora Itinerada Salida</label>
@@ -226,32 +245,19 @@
                 <input type="number" class="form-control" id="tiempo_gpu" name="tiempo_gpu"
                     value="<?= $service['tiempo_gpu'] ?? '' ?>" readonly style="background:var(--bg-body);">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label for="fracciones_adc_gpu" class="form-label">Fracciones ADC GPU</label>
                 <input type="number" step="0.01" class="form-control" id="fracciones_adc_gpu" name="fracciones_adc_gpu"
-                    value="<?= number_format((float)($service['fracciones_adc_gpu'] ?? 0), 2) ?>">
+                    value="<?= number_format((float)($service['fracciones_adc_gpu'] ?? 0), 2) ?>"
+                    readonly style="background:var(--bg-body);">
+            </div>
+            <div class="col-md-2">
+                <label for="fracciones_adicionales_gpu" class="form-label">Fracciones Adicionales GPU</label>
+                <input type="number" step="0.01" class="form-control" id="fracciones_adicionales_gpu" name="fracciones_adicionales_gpu"
+                    value="<?= number_format((float)($service['fracciones_adicionales_gpu'] ?? 0), 2) ?>"
+                    readonly style="background:var(--bg-body);">
             </div>
         </div>
-        <div id="gpu-fracciones-container">
-            <?php foreach ($service['gpu_fracciones'] as $i => $gf): ?>
-            <div class="dynamic-row">
-                <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()"><i class="bi bi-x"></i></button>
-                <div class="row g-3">
-                    <div class="col-md-3"><label class="form-label">Hora Conexión</label>
-                        <input type="time" class="form-control" name="gpu_fracciones[<?= $i ?>][hora_conexion]" value="<?= $gf['hora_conexion'] ?? '' ?>"></div>
-                    <div class="col-md-3"><label class="form-label">Hora Desconexión</label>
-                        <input type="time" class="form-control" name="gpu_fracciones[<?= $i ?>][hora_desconexion]" value="<?= $gf['hora_desconexion'] ?? '' ?>" oninput="calcFraccionGpu(this)"></div>
-                    <div class="col-md-2"><label class="form-label">Tiempo (min)</label>
-                        <input type="number" class="form-control" name="gpu_fracciones[<?= $i ?>][tiempo]" value="<?= $gf['tiempo'] ?? '' ?>" readonly></div>
-                    <div class="col-md-4"><label class="form-label">Fracciones ADC GPU</label>
-                        <input type="number" step="0.01" class="form-control" name="gpu_fracciones[<?= $i ?>][fracciones_adc]" value="<?= $gf['fracciones_adc'] ?? 0 ?>"></div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addGpuRow()">
-            <i class="bi bi-plus-circle"></i> Agregar fracción GPU
-        </button>
     </div>
 </div>
 
@@ -311,7 +317,10 @@
             <div class="col-md-3"><label for="sillas_ruedas" class="form-label">Sillas de Ruedas</label>
                 <input type="number" class="form-control" id="sillas_ruedas" name="sillas_ruedas" value="<?= $service['sillas_ruedas'] ?>" min="0"></div>
             <div class="col-md-3"><label for="ventiladores" class="form-label">Ventiladores</label>
-                <input type="number" class="form-control" id="ventiladores" name="ventiladores" value="<?= $service['ventiladores'] ?>" min="0"></div>
+                <select class="form-select" id="ventiladores" name="ventiladores">
+                    <option value="0" <?= !$service['ventiladores'] ? 'selected' : '' ?>>No</option>
+                    <option value="1" <?= $service['ventiladores'] ? 'selected' : '' ?>>Sí</option>
+                </select></div>
             <div class="col-md-3"><label for="rampa_escalera" class="form-label">Rampa Escalera</label>
                 <select class="form-select" id="rampa_escalera" name="rampa_escalera">
                     <option value="0" <?= !$service['rampa_escalera'] ? 'selected' : '' ?>>No</option>
@@ -367,14 +376,31 @@
     <div class="card-header"><h5><i class="bi bi-chat-text-fill"></i> Observaciones Operativas</h5></div>
     <div class="card-body">
         <div class="row g-3">
+            <?php
+                $gseOpciones     = ['ACU','TRA','CON','PAY','ASU','E318/A320'];
+                $gseSeleccionados = !empty($service['equipo_gse_inoperativo'])
+                    ? array_map('trim', explode(',', $service['equipo_gse_inoperativo']))
+                    : [];
+            ?>
             <div class="col-md-9">
-                <label for="equipo_gse_inoperativo" class="form-label">Equipo GSE Inoperativo</label>
-                <textarea class="form-control" id="equipo_gse_inoperativo" name="equipo_gse_inoperativo"
-                    rows="3"><?= htmlspecialchars($service['equipo_gse_inoperativo'] ?? '') ?></textarea>
+                <label class="form-label">Equipo GSE Inoperativo</label>
+                <div class="border rounded p-3 d-flex flex-wrap gap-3" style="background:var(--bg-body);">
+                    <?php foreach ($gseOpciones as $gse): ?>
+                        <?php $gseId = 'gse_' . str_replace('/', '_', $gse); ?>
+                        <div class="form-check">
+                            <input class="form-check-input gse-check" type="checkbox"
+                                name="equipo_gse_inoperativo[]"
+                                id="<?= $gseId ?>" value="<?= $gse ?>"
+                                <?= in_array($gse, $gseSeleccionados) ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="<?= $gseId ?>"><?= $gse ?></label>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
             <div class="col-md-3">
                 <label for="afecto_operacion" class="form-label">¿Afectó la operación?</label>
-                <select class="form-select" id="afecto_operacion" name="afecto_operacion">
+                <select class="form-select" id="afecto_operacion" name="afecto_operacion"
+                    style="pointer-events:none;background:var(--bg-body);">
                     <option value="0" <?= !$service['afecto_operacion'] ? 'selected' : '' ?>>No</option>
                     <option value="1" <?= $service['afecto_operacion'] ? 'selected' : '' ?>>Sí</option>
                 </select>
@@ -402,4 +428,14 @@ document.getElementById('dia').addEventListener('input', function() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
 });
+
+// GSE Inoperativo -> Afectó la operación (auto)
+function updateAfectoOperacion() {
+    const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
+    document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
+}
+document.querySelectorAll('.gse-check').forEach(function(cb) {
+    cb.addEventListener('change', updateAfectoOperacion);
+});
+updateAfectoOperacion();
 </script>

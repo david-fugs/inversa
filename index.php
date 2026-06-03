@@ -41,12 +41,13 @@ $router->get('/auth/change-password',  'AuthController', 'changePasswordForm');
 $router->post('/auth/change-password', 'AuthController', 'changePassword');
 
 // ─── Usuarios ───────────────────────────────────────────────────────
-$router->get('/users',              'UsersController', 'index');
-$router->get('/users/create',       'UsersController', 'createForm');
-$router->post('/users/create',      'UsersController', 'store');
-$router->get('/users/edit/{id}',    'UsersController', 'editForm');
-$router->post('/users/edit/{id}',   'UsersController', 'update');
-$router->get('/users/delete/{id}',  'UsersController', 'delete');
+$router->get('/users',                      'UsersController', 'index');
+$router->get('/users/create',               'UsersController', 'createForm');
+$router->post('/users/create',              'UsersController', 'store');
+$router->get('/users/edit/{id}',            'UsersController', 'editForm');
+$router->post('/users/edit/{id}',           'UsersController', 'update');
+$router->get('/users/toggle-editar/{id}',   'UsersController', 'toggleEditar');
+$router->get('/users/delete/{id}',          'UsersController', 'delete');
 
 // ─── Aerolíneas ─────────────────────────────────────────────────────
 $router->get('/airlines',              'AirlinesController', 'index');

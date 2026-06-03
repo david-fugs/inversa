@@ -200,8 +200,11 @@
     <div class="card">
         <div class="card-header"><h5><i class="bi bi-chat-text-fill"></i> Observaciones Operativas</h5></div>
         <div class="card-body">
-            <p class="mb-2"><strong>Equipo GSE Inoperativo:</strong></p>
-            <p class="mb-2"><?= nl2br(htmlspecialchars($service['equipo_gse_inoperativo'])) ?></p>
+            <p class="mb-2"><strong>Equipo GSE Inoperativo:</strong>
+                <?php foreach (explode(',', $service['equipo_gse_inoperativo']) as $item): ?>
+                    <span class="badge badge-info ms-1"><?= htmlspecialchars(trim($item)) ?></span>
+                <?php endforeach; ?>
+            </p>
             <p class="mb-0"><strong>¿Afectó la operación?</strong>
                 <?= $service['afecto_operacion']
                     ? '<span class="indicator-si ms-2"><i class="bi bi-check-circle-fill"></i> Sí</span>'

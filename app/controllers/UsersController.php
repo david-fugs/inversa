@@ -13,8 +13,17 @@ class UsersController extends Controller {
         $this->userModel = new User();
     }
 
+    /** Sólo admins pueden acceder a la gestión de usuarios */
+    private function requireAdmin(): void {
+        if (Session::get('user_rol') !== 'Administrador') {
+            $this->redirectWith('flight-services', 'error', 'Acceso denegado.');
+            exit;
+        }
+    }
+
     /** Listar usuarios */
     public function index(): void {
+        $this->requireAdmin();
         $users = $this->userModel->getAllWithRol();
         $this->view('users/index', [
             'pageTitle'   => 'Gestión de Usuarios',
@@ -25,6 +34,7 @@ class UsersController extends Controller {
 
     /** Formulario crear */
     public function createForm(): void {
+        $this->requireAdmin();
         $roles = $this->userModel->getRoles();
         $this->view('users/create', [
             'pageTitle'   => 'Nuevo Usuario',
@@ -37,6 +47,7 @@ class UsersController extends Controller {
 
     /** Guardar nuevo usuario */
     public function store(): void {
+        $this->requireAdmin();
         $data = [
             'nombre_completo' => $this->input('nombre_completo'),
             'cedula'          => $this->input('cedula'),
@@ -44,6 +55,7 @@ class UsersController extends Controller {
             'password'        => $this->inputRaw('password'),
             'password_confirm'=> $this->inputRaw('password_confirm'),
             'rol_id'          => (int)$this->input('rol_id'),
+            'base_asociada'   => $this->input('base_asociada', ''),
         ];
 
         $errors = $this->validateUser($data);
@@ -66,6 +78,7 @@ class UsersController extends Controller {
 
     /** Formulario editar */
     public function editForm(string $id): void {
+        $this->requireAdmin();
         $user = $this->userModel->findById((int)$id);
         if (!$user) {
             $this->redirectWith('users', 'error', 'Usuario no encontrado.');
@@ -83,6 +96,7 @@ class UsersController extends Controller {
 
     /** Actualizar usuario */
     public function update(string $id): void {
+        $this->requireAdmin();
         $userId = (int)$id;
         $user   = $this->userModel->findById($userId);
         if (!$user) {
@@ -95,6 +109,7 @@ class UsersController extends Controller {
             'cedula'           => $this->input('cedula'),
             'usuario'          => $this->input('usuario'),
             'rol_id'           => (int)$this->input('rol_id'),
+            'base_asociada'    => $this->input('base_asociada', ''),
             'password'         => $this->inputRaw('password'),
             'password_confirm' => $this->inputRaw('password_confirm'),
         ];
@@ -125,6 +140,7 @@ class UsersController extends Controller {
 
     /** Eliminar usuario */
     public function delete(string $id): void {
+        $this->requireAdmin();
         $userId = (int)$id;
 
         // No permitir eliminar al usuario logueado
@@ -138,6 +154,13 @@ class UsersController extends Controller {
         } else {
             $this->redirectWith('users', 'error', 'No se pudo eliminar el usuario.');
         }
+    }
+
+    /** Activar/desactivar permiso de edición para colaborador */
+    public function toggleEditar(string $id): void {
+        $this->requireAdmin();
+        $this->userModel->togglePuedeEditar((int)$id);
+        $this->redirectWith('users', 'success', 'Permiso de edición actualizado.');
     }
 
     /** Validaciones de usuario */

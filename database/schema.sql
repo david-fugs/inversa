@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `flight_services` (
     `quincena`                TINYINT UNSIGNED  NOT NULL COMMENT '1=Primera, 2=Segunda',
     `dia`                     TINYINT UNSIGNED  NOT NULL COMMENT '1-31',
     `base`                    VARCHAR(10)       NOT NULL,
+    `despacho`                TINYINT(1)        NOT NULL DEFAULT 0 COMMENT '1=Sí (VUP/PPN/EJA/VVC/EYP), 0=No',
     -- Operación
     `airline_id`              INT UNSIGNED      NOT NULL,
     `tipo_atencion`           VARCHAR(40)       NOT NULL,
@@ -88,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `flight_services` (
     `aircraft_type_id`        INT UNSIGNED      NOT NULL,
     `pax_saliendo`            SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     `pax_cancelado`           SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `ajes_transportados`      SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     `vuelo_saliendo`          VARCHAR(20)       NOT NULL,
     -- Horarios
     `hora_itinerada_llegada`  TIME              NULL,
@@ -103,6 +105,7 @@ CREATE TABLE IF NOT EXISTS `flight_services` (
     `hora_desconexion_gpu`    TIME              NULL,
     `tiempo_gpu`              SMALLINT UNSIGNED NULL,
     `fracciones_adc_gpu`      DECIMAL(8,2)      NULL DEFAULT 0,
+    `fracciones_adicionales_gpu` DECIMAL(8,2)   NULL DEFAULT 0,
     -- ACU
     `acu`                     TINYINT(1)        NOT NULL DEFAULT 0,
     `hora_conexion_acu`       TIME              NULL,

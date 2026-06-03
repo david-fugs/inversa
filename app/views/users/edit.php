@@ -57,10 +57,11 @@
                         Rol <span class="required-mark">*</span>
                     </label>
                     <select class="form-select <?= isset($errors['rol_id']) ? 'is-invalid' : '' ?>"
-                            id="rol_id" name="rol_id">
+                            id="rol_id" name="rol_id" onchange="toggleBaseAsociada(this)">
                         <option value="">-- Seleccione un rol --</option>
                         <?php foreach ($roles as $rol): ?>
                             <option value="<?= $rol['id'] ?>"
+                                data-nombre="<?= htmlspecialchars($rol['nombre']) ?>"
                                 <?= $user['rol_id'] == $rol['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($rol['nombre']) ?>
                             </option>
@@ -68,6 +69,25 @@
                     </select>
                     <?php if (isset($errors['rol_id'])): ?>
                         <div class="invalid-feedback"><?= $errors['rol_id'] ?></div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="col-12" id="base_asociada_wrap"
+                     style="display:<?= ($user['rol_nombre'] ?? '') === 'Colaborador' ? 'block' : 'none' ?>">
+                    <label for="base_asociada" class="form-label">
+                        Base Asociada <span class="required-mark">*</span>
+                    </label>
+                    <select class="form-select <?= isset($errors['base_asociada']) ? 'is-invalid' : '' ?>"
+                            id="base_asociada" name="base_asociada">
+                        <option value="">-- Seleccione base --</option>
+                        <?php foreach (['AUC','BAQ','BOG','CLO','EJA','EYP','MDE','PPN','PSO','RCH','TCO','UIB','VUP','VVC'] as $b): ?>
+                            <option value="<?= $b ?>" <?= ($user['base_asociada'] ?? '') === $b ? 'selected' : '' ?>>
+                                <?= $b ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($errors['base_asociada'])): ?>
+                        <div class="invalid-feedback"><?= $errors['base_asociada'] ?></div>
                     <?php endif; ?>
                 </div>
 
@@ -115,3 +135,12 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleBaseAsociada(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const nombre = opt ? opt.dataset.nombre : '';
+    const wrap = document.getElementById('base_asociada_wrap');
+    if (wrap) wrap.style.display = nombre === 'Colaborador' ? 'block' : 'none';
+}
+</script>

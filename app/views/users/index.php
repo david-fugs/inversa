@@ -19,6 +19,8 @@
                         <th>Cédula</th>
                         <th>Usuario</th>
                         <th>Rol</th>
+                        <th>Base</th>
+                        <th>Puede Editar</th>
                         <th>Registrado</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -44,6 +46,20 @@
                                     <span class="badge badge-primary"><?= htmlspecialchars($u['rol_nombre']) ?></span>
                                 <?php endif; ?>
                             </td>
+                            <td>
+                                <?= $u['base_asociada'] ? '<span class="badge badge-info">' . htmlspecialchars($u['base_asociada']) . '</span>' : '<span class="text-muted">—</span>' ?>
+                            </td>
+                            <td class="text-center">
+                                <?php if ($u['rol_nombre'] === 'Colaborador'): ?>
+                                    <?php if ($u['puede_editar']): ?>
+                                        <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> Sí</span>
+                                    <?php else: ?>
+                                        <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?= date('d/m/Y', strtotime($u['created_at'])) ?></td>
                             <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">
@@ -51,6 +67,14 @@
                                        class="btn btn-icon btn-outline-primary btn-sm" title="Editar">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
+                                    <?php if ($u['rol_nombre'] === 'Colaborador'): ?>
+                                    <a href="<?= BASE_URL ?>/users/toggle-editar/<?= $u['id'] ?>"
+                                       class="btn btn-icon btn-sm <?= $u['puede_editar'] ? 'btn-warning' : 'btn-outline-warning' ?>"
+                                       title="<?= $u['puede_editar'] ? 'Quitar permiso de edición' : 'Dar permiso de edición' ?>"
+                                       data-confirm="¿Desea <?= $u['puede_editar'] ? 'quitar' : 'conceder' ?> permiso de edición a '<?= htmlspecialchars($u['nombre_completo']) ?>'?">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <?php endif; ?>
                                     <?php if ($u['id'] != Session::get('user_id')): ?>
                                     <a href="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>"
                                        class="btn btn-icon btn-danger btn-sm"

@@ -19,7 +19,15 @@ class FlightServicesController extends Controller {
 
     /** Listado principal */
     public function index(): void {
-        $services = $this->model->getAllWithJoins();
+        $rol  = Session::get('user_rol');
+        $base = Session::get('user_base_asociada');
+
+        if ($rol === 'Colaborador' && $base) {
+            $services = $this->model->getAllWithJoinsByBase($base);
+        } else {
+            $services = $this->model->getAllWithJoins();
+        }
+
         $this->view('flight_services/index', [
             'pageTitle'   => 'Servicios de Vuelo',
             'breadcrumbs' => ['Servicios de Vuelo' => null],
@@ -85,6 +93,10 @@ class FlightServicesController extends Controller {
 
     /** Formulario editar */
     public function editForm(string $id): void {
+        if (Session::get('user_rol') === 'Colaborador' && !Session::get('user_puede_editar')) {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
+            return;
+        }
         $service = $this->model->findFullById((int)$id);
         if (!$service) {
             $this->redirectWith('flight-services', 'error', 'Servicio no encontrado.');
@@ -103,6 +115,10 @@ class FlightServicesController extends Controller {
 
     /** Actualizar registro */
     public function update(string $id): void {
+        if (Session::get('user_rol') === 'Colaborador' && !Session::get('user_puede_editar')) {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
+            return;
+        }
         $serviceId = (int)$id;
         $service   = $this->model->findById($serviceId);
         if (!$service) {
@@ -143,6 +159,10 @@ class FlightServicesController extends Controller {
 
     /** Eliminar */
     public function delete(string $id): void {
+        if (Session::get('user_rol') === 'Colaborador') {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para eliminar registros.');
+            return;
+        }
         if ($this->model->delete((int)$id)) {
             $this->redirectWith('flight-services', 'success', 'Servicio eliminado correctamente.');
         } else {
@@ -158,6 +178,7 @@ class FlightServicesController extends Controller {
             'quincena'               => (int)$this->input('quincena', 1),
             'dia'                    => (int)$this->input('dia'),
             'base'                   => $this->input('base', ''),
+            'despacho'               => (int)$this->input('despacho', 0),
             'airline_id'             => (int)$this->input('airline_id'),
             'tipo_atencion'          => $this->input('tipo_atencion', ''),
             'vuelo_llegando'         => $this->input('vuelo_llegando', ''),
@@ -166,6 +187,7 @@ class FlightServicesController extends Controller {
             'aircraft_type_id'       => (int)$this->input('aircraft_type_id'),
             'pax_saliendo'           => (int)$this->input('pax_saliendo', 0),
             'pax_cancelado'          => (int)$this->input('pax_cancelado', 0),
+            'ajes_transportados'     => (int)$this->input('ajes_transportados', 0),
             'vuelo_saliendo'         => $this->input('vuelo_saliendo', ''),
             'hora_itinerada_llegada' => $this->inputRaw('hora_itinerada_llegada', ''),
             'demora_llegando'        => (int)$this->input('demora_llegando', 0),
@@ -175,10 +197,11 @@ class FlightServicesController extends Controller {
             'tiempo_transito'        => $this->inputRaw('tiempo_transito', ''),
             'cumple_tiempo'          => $this->inputRaw('cumple_tiempo', ''),
             // GPU
-            'hora_conexion_gpu'      => $this->inputRaw('hora_conexion_gpu', ''),
-            'hora_desconexion_gpu'   => $this->inputRaw('hora_desconexion_gpu', ''),
-            'tiempo_gpu'             => $this->inputRaw('tiempo_gpu', ''),
-            'fracciones_adc_gpu'     => (float)$this->input('fracciones_adc_gpu', 0),
+            'hora_conexion_gpu'          => $this->inputRaw('hora_conexion_gpu', ''),
+            'hora_desconexion_gpu'       => $this->inputRaw('hora_desconexion_gpu', ''),
+            'tiempo_gpu'                 => $this->inputRaw('tiempo_gpu', ''),
+            'fracciones_adc_gpu'         => (float)$this->input('fracciones_adc_gpu', 0),
+            'fracciones_adicionales_gpu' => (float)$this->input('fracciones_adicionales_gpu', 0),
             // ACU
             'acu'                    => (int)$this->input('acu', 0),
             'hora_conexion_acu'      => $this->inputRaw('hora_conexion_acu', ''),
@@ -196,7 +219,10 @@ class FlightServicesController extends Controller {
             'potable'                => (int)$this->input('potable', 0),
             'drenaje'                => (int)$this->input('drenaje', 0),
             // Observaciones
-            'equipo_gse_inoperativo' => $this->input('equipo_gse_inoperativo', ''),
+            'equipo_gse_inoperativo' => implode(',', array_intersect(
+                array_map('trim', (array)($_POST['equipo_gse_inoperativo'] ?? [])),
+                ['ACU','TRA','CON','PAY','ASU','E318/A320']
+            )),
             'afecto_operacion'       => (int)$this->input('afecto_operacion', 0),
         ];
     }
