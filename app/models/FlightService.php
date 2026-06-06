@@ -9,7 +9,7 @@ class FlightService extends Model
     protected string $table = 'flight_services';
 
     /** Bases disponibles */
-    public static array $bases = ['AUC', 'BAQ', 'BOG', 'CLO', 'EJA', 'EYP', 'MDE', 'PPN', 'PSO', 'RCH', 'TCO', 'UIB', 'VUP', 'VVC'];
+    public static array $bases = ['AUC',  'EJA', 'EYP', 'PPN', 'PSO', 'RCH', 'TCO', 'UIB', 'VUP', 'VVC','MTR'];
 
     /** Tipos de atención */
     public static array $tiposAtencion = [
@@ -105,9 +105,10 @@ class FlightService extends Model
 
         if (!$service) return false;
 
-        $service['gpu_fracciones']  = $this->getGpuFracciones($id);
-        $service['acu_fracciones']  = $this->getAcuFracciones($id);
-        $service['adicionales']     = $this->getAdicionales($id);
+        $service['gpu_fracciones']      = $this->getGpuFracciones($id);
+        $service['acu_fracciones']      = $this->getAcuFracciones($id);
+        $service['ventiladores_fracciones'] = $this->getVentiladoresFracciones($id);
+        $service['adicionales']         = $this->getAdicionales($id);
 
         return $service;
     }
@@ -128,6 +129,14 @@ class FlightService extends Model
         );
     }
 
+    public function getVentiladoresFracciones(int $serviceId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM flight_service_ventiladores_fracciones WHERE flight_service_id = ?",
+            [$serviceId]
+        );
+    }
+
     public function getAdicionales(int $serviceId): array
     {
         return $this->db->fetchAll(
@@ -139,7 +148,7 @@ class FlightService extends Model
     /**
      * Crear servicio de vuelo con todos sus relacionados
      */
-    public function create(array $data, array $gpuFracciones, array $acuFracciones, array $adicionales): int
+    public function create(array $data, array $gpuFracciones, array $acuFracciones, array $ventiladoresFracciones, array $adicionales): int
     {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
@@ -154,15 +163,18 @@ class FlightService extends Model
                     hora_itinerada_llegada, demora_llegando,
                     hora_itinerada_salida, hora_real_llegada, hora_real_salida,
                     tiempo_transito, cumple_tiempo,
+                    codigo_demora, observacion_demora,
                     hora_conexion_gpu, hora_desconexion_gpu, tiempo_gpu, fracciones_adc_gpu, fracciones_adicionales_gpu,
                     acu, hora_conexion_acu, hora_desconexion_acu, tiempo_acu,
                     fracciones_hora_acu, fracciones_15min_acu,
+                    ventiladores_activo, hora_conexion_ventiladores, hora_desconexion_ventiladores, tiempo_ventiladores,
+                    fracciones_hora_ventiladores, fracciones_15min_ventiladores,
                     sillas_ruedas, ventiladores, rampa_escalera,
                     equipajes_transportados, remolque_aeronave, remolque_equipajes,
                     potable, drenaje,
-                    equipo_gse_inoperativo, afecto_operacion, user_id
+                    equipo_gse_inoperativo, afecto_operacion, rpn, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['anio'],
@@ -188,6 +200,8 @@ class FlightService extends Model
                     $data['hora_real_salida'] ?: null,
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,
                     $data['cumple_tiempo'] !== '' ? $data['cumple_tiempo'] : null,
+                    $data['codigo_demora'] ?: null,
+                    $data['observacion_demora'] ?: null,
                     $data['hora_conexion_gpu'] ?: null,
                     $data['hora_desconexion_gpu'] ?: null,
                     $data['tiempo_gpu'] !== '' ? $data['tiempo_gpu'] : null,
@@ -199,6 +213,12 @@ class FlightService extends Model
                     $data['tiempo_acu'] !== '' ? $data['tiempo_acu'] : null,
                     $data['fracciones_hora_acu'],
                     $data['fracciones_15min_acu'],
+                    $data['ventiladores_activo'],
+                    $data['hora_conexion_ventiladores'] ?: null,
+                    $data['hora_desconexion_ventiladores'] ?: null,
+                    $data['tiempo_ventiladores'] !== '' ? $data['tiempo_ventiladores'] : null,
+                    $data['fracciones_hora_ventiladores'],
+                    $data['fracciones_15min_ventiladores'],
                     $data['sillas_ruedas'],
                     $data['ventiladores'],
                     $data['rampa_escalera'],
@@ -209,6 +229,7 @@ class FlightService extends Model
                     $data['drenaje'],
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
+                    $data['rpn'] ?: null,
                     $data['user_id'],
                 ]
             );
@@ -217,6 +238,7 @@ class FlightService extends Model
 
             $this->saveGpuFracciones($serviceId, $gpuFracciones);
             $this->saveAcuFracciones($serviceId, $acuFracciones);
+            $this->saveVentiladoresFracciones($serviceId, $ventiladoresFracciones);
             $this->saveAdicionales($serviceId, $adicionales);
 
             $pdo->commit();
@@ -230,7 +252,7 @@ class FlightService extends Model
     /**
      * Actualizar servicio de vuelo
      */
-    public function update(int $id, array $data, array $gpuFracciones, array $acuFracciones, array $adicionales): bool
+    public function update(int $id, array $data, array $gpuFracciones, array $acuFracciones, array $ventiladoresFracciones, array $adicionales): bool
     {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
@@ -245,13 +267,16 @@ class FlightService extends Model
                     hora_itinerada_llegada=?, demora_llegando=?,
                     hora_itinerada_salida=?, hora_real_llegada=?, hora_real_salida=?,
                     tiempo_transito=?, cumple_tiempo=?,
+                    codigo_demora=?, observacion_demora=?,
                     hora_conexion_gpu=?, hora_desconexion_gpu=?, tiempo_gpu=?, fracciones_adc_gpu=?, fracciones_adicionales_gpu=?,
                     acu=?, hora_conexion_acu=?, hora_desconexion_acu=?, tiempo_acu=?,
                     fracciones_hora_acu=?, fracciones_15min_acu=?,
+                    ventiladores_activo=?, hora_conexion_ventiladores=?, hora_desconexion_ventiladores=?, tiempo_ventiladores=?,
+                    fracciones_hora_ventiladores=?, fracciones_15min_ventiladores=?,
                     sillas_ruedas=?, ventiladores=?, rampa_escalera=?,
                     equipajes_transportados=?, remolque_aeronave=?, remolque_equipajes=?,
                     potable=?, drenaje=?,
-                    equipo_gse_inoperativo=?, afecto_operacion=?
+                    equipo_gse_inoperativo=?, afecto_operacion=?, rpn=?
                  WHERE id=?",
                 [
                     $data['anio'],
@@ -277,6 +302,8 @@ class FlightService extends Model
                     $data['hora_real_salida'] ?: null,
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,
                     $data['cumple_tiempo'] !== '' ? $data['cumple_tiempo'] : null,
+                    $data['codigo_demora'] ?: null,
+                    $data['observacion_demora'] ?: null,
                     $data['hora_conexion_gpu'] ?: null,
                     $data['hora_desconexion_gpu'] ?: null,
                     $data['tiempo_gpu'] !== '' ? $data['tiempo_gpu'] : null,
@@ -288,6 +315,12 @@ class FlightService extends Model
                     $data['tiempo_acu'] !== '' ? $data['tiempo_acu'] : null,
                     $data['fracciones_hora_acu'],
                     $data['fracciones_15min_acu'],
+                    $data['ventiladores_activo'],
+                    $data['hora_conexion_ventiladores'] ?: null,
+                    $data['hora_desconexion_ventiladores'] ?: null,
+                    $data['tiempo_ventiladores'] !== '' ? $data['tiempo_ventiladores'] : null,
+                    $data['fracciones_hora_ventiladores'],
+                    $data['fracciones_15min_ventiladores'],
                     $data['sillas_ruedas'],
                     $data['ventiladores'],
                     $data['rampa_escalera'],
@@ -298,6 +331,7 @@ class FlightService extends Model
                     $data['drenaje'],
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
+                    $data['rpn'] ?: null,
                     $id,
                 ]
             );
@@ -305,10 +339,12 @@ class FlightService extends Model
             // Reemplazar relacionados
             $this->db->query("DELETE FROM flight_service_gpu_fracciones WHERE flight_service_id=?", [$id]);
             $this->db->query("DELETE FROM flight_service_acu_fracciones WHERE flight_service_id=?", [$id]);
+            $this->db->query("DELETE FROM flight_service_ventiladores_fracciones WHERE flight_service_id=?", [$id]);
             $this->db->query("DELETE FROM flight_service_adicionales WHERE flight_service_id=?", [$id]);
 
             $this->saveGpuFracciones($id, $gpuFracciones);
             $this->saveAcuFracciones($id, $acuFracciones);
+            $this->saveVentiladoresFracciones($id, $ventiladoresFracciones);
             $this->saveAdicionales($id, $adicionales);
 
             $pdo->commit();
@@ -344,6 +380,26 @@ class FlightService extends Model
             if (empty($row['hora_conexion']) && empty($row['hora_desconexion'])) continue;
             $this->db->query(
                 "INSERT INTO flight_service_acu_fracciones
+                 (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_hora, fracciones_15min)
+                 VALUES (?,?,?,?,?,?)",
+                [
+                    $serviceId,
+                    $row['hora_conexion']    ?: null,
+                    $row['hora_desconexion'] ?: null,
+                    $row['tiempo'] !== '' ? (int)$row['tiempo'] : null,
+                    (float)($row['fracciones_hora']  ?? 0),
+                    (float)($row['fracciones_15min'] ?? 0),
+                ]
+            );
+        }
+    }
+
+    private function saveVentiladoresFracciones(int $serviceId, array $rows): void
+    {
+        foreach ($rows as $row) {
+            if (empty($row['hora_conexion']) && empty($row['hora_desconexion'])) continue;
+            $this->db->query(
+                "INSERT INTO flight_service_ventiladores_fracciones
                  (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_hora, fracciones_15min)
                  VALUES (?,?,?,?,?,?)",
                 [

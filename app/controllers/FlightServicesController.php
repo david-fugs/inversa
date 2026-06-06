@@ -48,8 +48,14 @@ class FlightServicesController extends Controller {
 
     /** Guardar nuevo registro */
     public function store(): void {
+        // Log inicial para debugging
+        error_log(date('Y-m-d H:i:s') . " | STORE START | POST recibido\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
+        
         $data   = $this->collectFormData();
+        error_log(date('Y-m-d H:i:s') . " | DATA COLLECTED | Airline ID: " . ($data['airline_id'] ?? 'NULL') . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
+        
         $errors = $this->validateFormData($data);
+        error_log(date('Y-m-d H:i:s') . " | VALIDATION RESULT | Errors count: " . count($errors) . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
 
         if (!empty($errors)) {
             $this->view('flight_services/create', [
@@ -67,13 +73,28 @@ class FlightServicesController extends Controller {
 
         $gpuFracciones = $_POST['gpu_fracciones'] ?? [];
         $acuFracciones = $_POST['acu_fracciones'] ?? [];
+        $ventiladoresFracciones = $_POST['ventiladores_fracciones'] ?? [];
         $adicionales   = $_POST['adicionales'] ?? [];
 
         try {
-            $id = $this->model->create($data, $gpuFracciones, $acuFracciones, $adicionales);
+            error_log(date('Y-m-d H:i:s') . " | BEFORE INSERT | About to call model->create\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
+            
+            $id = $this->model->create($data, $gpuFracciones, $acuFracciones, $ventiladoresFracciones, $adicionales);
+            
+            error_log(date('Y-m-d H:i:s') . " | CREATE SUCCESS | ID: $id\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
+            
             $this->redirectWith('flight-services/view/' . $id, 'success', 'Servicio de vuelo registrado correctamente.');
         } catch (\Exception $e) {
-            $this->redirectWith('flight-services/create', 'error', 'Error al guardar el registro. Intente de nuevo.');
+            // Registrar error en log
+            $logMessage = date('Y-m-d H:i:s') . " | STORE ERROR | " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine() . "\n";
+            error_log($logMessage, 3, dirname(__DIR__) . '/../logs/flight_services.log');
+            
+            // En desarrollo, mostrar error más detallado
+            $errorMsg = 'Error al guardar el registro.';
+            if (defined('DEBUG') && DEBUG) {
+                $errorMsg .= ' ' . $e->getMessage();
+            }
+            $this->redirectWith('flight-services/create', 'error', $errorMsg);
         }
     }
 
@@ -147,13 +168,23 @@ class FlightServicesController extends Controller {
 
         $gpuFracciones = $_POST['gpu_fracciones'] ?? [];
         $acuFracciones = $_POST['acu_fracciones'] ?? [];
+        $ventiladoresFracciones = $_POST['ventiladores_fracciones'] ?? [];
         $adicionales   = $_POST['adicionales'] ?? [];
 
         try {
-            $this->model->update($serviceId, $data, $gpuFracciones, $acuFracciones, $adicionales);
+            $this->model->update($serviceId, $data, $gpuFracciones, $acuFracciones, $ventiladoresFracciones, $adicionales);
             $this->redirectWith('flight-services/view/' . $serviceId, 'success', 'Servicio actualizado correctamente.');
         } catch (\Exception $e) {
-            $this->redirectWith('flight-services/edit/' . $serviceId, 'error', 'Error al actualizar. Intente de nuevo.');
+            // Registrar error en log
+            $logMessage = date('Y-m-d H:i:s') . " | UPDATE ERROR | ID: $serviceId | " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine() . "\n";
+            error_log($logMessage, 3, dirname(__DIR__) . '/../logs/flight_services.log');
+            
+            // En desarrollo, mostrar error más detallado
+            $errorMsg = 'Error al actualizar. Intente de nuevo.';
+            if (defined('DEBUG') && DEBUG) {
+                $errorMsg .= ' ' . $e->getMessage();
+            }
+            $this->redirectWith('flight-services/edit/' . $serviceId, 'error', $errorMsg);
         }
     }
 
@@ -196,6 +227,9 @@ class FlightServicesController extends Controller {
             'hora_real_salida'       => $this->inputRaw('hora_real_salida', ''),
             'tiempo_transito'        => $this->inputRaw('tiempo_transito', ''),
             'cumple_tiempo'          => $this->inputRaw('cumple_tiempo', ''),
+            // Campos de demora cuando NO cumple tiempo
+            'codigo_demora'          => $this->input('codigo_demora', ''),
+            'observacion_demora'     => $this->input('observacion_demora', ''),
             // GPU
             'hora_conexion_gpu'          => $this->inputRaw('hora_conexion_gpu', ''),
             'hora_desconexion_gpu'       => $this->inputRaw('hora_desconexion_gpu', ''),
@@ -209,6 +243,13 @@ class FlightServicesController extends Controller {
             'tiempo_acu'             => $this->inputRaw('tiempo_acu', ''),
             'fracciones_hora_acu'    => (float)$this->input('fracciones_hora_acu', 0),
             'fracciones_15min_acu'   => (float)$this->input('fracciones_15min_acu', 0),
+            // Ventiladores
+            'ventiladores_activo'             => (int)$this->input('ventiladores_activo', 0),
+            'hora_conexion_ventiladores'      => $this->inputRaw('hora_conexion_ventiladores', ''),
+            'hora_desconexion_ventiladores'   => $this->inputRaw('hora_desconexion_ventiladores', ''),
+            'tiempo_ventiladores'             => $this->inputRaw('tiempo_ventiladores', ''),
+            'fracciones_hora_ventiladores'    => (float)$this->input('fracciones_hora_ventiladores', 0),
+            'fracciones_15min_ventiladores'   => (float)$this->input('fracciones_15min_ventiladores', 0),
             // Equipos
             'sillas_ruedas'          => (int)$this->input('sillas_ruedas', 0),
             'ventiladores'           => (int)$this->input('ventiladores', 0),
@@ -224,6 +265,7 @@ class FlightServicesController extends Controller {
                 ['ACU','TRA','CON','PAY','ASU','E318/A320']
             )),
             'afecto_operacion'       => (int)$this->input('afecto_operacion', 0),
+            'rpn'                    => $this->input('rpn', ''),
         ];
     }
 

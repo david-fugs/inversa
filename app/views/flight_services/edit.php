@@ -135,9 +135,10 @@
             <div class="col-md-3">
                 <label for="base_destino" class="form-label">Base Destino <span class="required-mark">*</span></label>
                 <select class="form-select" id="base_destino" name="base_destino">
-                    <?php foreach (FlightService::$bases as $b): ?>
-                        <option value="<?= $b ?>" <?= $service['base_destino'] === $b ? 'selected' : '' ?>><?= $b ?></option>
-                    <?php endforeach; ?>
+                    <option value="BAQ" <?= $service['base_destino'] === 'BAQ' ? 'selected' : '' ?>>BAQ</option>
+                    <option value="BOG" <?= $service['base_destino'] === 'BOG' ? 'selected' : '' ?>>BOG</option>
+                    <option value="CLO" <?= $service['base_destino'] === 'CLO' ? 'selected' : '' ?>>CLO</option>
+                    <option value="MDE" <?= $service['base_destino'] === 'MDE' ? 'selected' : '' ?>>MDE</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -220,6 +221,26 @@
                     </span>
                 </div>
                 <input type="hidden" name="cumple_tiempo" id="cumple_tiempo" value="<?= $service['cumple_tiempo'] ?? '' ?>">
+            </div>
+        </div>
+        <!-- Campos adicionales si NO cumple tiempo -->
+        <div id="demora-fields-container" style="display:none;">
+            <div class="row g-3 mt-2">
+                <div class="col-12">
+                    <hr class="my-2">
+                    <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Se debe completar la información de la demora</small></p>
+                </div>
+                <div class="col-md-3">
+                    <label for="codigo_demora" class="form-label">Código Demora</label>
+                    <input type="text" class="form-control" id="codigo_demora" name="codigo_demora"
+                        value="<?= htmlspecialchars($service['codigo_demora'] ?? '') ?>"
+                        placeholder="Ej: D001" style="text-transform:uppercase;">
+                </div>
+                <div class="col-md-9">
+                    <label for="observacion_demora" class="form-label">Observación de la Demora</label>
+                    <textarea class="form-control" id="observacion_demora" name="observacion_demora"
+                        placeholder="Describa el motivo de la demora..." rows="2"><?= htmlspecialchars($service['observacion_demora'] ?? '') ?></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -309,7 +330,68 @@
     </div>
 </div>
 
-<!-- ══ SECCIÓN 7: Equipos ════════════════════════════════ -->
+<!-- ══ SECCIÓN 6B: Ventiladores ═════════════════════════ -->
+<div class="card" id="ventiladores-card">
+    <div class="card-header"><h5><i class="bi bi-fan"></i> Ventiladores</h5></div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label">Ventiladores</label>
+                <select class="form-select" id="ventiladores_activo" name="ventiladores_activo">
+                    <option value="0" <?= !$service['ventiladores_activo'] ? 'selected' : '' ?>>No</option>
+                    <option value="1" <?= $service['ventiladores_activo'] ? 'selected' : '' ?>>Sí</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="hora_conexion_ventiladores" class="form-label">Hora Conexión Ventiladores</label>
+                <input type="time" class="form-control" id="hora_conexion_ventiladores" name="hora_conexion_ventiladores"
+                    value="<?= $service['hora_conexion_ventiladores'] ?? '' ?>">
+            </div>
+            <div class="col-md-3">
+                <label for="hora_desconexion_ventiladores" class="form-label">Hora Desconexión Ventiladores</label>
+                <input type="time" class="form-control" id="hora_desconexion_ventiladores" name="hora_desconexion_ventiladores"
+                    value="<?= $service['hora_desconexion_ventiladores'] ?? '' ?>">
+            </div>
+            <div class="col-md-3">
+                <label for="tiempo_ventiladores" class="form-label">Tiempo Ventiladores (min)</label>
+                <input type="number" class="form-control" id="tiempo_ventiladores" name="tiempo_ventiladores"
+                    value="<?= $service['tiempo_ventiladores'] ?? '' ?>" readonly style="background:var(--bg-body);">
+            </div>
+            <div class="col-md-3">
+                <label for="fracciones_hora_ventiladores" class="form-label">Fracciones Hora Ventiladores</label>
+                <input type="number" step="0.01" class="form-control" id="fracciones_hora_ventiladores" name="fracciones_hora_ventiladores"
+                    value="<?= number_format((float)($service['fracciones_hora_ventiladores'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
+            </div>
+            <div class="col-md-3">
+                <label for="fracciones_15min_ventiladores" class="form-label">Fracciones 15 min Ventiladores</label>
+                <input type="number" step="0.01" class="form-control" id="fracciones_15min_ventiladores" name="fracciones_15min_ventiladores"
+                    value="<?= number_format((float)($service['fracciones_15min_ventiladores'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
+            </div>
+        </div>
+        <div id="ventiladores-fracciones-container">
+            <?php foreach ($service['ventiladores_fracciones'] ?? [] as $i => $vf): ?>
+            <div class="dynamic-row">
+                <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()"><i class="bi bi-x"></i></button>
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">Hora Conexión</label>
+                        <input type="time" class="form-control" name="ventiladores_fracciones[<?= $i ?>][hora_conexion]" value="<?= $vf['hora_conexion'] ?? '' ?>"></div>
+                    <div class="col-md-3"><label class="form-label">Hora Desconexión</label>
+                        <input type="time" class="form-control" name="ventiladores_fracciones[<?= $i ?>][hora_desconexion]" value="<?= $vf['hora_desconexion'] ?? '' ?>" oninput="calcFraccionVentiladores(this)"></div>
+                    <div class="col-md-2"><label class="form-label">Tiempo (min)</label>
+                        <input type="number" class="form-control" name="ventiladores_fracciones[<?= $i ?>][tiempo]" value="<?= $vf['tiempo'] ?? '' ?>" readonly></div>
+                    <div class="col-md-2"><label class="form-label">Fracc. Hora</label>
+                        <input type="number" step="0.01" class="form-control" name="ventiladores_fracciones[<?= $i ?>][fracciones_hora]" value="<?= $vf['fracciones_hora'] ?? 0 ?>" readonly></div>
+                    <div class="col-md-2"><label class="form-label">Fracc. 15 min</label>
+                        <input type="number" step="0.01" class="form-control" name="ventiladores_fracciones[<?= $i ?>][fracciones_15min]" value="<?= $vf['fracciones_15min'] ?? 0 ?>" readonly></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addVentiladoresRow()">
+            <i class="bi bi-plus-circle"></i> Agregar fracción Ventiladores
+        </button>
+    </div>
+</div>
 <div class="card">
     <div class="card-header"><h5><i class="bi bi-tools"></i> Equipos y Servicios</h5></div>
     <div class="card-body">
@@ -406,6 +488,17 @@
                 </select>
             </div>
         </div>
+        <!-- Campo RPN si afectó la operación -->
+        <div id="rpn-field-container" style="display:none;">
+            <div class="row g-3 mt-3">
+                <div class="col-md-6">
+                    <label for="rpn" class="form-label">RPN</label>
+                    <input type="text" class="form-control" id="rpn" name="rpn"
+                        value="<?= htmlspecialchars($service['rpn'] ?? '') ?>"
+                        placeholder="Ingrese el RPN (alfanumérico)" style="text-transform:uppercase;">
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -433,9 +526,71 @@ document.getElementById('dia').addEventListener('input', function() {
 function updateAfectoOperacion() {
     const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
     document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
+    toggleRpnField();
 }
 document.querySelectorAll('.gse-check').forEach(function(cb) {
     cb.addEventListener('change', updateAfectoOperacion);
 });
 updateAfectoOperacion();
+
+// Mostrar/ocultar campos de demora cuando NO cumple tiempo
+function toggleDemoraFields() {
+    const cumpleInput = document.getElementById('cumple_tiempo');
+    const demoraContainer = document.getElementById('demora-fields-container');
+    if (cumpleInput && demoraContainer) {
+        const cumpleValue = cumpleInput.value;
+        demoraContainer.style.display = cumpleValue === '0' ? 'block' : 'none';
+    }
+}
+const observer = new MutationObserver(toggleDemoraFields);
+const cumpleInput = document.getElementById('cumple_tiempo');
+if (cumpleInput) {
+    observer.observe(cumpleInput, { attributes: true });
+    toggleDemoraFields();
+}
+
+// Mostrar/ocultar campo RPN cuando afectó la operación
+function toggleRpnField() {
+    const afectoInput = document.getElementById('afecto_operacion');
+    const rpnContainer = document.getElementById('rpn-field-container');
+    if (afectoInput && rpnContainer) {
+        rpnContainer.style.display = afectoInput.value === '1' ? 'block' : 'none';
+    }
+}
+const afectoInput = document.getElementById('afecto_operacion');
+if (afectoInput) {
+    afectoInput.addEventListener('change', toggleRpnField);
+    toggleRpnField();
+}
+
+// Deshabilitar secciones cuando tipo_atencion = "Cancelado"
+function toggleCanceladoSecciones() {
+    const tipoAtencion = document.getElementById('tipo_atencion');
+    const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
+    
+    const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'afecto_operacion', 'rpn'];
+    
+    fieldsToDisable.forEach(function(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            if (isCancelado) {
+                field.disabled = true;
+                field.removeAttribute('required');
+            } else {
+                field.disabled = false;
+            }
+        }
+    });
+    
+    // Deshabilitar checkboxes de GSE
+    document.querySelectorAll('.gse-check').forEach(function(cb) {
+        cb.disabled = isCancelado;
+    });
+}
+
+const tipoAtencionSelect = document.getElementById('tipo_atencion');
+if (tipoAtencionSelect) {
+    tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);
+    toggleCanceladoSecciones();
+}
 </script>

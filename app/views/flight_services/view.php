@@ -87,6 +87,11 @@
                         <small class="text-muted">(objetivo: <?= $service['tiempo_cumplimiento'] ?> min)</small>
                     <?php else: ?>—<?php endif; ?>
                 </td></tr>
+                <?php if (!$service['cumple_tiempo'] && !empty($service['codigo_demora'])): ?>
+                <tr><td colspan="2"><hr class="my-2"></td></tr>
+                <tr><td class="text-muted"><strong>Código Demora</strong></td><td><code><?= htmlspecialchars($service['codigo_demora']) ?></code></td></tr>
+                <tr><td class="text-muted"><strong>Observación Demora</strong></td><td><?= htmlspecialchars($service['observacion_demora'] ?? '') ?></td></tr>
+                <?php endif; ?>
             </table>
         </div>
     </div>
@@ -134,7 +139,22 @@
     </div>
 </div>
 
-<!-- Equipos y Servicios -->
+<!-- Ventiladores -->
+<div class="col-md-6">
+    <div class="card h-100">
+        <div class="card-header"><h5><i class="bi bi-fan"></i> Ventiladores</h5></div>
+        <div class="card-body">
+            <table class="table table-sm" style="font-size:14px;">
+                <tr><td class="text-muted" style="width:55%">Ventiladores</td><td><?= $service['ventiladores_activo'] ? '<span class="indicator-si"><i class="bi bi-check-circle-fill"></i> Sí</span>' : '<span class="indicator-no"><i class="bi bi-x-circle-fill"></i> No</span>' ?></td></tr>
+                <tr><td class="text-muted">Hora Conexión</td><td><?= $service['hora_conexion_ventiladores'] ?? '—' ?></td></tr>
+                <tr><td class="text-muted">Hora Desconexión</td><td><?= $service['hora_desconexion_ventiladores'] ?? '—' ?></td></tr>
+                <tr><td class="text-muted">Tiempo Ventiladores</td><td><?= $service['tiempo_ventiladores'] !== null ? $service['tiempo_ventiladores'] . ' min' : '—' ?></td></tr>
+                <tr><td class="text-muted">Fracciones Hora</td><td><?= $service['fracciones_hora_ventiladores'] ?? 0 ?></td></tr>
+                <tr><td class="text-muted">Fracciones 15 min</td><td><?= $service['fracciones_15min_ventiladores'] ?? 0 ?></td></tr>
+            </table>
+        </div>
+    </div>
+</div>
 <div class="col-md-6">
     <div class="card">
         <div class="card-header"><h5><i class="bi bi-tools"></i> Equipos y Servicios</h5></div>
@@ -210,6 +230,9 @@
                     ? '<span class="indicator-si ms-2"><i class="bi bi-check-circle-fill"></i> Sí</span>'
                     : '<span class="indicator-no ms-2"><i class="bi bi-x-circle-fill"></i> No</span>' ?>
             </p>
+            <?php if ($service['afecto_operacion'] && !empty($service['rpn'])): ?>
+            <p class="mb-0 mt-2"><strong>RPN:</strong> <code><?= htmlspecialchars($service['rpn']) ?></code></p>
+            <?php endif; ?>
         </div>
     </div>
 </div>

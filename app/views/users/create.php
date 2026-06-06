@@ -81,7 +81,7 @@
                     <select class="form-select <?= isset($errors['base_asociada']) ? 'is-invalid' : '' ?>"
                             id="base_asociada" name="base_asociada">
                         <option value="">-- Seleccione base --</option>
-                        <?php foreach (['AUC','BAQ','BOG','CLO','EJA','EYP','MDE','PPN','PSO','RCH','TCO','UIB','VUP','VVC'] as $b): ?>
+                        <?php foreach (['BAQ','BOG','CLO'] as $b): ?>
                             <option value="<?= $b ?>" <?= ($old['base_asociada'] ?? '') === $b ? 'selected' : '' ?>>
                                 <?= $b ?>
                             </option>

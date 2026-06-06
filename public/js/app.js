@@ -93,6 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ── Cálculo automático ACU ────────────────────────── */
     initAcuCalculation();
 
+    /* ── Cálculo automático Ventiladores ───────────────── */
+    initVentiladoresCalculation();
+
     /* ── Cálculo despacho según base ───────────────────── */
     initDespachoCalc();
 
@@ -228,6 +231,43 @@ function initAcuCalculation() {
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
     if (acuSelect) acuSelect.addEventListener('change', calcularFracHora);
+}
+
+/* ── Cálculo automático Ventiladores ─────────────────── */
+function initVentiladoresCalculation() {
+    const conexion     = document.getElementById('hora_conexion_ventiladores');
+    const desconexion  = document.getElementById('hora_desconexion_ventiladores');
+    const tiempoVent   = document.getElementById('tiempo_ventiladores');
+    const ventSelect   = document.getElementById('ventiladores_activo');
+
+    if (!conexion || !desconexion) return;
+
+    function calcular() {
+        const c = timeToMinutes(conexion.value);
+        const d = timeToMinutes(desconexion.value);
+        if (c === null || d === null) return;
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoVent) tiempoVent.value = diff;
+
+        // Fracciones hora Ventiladores: 1 si Ventiladores=Sí, 0 si No
+        const fracHora = document.getElementById('fracciones_hora_ventiladores');
+        const frac15   = document.getElementById('fracciones_15min_ventiladores');
+        const ventVal  = ventSelect ? parseInt(ventSelect.value) : 0;
+        if (fracHora) fracHora.value = ventVal ? '1.00' : '0.00';
+        // Fracciones 15 min Ventiladores = (tiempo_ventiladores - 60) / 15
+        if (frac15)   frac15.value   = ((diff - 60) / 15).toFixed(2);
+    }
+
+    function calcularFracHora() {
+        const fracHora = document.getElementById('fracciones_hora_ventiladores');
+        const ventVal  = ventSelect ? parseInt(ventSelect.value) : 0;
+        if (fracHora) fracHora.value = ventVal ? '1.00' : '0.00';
+    }
+
+    conexion.addEventListener('change', calcular);
+    desconexion.addEventListener('change', calcular);
+    if (ventSelect) ventSelect.addEventListener('change', calcularFracHora);
 }
 
 /* ── Tipos de avión por aerolínea ─────────────────────── */
@@ -400,6 +440,61 @@ function addAcuRow() {
 }
 
 function calcFraccionAcu(anyInput) {
+    const row            = anyInput.closest('.dynamic-row');
+    const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
+    const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
+    const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
+    const fracHoraInp    = row.querySelector('input[name$="[fracciones_hora]"]');
+    const frac15Inp      = row.querySelector('input[name$="[fracciones_15min]"]');
+    const c = timeToMinutes(conexionInp ? conexionInp.value : '');
+    const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
+    if (c !== null && d !== null) {
+        let diff = d - c;
+        if (diff < 0) diff += 1440;
+        if (tiempoInp)    tiempoInp.value    = diff;
+        if (fracHoraInp)  fracHoraInp.value  = (diff / 60).toFixed(2);
+        if (frac15Inp)    frac15Inp.value    = (diff / 15).toFixed(2);
+    }
+}
+
+/* ── Filas dinámicas Ventiladores ────────────────────── */
+function addVentiladoresRow() {
+    const container = document.getElementById('ventiladores-fracciones-container');
+    const idx = container.querySelectorAll('.dynamic-row').length;
+    const row = document.createElement('div');
+    row.className = 'dynamic-row';
+    row.innerHTML = `
+        <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()">
+            <i class="bi bi-x"></i>
+        </button>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Hora Conexión</label>
+                <input type="time" class="form-control" name="ventiladores_fracciones[${idx}][hora_conexion]"
+                    oninput="calcFraccionVentiladores(this)">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Hora Desconexión</label>
+                <input type="time" class="form-control" name="ventiladores_fracciones[${idx}][hora_desconexion]"
+                    oninput="calcFraccionVentiladores(this)">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Tiempo (min)</label>
+                <input type="number" class="form-control" name="ventiladores_fracciones[${idx}][tiempo]" readonly>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Fracc. Hora</label>
+                <input type="number" step="0.01" class="form-control" name="ventiladores_fracciones[${idx}][fracciones_hora]" readonly>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Fracc. 15 min</label>
+                <input type="number" step="0.01" class="form-control" name="ventiladores_fracciones[${idx}][fracciones_15min]" readonly>
+            </div>
+        </div>`;
+    container.appendChild(row);
+}
+
+function calcFraccionVentiladores(anyInput) {
     const row            = anyInput.closest('.dynamic-row');
     const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
     const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
