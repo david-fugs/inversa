@@ -48,12 +48,15 @@
                 <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
                 <?php
                     $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
-                    $basesDisponibles = $baseColaborador ? [$baseColaborador] : FlightService::$bases;
+                    $basesDisponibles = $baseColaborador ? [['nombre' => $baseColaborador]] : $bases;
                 ?>
                 <select class="form-select" id="base" name="base"
                     <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>
                     <?php foreach ($basesDisponibles as $b): ?>
-                        <option value="<?= $b ?>" <?= ($service['base'] === $b || $baseColaborador === $b) ? 'selected' : '' ?>><?= $b ?></option>
+                        <?php $baseNombre = $b['nombre']; ?>
+                        <option value="<?= htmlspecialchars($baseNombre) ?>" <?= ($service['base'] === $baseNombre || $baseColaborador === $baseNombre) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($baseNombre) ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -135,10 +138,12 @@
             <div class="col-md-3">
                 <label for="base_destino" class="form-label">Base Destino <span class="required-mark">*</span></label>
                 <select class="form-select" id="base_destino" name="base_destino">
-                    <option value="BAQ" <?= $service['base_destino'] === 'BAQ' ? 'selected' : '' ?>>BAQ</option>
-                    <option value="BOG" <?= $service['base_destino'] === 'BOG' ? 'selected' : '' ?>>BOG</option>
-                    <option value="CLO" <?= $service['base_destino'] === 'CLO' ? 'selected' : '' ?>>CLO</option>
-                    <option value="MDE" <?= $service['base_destino'] === 'MDE' ? 'selected' : '' ?>>MDE</option>
+                    <option value="">-- Destino --</option>
+                    <?php foreach ($baseDestinos as $bd): ?>
+                        <option value="<?= htmlspecialchars($bd['nombre']) ?>" <?= $service['base_destino'] === $bd['nombre'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($bd['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md-3">

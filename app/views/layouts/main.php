@@ -67,6 +67,20 @@
             </a>
         </div>
 
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/bases" class="nav-link">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span>Bases</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/base-destinos" class="nav-link">
+                <i class="bi bi-signpost-split-fill"></i>
+                <span>Bases Destino</span>
+            </a>
+        </div>
+
         <p class="nav-section-title">Administración</p>
 
         <div class="nav-item">

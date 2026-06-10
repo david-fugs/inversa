@@ -8,6 +8,8 @@ class FlightServicesController extends Controller {
     private FlightService $model;
     private Airline       $airlineModel;
     private AircraftType  $aircraftModel;
+    private Base          $baseModel;
+    private BaseDestino   $baseDestinoModel;
 
     public function __construct() {
         parent::__construct();
@@ -15,6 +17,8 @@ class FlightServicesController extends Controller {
         $this->model         = new FlightService();
         $this->airlineModel  = new Airline();
         $this->aircraftModel = new AircraftType();
+        $this->baseModel     = new Base();
+        $this->baseDestinoModel = new BaseDestino();
     }
 
     /** Listado principal */
@@ -41,6 +45,8 @@ class FlightServicesController extends Controller {
             'pageTitle'   => 'Nuevo Servicio de Vuelo',
             'breadcrumbs' => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Nuevo' => null],
             'airlines'    => $this->airlineModel->getAll(),
+            'bases'       => $this->baseModel->getAll(),
+            'baseDestinos'=> $this->baseDestinoModel->getAll(),
             'errors'      => [],
             'old'         => [],
         ]);
@@ -62,6 +68,8 @@ class FlightServicesController extends Controller {
                 'pageTitle'   => 'Nuevo Servicio de Vuelo',
                 'breadcrumbs' => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Nuevo' => null],
                 'airlines'    => $this->airlineModel->getAll(),
+                'bases'       => $this->baseModel->getAll(),
+                'baseDestinos'=> $this->baseDestinoModel->getAll(),
                 'errors'      => $errors,
                 'old'         => $data,
             ]);
@@ -130,6 +138,8 @@ class FlightServicesController extends Controller {
             'service'      => $service,
             'airlines'     => $this->airlineModel->getAll(),
             'aircraftTypes'=> $aircraftTypes,
+            'bases'        => $this->baseModel->getAll(),
+            'baseDestinos' => $this->baseDestinoModel->getAll(),
             'errors'       => [],
         ]);
     }
@@ -159,6 +169,8 @@ class FlightServicesController extends Controller {
                 'service'      => array_merge($service, $data),
                 'airlines'     => $this->airlineModel->getAll(),
                 'aircraftTypes'=> $aircraftTypes,
+                'bases'        => $this->baseModel->getAll(),
+                'baseDestinos' => $this->baseDestinoModel->getAll(),
                 'errors'       => $errors,
             ]);
             return;
@@ -282,7 +294,7 @@ class FlightServicesController extends Controller {
         if ($data['dia'] < 1 || $data['dia'] > 31) {
             $errors['dia'] = 'Ingrese un día válido (1-31).';
         }
-        if (!in_array($data['base'], FlightService::$bases, true)) {
+        if (!$this->baseModel->valueExists($data['base'])) {
             $errors['base'] = 'Seleccione una base válida.';
         }
         if (empty($data['airline_id'])) {
@@ -294,8 +306,8 @@ class FlightServicesController extends Controller {
         if (empty($data['vuelo_llegando'])) {
             $errors['vuelo_llegando'] = 'El número de vuelo llegando es obligatorio.';
         }
-        if (empty($data['base_destino'])) {
-            $errors['base_destino'] = 'La base destino es obligatoria.';
+        if (!$this->baseDestinoModel->valueExists($data['base_destino'])) {
+            $errors['base_destino'] = 'Seleccione una base destino válida.';
         }
         if (empty($data['matricula'])) {
             $errors['matricula'] = 'La matrícula es obligatoria.';

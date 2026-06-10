@@ -19,6 +19,16 @@ class User extends Model {
         );
     }
 
+    public function findById(int $id): array|false {
+        return $this->db->fetchOne(
+            "SELECT u.*, r.nombre AS rol_nombre
+             FROM users u
+             JOIN roles r ON u.rol_id = r.id
+             WHERE u.id = ?",
+            [$id]
+        );
+    }
+
     /**
      * Obtener todos los usuarios con nombre de rol
      */

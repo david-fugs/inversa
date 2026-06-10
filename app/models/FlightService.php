@@ -8,9 +8,6 @@ class FlightService extends Model
 {
     protected string $table = 'flight_services';
 
-    /** Bases disponibles */
-    public static array $bases = ['AUC',  'EJA', 'EYP', 'PPN', 'PSO', 'RCH', 'TCO', 'UIB', 'VUP', 'VVC','MTR'];
-
     /** Tipos de atención */
     public static array $tiposAtencion = [
         'Tránsito',

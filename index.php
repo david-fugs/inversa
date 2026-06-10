@@ -66,6 +66,22 @@ $router->post('/aircraft-types/edit/{id}',   'AircraftTypesController', 'update'
 $router->get('/aircraft-types/delete/{id}',  'AircraftTypesController', 'delete');
 $router->get('/aircraft-types/by-airline/{airline_id}', 'AircraftTypesController', 'byAirline');
 
+// ─── Bases ──────────────────────────────────────────────────────────
+$router->get('/bases',              'BasesController', 'index');
+$router->get('/bases/create',       'BasesController', 'createForm');
+$router->post('/bases/create',      'BasesController', 'store');
+$router->get('/bases/edit/{id}',    'BasesController', 'editForm');
+$router->post('/bases/edit/{id}',   'BasesController', 'update');
+$router->get('/bases/delete/{id}',  'BasesController', 'delete');
+
+// ─── Bases destino ──────────────────────────────────────────────────
+$router->get('/base-destinos',              'BaseDestinosController', 'index');
+$router->get('/base-destinos/create',       'BaseDestinosController', 'createForm');
+$router->post('/base-destinos/create',      'BaseDestinosController', 'store');
+$router->get('/base-destinos/edit/{id}',    'BaseDestinosController', 'editForm');
+$router->post('/base-destinos/edit/{id}',   'BaseDestinosController', 'update');
+$router->get('/base-destinos/delete/{id}',  'BaseDestinosController', 'delete');
+
 // ─── Servicios de vuelo ─────────────────────────────────────────────
 $router->get('/flight-services',              'FlightServicesController', 'index');
 $router->get('/flight-services/create',       'FlightServicesController', 'createForm');

@@ -80,9 +80,9 @@
                     <select class="form-select <?= isset($errors['base_asociada']) ? 'is-invalid' : '' ?>"
                             id="base_asociada" name="base_asociada">
                         <option value="">-- Seleccione base --</option>
-                        <?php foreach (['BAQ','BOG','CLO','MDE'] as $b): ?>
-                            <option value="<?= $b ?>" <?= ($user['base_asociada'] ?? '') === $b ? 'selected' : '' ?>>
-                                <?= $b ?>
+                        <?php foreach ($bases as $b): ?>
+                            <option value="<?= htmlspecialchars($b['nombre']) ?>" <?= ($user['base_asociada'] ?? '') === $b['nombre'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($b['nombre']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -143,4 +143,5 @@ function toggleBaseAsociada(sel) {
     const wrap = document.getElementById('base_asociada_wrap');
     if (wrap) wrap.style.display = nombre === 'Colaborador' ? 'block' : 'none';
 }
+toggleBaseAsociada(document.getElementById('rol_id'));
 </script>

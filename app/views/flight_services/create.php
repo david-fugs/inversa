@@ -56,13 +56,16 @@
                     <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
                     <?php
                     $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
-                    $basesDisponibles = $baseColaborador ? [$baseColaborador] : FlightService::$bases;
+                    $basesDisponibles = $baseColaborador ? [['nombre' => $baseColaborador]] : $bases;
                     ?>
                     <select class="form-select <?= isset($errors['base']) ? 'is-invalid' : '' ?>" id="base" name="base"
                         <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>
                         <option value="">-- Seleccione base --</option>
                         <?php foreach ($basesDisponibles as $b): ?>
-                            <option value="<?= $b ?>" <?= ($old['base'] ?? $baseColaborador ?? '') === $b ? 'selected' : '' ?>><?= $b ?></option>
+                            <?php $baseNombre = $b['nombre']; ?>
+                            <option value="<?= htmlspecialchars($baseNombre) ?>" <?= ($old['base'] ?? $baseColaborador ?? '') === $baseNombre ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($baseNombre) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                     <?php if (isset($errors['base'])): ?><div class="invalid-feedback"><?= $errors['base'] ?></div><?php endif; ?>
@@ -158,10 +161,11 @@
                     <select class="form-select <?= isset($errors['base_destino']) ? 'is-invalid' : '' ?>"
                         id="base_destino" name="base_destino">
                         <option value="">-- Destino --</option>
-                        <option value="BAQ" <?= ($old['base_destino'] ?? '') === 'BAQ' ? 'selected' : '' ?>>BAQ</option>
-                        <option value="BOG" <?= ($old['base_destino'] ?? '') === 'BOG' ? 'selected' : '' ?>>BOG</option>
-                        <option value="CLO" <?= ($old['base_destino'] ?? '') === 'CLO' ? 'selected' : '' ?>>CLO</option>
-                        <option value="MDE" <?= ($old['base_destino'] ?? '') === 'MDE' ? 'selected' : '' ?>>MDE</option>
+                        <?php foreach ($baseDestinos as $bd): ?>
+                            <option value="<?= htmlspecialchars($bd['nombre']) ?>" <?= ($old['base_destino'] ?? '') === $bd['nombre'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($bd['nombre']) ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <?php if (isset($errors['base_destino'])): ?><div class="invalid-feedback"><?= $errors['base_destino'] ?></div><?php endif; ?>
                 </div>

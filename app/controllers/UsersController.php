@@ -6,11 +6,13 @@
 class UsersController extends Controller {
 
     private User $userModel;
+    private Base $baseModel;
 
     public function __construct() {
         parent::__construct();
         Session::requireAuth();
         $this->userModel = new User();
+        $this->baseModel = new Base();
     }
 
     /** Sólo admins pueden acceder a la gestión de usuarios */
@@ -40,6 +42,7 @@ class UsersController extends Controller {
             'pageTitle'   => 'Nuevo Usuario',
             'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Nuevo' => null],
             'roles'       => $roles,
+            'bases'       => $this->baseModel->getAll(),
             'errors'      => [],
             'old'         => [],
         ]);
@@ -66,10 +69,15 @@ class UsersController extends Controller {
                 'pageTitle'   => 'Nuevo Usuario',
                 'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Nuevo' => null],
                 'roles'       => $roles,
+                'bases'       => $this->baseModel->getAll(),
                 'errors'      => $errors,
                 'old'         => $data,
             ]);
             return;
+        }
+
+        if (!$this->isColaboradorRole((int)$data['rol_id'])) {
+            $data['base_asociada'] = '';
         }
 
         $this->userModel->create($data);
@@ -90,6 +98,7 @@ class UsersController extends Controller {
             'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Editar' => null],
             'user'        => $user,
             'roles'       => $roles,
+            'bases'       => $this->baseModel->getAll(),
             'errors'      => [],
         ]);
     }
@@ -123,9 +132,14 @@ class UsersController extends Controller {
                 'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Editar' => null],
                 'user'        => array_merge($user, $data),
                 'roles'       => $roles,
+                'bases'       => $this->baseModel->getAll(),
                 'errors'      => $errors,
             ]);
             return;
+        }
+
+        if (!$this->isColaboradorRole((int)$data['rol_id'])) {
+            $data['base_asociada'] = '';
         }
 
         $this->userModel->update($userId, $data);
@@ -187,6 +201,14 @@ class UsersController extends Controller {
             $errors['rol_id'] = 'Seleccione un rol.';
         }
 
+        if ($this->isColaboradorRole((int)$data['rol_id'])) {
+            if (empty($data['base_asociada'])) {
+                $errors['base_asociada'] = 'Seleccione una base asociada.';
+            } elseif (!$this->baseModel->valueExists($data['base_asociada'])) {
+                $errors['base_asociada'] = 'Seleccione una base asociada válida.';
+            }
+        }
+
         // Contraseña obligatoria solo en creación
         if ($excludeId === 0) {
             if (empty($data['password'])) {
@@ -205,5 +227,14 @@ class UsersController extends Controller {
         }
 
         return $errors;
+    }
+
+    private function isColaboradorRole(int $rolId): bool {
+        foreach ($this->userModel->getRoles() as $rol) {
+            if ((int)$rol['id'] === $rolId) {
+                return $rol['nombre'] === 'Colaborador';
+            }
+        }
+        return false;
     }
 }
