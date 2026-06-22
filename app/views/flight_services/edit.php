@@ -464,7 +464,7 @@
     <div class="card-body">
         <div class="row g-3">
             <?php
-                $gseOpciones     = ['ACU','TRA','CON','PAY','ASU','E318/A320'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP'];
                 $gseSeleccionados = !empty($service['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $service['equipo_gse_inoperativo']))
                     : [];

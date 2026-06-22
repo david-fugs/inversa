@@ -1,6 +1,15 @@
 <?php
 $esColaborador  = Session::get('user_rol') === 'Colaborador';
 $puedeEditar    = (bool)Session::get('user_puede_editar');
+
+$meses = FlightService::$meses;
+$basesUniques = [];
+foreach ($services as $s) {
+    if (!in_array($s['base'], $basesUniques)) {
+        $basesUniques[] = $s['base'];
+    }
+}
+sort($basesUniques);
 ?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services/create" class="btn btn-primary">
@@ -8,10 +17,39 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
     </a>
 </div>
 
+<!-- ══ FILTROS ══════════════════════════════════════ -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="filter_fecha" class="form-label">Fecha</label>
+                <input type="date" class="form-control" id="filter_fecha" placeholder="Seleccionar fecha">
+            </div>
+            <div class="col-md-3">
+                <label for="filter_base" class="form-label">Base</label>
+                <select class="form-select" id="filter_base">
+                    <option value="">-- Todas --</option>
+                    <?php foreach ($basesUniques as $base): ?>
+                        <option value="<?= htmlspecialchars($base) ?>"><?= htmlspecialchars($base) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btn_limpiar_filtros">
+                    <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h5><i class="bi bi-clipboard2-pulse-fill"></i> Servicios de Vuelo</h5>
-        <span class="badge badge-primary"><?= count($services) ?> registros</span>
+        <span class="badge badge-primary" id="badge_registros"><?= count($services) ?> registros</span>
     </div>
     <div class="card-body p-0">
         <div class="table-wrapper">
@@ -102,3 +140,81 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
         </div>
     </div>
 </div>
+
+<script>
+    // Sistema de filtros
+    const filterInputs = {
+        fecha: document.getElementById('filter_fecha'),
+        base: document.getElementById('filter_base'),
+    };
+
+    const originalRows = Array.from(document.querySelectorAll('#tableServices tbody tr'));
+    const badgeRegistros = document.getElementById('badge_registros');
+    const mesesNombre = {
+        'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4, 'Mayo': 5, 'Junio': 6,
+        'Julio': 7, 'Agosto': 8, 'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
+    };
+
+    function aplicarFiltros() {
+        // Parsear fecha seleccionada (formato: YYYY-MM-DD)
+        let filtroFecha = null;
+        if (filterInputs.fecha.value) {
+            const [anio, mes, dia] = filterInputs.fecha.value.split('-');
+            filtroFecha = {
+                anio: parseInt(anio),
+                mes: parseInt(mes),
+                dia: parseInt(dia)
+            };
+        }
+
+        const filtroBase = filterInputs.base.value || null;
+        let visibles = 0;
+
+        originalRows.forEach(row => {
+            const diaMatch = row.querySelector('td:nth-child(2)');
+            const baseMatch = row.querySelector('td:nth-child(3)');
+
+            if (!diaMatch || !baseMatch) return;
+
+            const rowFecha = diaMatch.textContent.trim();
+            const rowBase = baseMatch.textContent.trim();
+
+            let mostrar = true;
+
+            // Filtrar por fecha si está seleccionada
+            if (filtroFecha) {
+                const [diaStr, mesStr, anioStr] = rowFecha.split('/');
+                const mesNum = mesesNombre[mesStr] || null;
+                const rowDia = parseInt(diaStr);
+                const rowMes = mesNum;
+                const rowAnio = parseInt(anioStr);
+
+                mostrar = mostrar &&
+                    (rowDia === filtroFecha.dia &&
+                    rowMes === filtroFecha.mes &&
+                    rowAnio === filtroFecha.anio);
+            }
+
+            // Filtrar por base
+            if (filtroBase) {
+                mostrar = mostrar && rowBase.includes(filtroBase);
+            }
+
+            row.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibles++;
+        });
+
+        badgeRegistros.textContent = visibles + ' registros';
+    }
+
+    // Event listeners para los filtros
+    filterInputs.fecha.addEventListener('change', aplicarFiltros);
+    filterInputs.base.addEventListener('change', aplicarFiltros);
+
+    // Botón limpiar filtros
+    document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
+        filterInputs.fecha.value = '';
+        filterInputs.base.value = '';
+        aplicarFiltros();
+    });
+</script>

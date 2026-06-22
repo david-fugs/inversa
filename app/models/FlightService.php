@@ -151,11 +151,15 @@ class FlightService extends Model
         $pdo->beginTransaction();
 
         try {
+            // Convertir 'otra' a null para airline_id (se usará airline_custom_nombre en su lugar)
+            $airlineId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['airline_id'];
+            $aircraftTypeId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['aircraft_type_id'];
+
             $this->db->query(
                 "INSERT INTO flight_services (
                     anio, mes, quincena, dia, base, despacho,
-                    airline_id, tipo_atencion,
-                    vuelo_llegando, base_destino, matricula, aircraft_type_id,
+                    airline_id, airline_custom_nombre, tipo_atencion,
+                    vuelo_llegando, base_destino, matricula, aircraft_type_id, aircraft_type_custom,
                     pax_saliendo, pax_cancelado, ajes_transportados, vuelo_saliendo,
                     hora_itinerada_llegada, demora_llegando,
                     hora_itinerada_salida, hora_real_llegada, hora_real_salida,
@@ -169,9 +173,9 @@ class FlightService extends Model
                     sillas_ruedas, ventiladores, rampa_escalera,
                     equipajes_transportados, remolque_aeronave, remolque_equipajes,
                     potable, drenaje,
-                    equipo_gse_inoperativo, afecto_operacion, rpn, user_id
+                    equipo_gse_inoperativo, afecto_operacion, rpn, observaciones, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['anio'],
@@ -180,12 +184,14 @@ class FlightService extends Model
                     $data['dia'],
                     $data['base'],
                     $data['despacho'],
-                    $data['airline_id'],
+                    $airlineId,
+                    $data['airline_custom_nombre'] ?: null,
                     $data['tipo_atencion'],
                     $data['vuelo_llegando'],
                     $data['base_destino'],
                     $data['matricula'],
-                    $data['aircraft_type_id'],
+                    $aircraftTypeId,
+                    $data['aircraft_type_custom'] ?: null,
                     $data['pax_saliendo'],
                     $data['pax_cancelado'],
                     $data['ajes_transportados'],
@@ -227,6 +233,7 @@ class FlightService extends Model
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
                     $data['rpn'] ?: null,
+                    $data['observaciones'] ?: null,
                     $data['user_id'],
                 ]
             );
@@ -255,11 +262,15 @@ class FlightService extends Model
         $pdo->beginTransaction();
 
         try {
+            // Convertir 'otra' a null para airline_id (se usará airline_custom_nombre en su lugar)
+            $airlineId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['airline_id'];
+            $aircraftTypeId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['aircraft_type_id'];
+
             $this->db->query(
                 "UPDATE flight_services SET
                     anio=?, mes=?, quincena=?, dia=?, base=?, despacho=?,
-                    airline_id=?, tipo_atencion=?,
-                    vuelo_llegando=?, base_destino=?, matricula=?, aircraft_type_id=?,
+                    airline_id=?, airline_custom_nombre=?, tipo_atencion=?,
+                    vuelo_llegando=?, base_destino=?, matricula=?, aircraft_type_id=?, aircraft_type_custom=?,
                     pax_saliendo=?, pax_cancelado=?, ajes_transportados=?, vuelo_saliendo=?,
                     hora_itinerada_llegada=?, demora_llegando=?,
                     hora_itinerada_salida=?, hora_real_llegada=?, hora_real_salida=?,
@@ -273,7 +284,7 @@ class FlightService extends Model
                     sillas_ruedas=?, ventiladores=?, rampa_escalera=?,
                     equipajes_transportados=?, remolque_aeronave=?, remolque_equipajes=?,
                     potable=?, drenaje=?,
-                    equipo_gse_inoperativo=?, afecto_operacion=?, rpn=?
+                    equipo_gse_inoperativo=?, afecto_operacion=?, rpn=?, observaciones=?
                  WHERE id=?",
                 [
                     $data['anio'],
@@ -282,12 +293,14 @@ class FlightService extends Model
                     $data['dia'],
                     $data['base'],
                     $data['despacho'],
-                    $data['airline_id'],
+                    $airlineId,
+                    $data['airline_custom_nombre'] ?: null,
                     $data['tipo_atencion'],
                     $data['vuelo_llegando'],
                     $data['base_destino'],
                     $data['matricula'],
-                    $data['aircraft_type_id'],
+                    $aircraftTypeId,
+                    $data['aircraft_type_custom'] ?: null,
                     $data['pax_saliendo'],
                     $data['pax_cancelado'],
                     $data['ajes_transportados'],
@@ -329,6 +342,7 @@ class FlightService extends Model
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
                     $data['rpn'] ?: null,
+                    $data['observaciones'] ?: null,
                     $id,
                 ]
             );

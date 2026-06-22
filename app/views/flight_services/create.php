@@ -112,6 +112,9 @@
                                 <?= htmlspecialchars($a['nombre']) ?>
                             </option>
                         <?php endforeach; ?>
+                        <option value="otra" <?= ($old['airline_id'] ?? '') === 'otra' ? 'selected' : '' ?>>
+                            Otra (especificar)
+                        </option>
                     </select>
                     <?php if (isset($errors['airline_id'])): ?><div class="invalid-feedback d-block"><?= $errors['airline_id'] ?></div><?php endif; ?>
                 </div>
@@ -124,6 +127,21 @@
                     </select>
                     <input type="hidden" id="tiempo_cumplimiento_ref" value="">
                     <?php if (isset($errors['aircraft_type_id'])): ?><div class="invalid-feedback d-block"><?= $errors['aircraft_type_id'] ?></div><?php endif; ?>
+                </div>
+
+                <!-- Campos personalizados cuando se selecciona "Otra" aerolínea -->
+                <div id="airline_custom_container" class="col-md-6" style="display:none;">
+                    <label for="airline_custom_nombre" class="form-label">Nombre de la Aerolínea <span class="required-mark">*</span></label>
+                    <input type="text" class="form-control" id="airline_custom_nombre" name="airline_custom_nombre"
+                        value="<?= htmlspecialchars($old['airline_custom_nombre'] ?? '') ?>"
+                        placeholder="Ej: Aerolínea XYZ" style="text-transform:uppercase;">
+                </div>
+
+                <div id="aircraft_type_custom_container" class="col-md-6" style="display:none;">
+                    <label for="aircraft_type_custom" class="form-label">Tipo de Avión <span class="required-mark">*</span></label>
+                    <input type="text" class="form-control" id="aircraft_type_custom" name="aircraft_type_custom"
+                        value="<?= htmlspecialchars($old['aircraft_type_custom'] ?? '') ?>"
+                        placeholder="Ej: Boeing 737" style="text-transform:uppercase;">
                 </div>
 
             </div>
@@ -188,7 +206,8 @@
                 <div class="col-md-3">
                     <label for="pax_cancelado" class="form-label">Pax Cancelado</label>
                     <input type="number" class="form-control" id="pax_cancelado" name="pax_cancelado"
-                        value="<?= (int)($old['pax_cancelado'] ?? 0) ?>" min="0">
+                        value="<?= (int)($old['pax_cancelado'] ?? 0) ?>" min="0"
+                        title="Se deshabilita automáticamente cuando el tipo de atención es Tránsito">
                 </div>
 
                 <div class="col-md-3">
@@ -393,12 +412,12 @@
                     <input type="number" class="form-control" id="tiempo_ventiladores" name="tiempo_ventiladores"
                         value="<?= htmlspecialchars($old['tiempo_ventiladores'] ?? '') ?>" readonly style="background:var(--bg-body);">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 d-none">
                     <label for="fracciones_hora_ventiladores" class="form-label">Fracciones Hora Ventiladores</label>
                     <input type="number" step="0.01" class="form-control" id="fracciones_hora_ventiladores" name="fracciones_hora_ventiladores"
                         value="<?= number_format((float)($old['fracciones_hora_ventiladores'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 d-none">
                     <label for="fracciones_15min_ventiladores" class="form-label">Fracciones 15 min Ventiladores</label>
                     <input type="number" step="0.01" class="form-control" id="fracciones_15min_ventiladores" name="fracciones_15min_ventiladores"
                         value="<?= number_format((float)($old['fracciones_15min_ventiladores'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
@@ -497,13 +516,13 @@
             <div class="row g-3">
 
                 <?php
-                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP'];
                 $gseSeleccionados = !empty($old['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $old['equipo_gse_inoperativo']))
                     : [];
                 ?>
                 <div class="col-md-9">
-                    <label class="form-label">Equipo GSE Inoperativo</label>
+                    <label class="form-label">Cobertura de equipos GSE</label>
                     <div class="border rounded p-3 d-flex flex-wrap gap-3" style="background:var(--bg-body);">
                         <?php foreach ($gseOpciones as $gse): ?>
                             <?php $gseId = 'gse_' . str_replace('/', '_', $gse); ?>
@@ -539,6 +558,15 @@
                     </div>
                 </div>
             </div>
+
+            <div class="row g-3 mt-3">
+                <div class="col-12">
+                    <label for="observaciones" class="form-label">Observaciones Generales</label>
+                    <textarea class="form-control" id="observaciones" name="observaciones"
+                        placeholder="Ingrese cualquier observación adicional sobre el servicio..."
+                        rows="3"><?= htmlspecialchars($old['observaciones'] ?? '') ?></textarea>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -553,6 +581,10 @@
 </form>
 
 <script>
+    // ═══ CONFIGURACIÓN Y UTILIDADES ═══════════════════════
+    const AVIANCA_ID = 1; // ID de AVIANCA en la BD
+    const BASES_ESPECIALES = ['UC', 'UIB']; // Bases especiales para despacho
+
     // Actualizar quincena al cambiar día
     document.getElementById('dia').addEventListener('input', function() {
         const dia = parseInt(this.value) || 0;
@@ -560,14 +592,226 @@
     });
 
     // Convertir a mayúsculas campos de vuelo/matrícula
-    ['vuelo_llegando', 'vuelo_saliendo', 'matricula'].forEach(function(id) {
+    ['vuelo_llegando', 'vuelo_saliendo', 'matricula', 'airline_custom_nombre', 'aircraft_type_custom'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', function() {
             this.value = this.value.toUpperCase();
         });
     });
 
-    // GSE Inoperativo -> Afectó la operación (auto)
+    // ═══ LÓGICA: AEROLÍNEA "OTRA" ═════════════════════════
+    function toggleAirlineCustomFields() {
+        const airlineSelect = document.getElementById('airline_id');
+        const customNameContainer = document.getElementById('airline_custom_container');
+        const customTypeContainer = document.getElementById('aircraft_type_custom_container');
+        const aircraftSelect = document.getElementById('aircraft_type_id');
+
+        if (airlineSelect.value === 'otra') {
+            customNameContainer.style.display = 'block';
+            customTypeContainer.style.display = 'block';
+            aircraftSelect.style.display = 'none';
+            document.getElementById('airline_custom_nombre').focus();
+        } else {
+            customNameContainer.style.display = 'none';
+            customTypeContainer.style.display = 'none';
+            aircraftSelect.style.display = 'block';
+        }
+    }
+    document.getElementById('airline_id').addEventListener('change', toggleAirlineCustomFields);
+    toggleAirlineCustomFields();
+
+    // ═══ LÓGICA: DESPACHO (UC/UIB + AVIANCA) ══════════════
+    /*
+     * NOTA: El despacho se deshabilita automáticamente para:
+     * - Si la base es UC o UIB (bases especiales)
+     * - Y la aerolínea seleccionada es AVIANCA (ID 1)
+     * En estos casos, el sistema establece despacho = No (0)
+     * Solo AVIANCA requiere esta restricción según configuración operativa
+     */
+    function updateDespachoLogic() {
+        const base = document.getElementById('base').value;
+        const airlineId = document.getElementById('airline_id').value;
+        const despachoDisplay = document.getElementById('despacho_display');
+        const despachoInput = document.getElementById('despacho');
+
+        // Validar si es base UC/UIB Y aerolínea AVIANCA
+        const isSpecialBase = BASES_ESPECIALES.includes(base);
+        const isAvianca = airlineId == AVIANCA_ID;
+
+        if (isSpecialBase && isAvianca) {
+            // Despacho debe ser NO para UC/UIB cuando es AVIANCA
+            despachoDisplay.textContent = 'No';
+            despachoInput.value = '0';
+            despachoDisplay.style.color = 'var(--bs-danger)';
+        } else {
+            // En otros casos, permitir selección manual (aquí mostraría un select)
+            despachoDisplay.textContent = 'No';
+            despachoInput.value = '0';
+            despachoDisplay.style.color = 'inherit';
+        }
+    }
+    document.getElementById('base').addEventListener('change', updateDespachoLogic);
+    document.getElementById('airline_id').addEventListener('change', updateDespachoLogic);
+    updateDespachoLogic();
+
+    // ═══ LÓGICA: PAX CANCELADO (desabilitar en Tránsito) ═══
+    function updatePaxCanceladoState() {
+        const tipoAtencion = document.getElementById('tipo_atencion').value;
+        const paxCancelado = document.getElementById('pax_cancelado');
+
+        if (tipoAtencion === 'Tránsito') {
+            paxCancelado.disabled = true;
+            paxCancelado.value = '0';
+            paxCancelado.style.backgroundColor = '#e9ecef';
+            paxCancelado.title = 'Deshabilitado: Los vuelos en Tránsito no pueden tener pasajeros cancelados';
+        } else {
+            paxCancelado.disabled = false;
+            paxCancelado.style.backgroundColor = '';
+            paxCancelado.title = '';
+        }
+    }
+    document.getElementById('tipo_atencion').addEventListener('change', updatePaxCanceladoState);
+    updatePaxCanceladoState();
+
+    // ═══ LÓGICA: CUMPLE TIEMPO ════════════════════════════
+    /*
+     * Mejorado: No es demora si:
+     * - El avión llega ANTES o EN la hora itinerada de llegada, Y
+     * - El avión sale EN la hora itinerada de salida
+     *
+     * Es demora si:
+     * - El avión llega DESPUÉS de la hora itinerada, O
+     * - El avión sale DESPUÉS de la hora itinerada
+     */
+    function calculateTiempoAndCumple() {
+        const horaRealLlegada = document.getElementById('hora_real_llegada').value;
+        const horaRealSalida = document.getElementById('hora_real_salida').value;
+        const horaItineradaLlegada = document.getElementById('hora_itinerada_llegada').value;
+        const horaItineradaSalida = document.getElementById('hora_itinerada_salida').value;
+
+        const tiempoTransitoDisplay = document.getElementById('tiempo_transito_display');
+        const cumpleDisplay = document.getElementById('cumple_tiempo_display');
+        const tiempoInput = document.getElementById('tiempo_transito');
+        const cumpleInput = document.getElementById('cumple_tiempo');
+
+        // Calcular tiempo de tránsito
+        if (horaRealLlegada && horaRealSalida) {
+            const llegada = new Date(`2000-01-01 ${horaRealLlegada}`);
+            const salida = new Date(`2000-01-01 ${horaRealSalida}`);
+            let minutos = Math.round((salida - llegada) / 60000);
+
+            // Si es negativo, es al día siguiente
+            if (minutos < 0) {
+                minutos += 24 * 60;
+            }
+
+            tiempoTransitoDisplay.textContent = minutos + ' min';
+            tiempoInput.value = minutos;
+        } else {
+            tiempoTransitoDisplay.textContent = '--';
+            tiempoInput.value = '';
+        }
+
+        // Calcular cumple tiempo (mejorado)
+        if (horaRealLlegada && horaRealSalida && horaItineradaLlegada && horaItineradaSalida) {
+            const realLlegada = new Date(`2000-01-01 ${horaRealLlegada}`);
+            const realSalida = new Date(`2000-01-01 ${horaRealSalida}`);
+            const itinerarioLlegada = new Date(`2000-01-01 ${horaItineradaLlegada}`);
+            const itinerarioSalida = new Date(`2000-01-01 ${horaItineradaSalida}`);
+
+            // No es demora si:
+            // - Llega antes o en hora itinerada AND
+            // - Sale en hora itinerada
+            const llegoAntes = realLlegada <= itinerarioLlegada;
+            const saleEnHora = realSalida <= itinerarioSalida;
+
+            const cumple = llegoAntes && saleEnHora;
+
+            cumpleInput.value = cumple ? '1' : '0';
+            cumpleDisplay.textContent = cumple ? '✓ SÍ' : '✗ NO';
+            cumpleDisplay.style.color = cumple ? '#198754' : '#dc3545';
+
+            toggleDemoraFields();
+        } else {
+            cumpleDisplay.textContent = '--';
+            cumpleInput.value = '';
+        }
+    }
+
+    ['hora_real_llegada', 'hora_real_salida', 'hora_itinerada_llegada', 'hora_itinerada_salida'].forEach(id => {
+        document.getElementById(id).addEventListener('change', calculateTiempoAndCumple);
+    });
+
+    // ═══ LÓGICA: RESTRICCIÓN DE HORAS (GPU, ACU, Ventiladores) ══════
+    /*
+     * Las horas de conexión/desconexión de GPU, ACU y Ventiladores
+     * deben estar dentro del rango: [hora_real_llegada, hora_real_salida]
+     * No se puede conectar antes de la llegada ni después de la salida.
+     */
+    function validateTimeRange(fieldId, minTime, maxTime) {
+        const field = document.getElementById(fieldId);
+        if (!field || !minTime || !maxTime) return;
+
+        const value = field.value;
+        if (!value) return;
+
+        const fieldTime = new Date(`2000-01-01 ${value}`);
+        const min = new Date(`2000-01-01 ${minTime}`);
+        const max = new Date(`2000-01-01 ${maxTime}`);
+
+        if (fieldTime < min || fieldTime > max) {
+            field.style.borderColor = '#dc3545';
+            field.style.backgroundColor = '#fff5f5';
+            field.title = `Hora fuera del rango. Debe estar entre ${minTime} y ${maxTime}`;
+        } else {
+            field.style.borderColor = '';
+            field.style.backgroundColor = '';
+            field.title = '';
+        }
+    }
+
+    function restrictEquipmentHours() {
+        const horaRealLlegada = document.getElementById('hora_real_llegada').value;
+        const horaRealSalida = document.getElementById('hora_real_salida').value;
+
+        if (!horaRealLlegada || !horaRealSalida) return;
+
+        // Validar GPU
+        ['hora_conexion_gpu', 'hora_desconexion_gpu'].forEach(id => {
+            validateTimeRange(id, horaRealLlegada, horaRealSalida);
+        });
+
+        // Validar ACU
+        ['hora_conexion_acu', 'hora_desconexion_acu'].forEach(id => {
+            validateTimeRange(id, horaRealLlegada, horaRealSalida);
+        });
+
+        // Validar Ventiladores
+        ['hora_conexion_ventiladores', 'hora_desconexion_ventiladores'].forEach(id => {
+            validateTimeRange(id, horaRealLlegada, horaRealSalida);
+        });
+    }
+
+    document.getElementById('hora_real_llegada').addEventListener('change', restrictEquipmentHours);
+    document.getElementById('hora_real_salida').addEventListener('change', restrictEquipmentHours);
+
+    ['hora_conexion_gpu', 'hora_desconexion_gpu',
+     'hora_conexion_acu', 'hora_desconexion_acu',
+     'hora_conexion_ventiladores', 'hora_desconexion_ventiladores'].forEach(id => {
+        document.getElementById(id).addEventListener('change', restrictEquipmentHours);
+    });
+
+    // ═══ LÓGICA: MOSTRAR/OCULTAR CAMPOS DE DEMORA ═════════
+    function toggleDemoraFields() {
+        const cumpleInput = document.getElementById('cumple_tiempo');
+        const demoraContainer = document.getElementById('demora-fields-container');
+        if (cumpleInput && demoraContainer) {
+            const cumpleValue = cumpleInput.value;
+            demoraContainer.style.display = cumpleValue === '0' ? 'block' : 'none';
+        }
+    }
+
+    // ═══ LÓGICA: GSE Y OPERACIÓN ═════════════════════════
     function updateAfectoOperacion() {
         const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
         document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
@@ -578,23 +822,7 @@
     });
     updateAfectoOperacion();
 
-    // Mostrar/ocultar campos de demora cuando NO cumple tiempo
-    function toggleDemoraFields() {
-        const cumpleInput = document.getElementById('cumple_tiempo');
-        const demoraContainer = document.getElementById('demora-fields-container');
-        if (cumpleInput && demoraContainer) {
-            const cumpleValue = cumpleInput.value;
-            demoraContainer.style.display = cumpleValue === '0' ? 'block' : 'none';
-        }
-    }
-    const observer = new MutationObserver(toggleDemoraFields);
-    const cumpleInput = document.getElementById('cumple_tiempo');
-    if (cumpleInput) {
-        observer.observe(cumpleInput, { attributes: true });
-        toggleDemoraFields();
-    }
-
-    // Mostrar/ocultar campo RPN cuando afectó la operación
+    // Mostrar/ocultar campo RPN
     function toggleRpnField() {
         const afectoInput = document.getElementById('afecto_operacion');
         const rpnContainer = document.getElementById('rpn-field-container');
@@ -608,14 +836,13 @@
         toggleRpnField();
     }
 
-    // Deshabilitar secciones cuando tipo_atencion = "Cancelado"
+    // ═══ LÓGICA: DESHABILITAR SECCIONES EN CANCELADO ══════
     function toggleCanceladoSecciones() {
         const tipoAtencion = document.getElementById('tipo_atencion');
         const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
-        
-        // Secciones a deshabilitar
+
         const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'afecto_operacion', 'rpn'];
-        
+
         fieldsToDisable.forEach(function(fieldId) {
             const field = document.getElementById(fieldId);
             if (field) {
@@ -627,13 +854,12 @@
                 }
             }
         });
-        
-        // Deshabilitar checkboxes de GSE
+
         document.querySelectorAll('.gse-check').forEach(function(cb) {
             cb.disabled = isCancelado;
         });
     }
-    
+
     const tipoAtencionSelect = document.getElementById('tipo_atencion');
     if (tipoAtencionSelect) {
         tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);

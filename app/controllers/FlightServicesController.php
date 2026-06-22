@@ -274,10 +274,14 @@ class FlightServicesController extends Controller {
             // Observaciones
             'equipo_gse_inoperativo' => implode(',', array_intersect(
                 array_map('trim', (array)($_POST['equipo_gse_inoperativo'] ?? [])),
-                ['ACU','TRA','CON','PAY','ASU','E318/A320']
+                ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP']
             )),
             'afecto_operacion'       => (int)$this->input('afecto_operacion', 0),
             'rpn'                    => $this->input('rpn', ''),
+            'observaciones'          => $this->input('observaciones', ''),
+            // Aerolínea personalizada (cuando se selecciona "Otra")
+            'airline_custom_nombre'  => $this->input('airline_custom_nombre', ''),
+            'aircraft_type_custom'   => $this->input('aircraft_type_custom', ''),
         ];
     }
 
@@ -297,8 +301,18 @@ class FlightServicesController extends Controller {
         if (!$this->baseModel->valueExists($data['base'])) {
             $errors['base'] = 'Seleccione una base válida.';
         }
-        if (empty($data['airline_id'])) {
-            $errors['airline_id'] = 'Seleccione una aerolínea.';
+        // Validar aerolínea (puede ser un ID numérico o 'otra')
+        if (empty($data['airline_id']) || ($data['airline_id'] != 'otra' && $data['airline_id'] < 1)) {
+            $errors['airline_id'] = 'Seleccione una aerolínea válida.';
+        }
+        // Si es "otra", validar que se haya ingresado el nombre
+        if ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') {
+            if (empty($data['airline_custom_nombre'])) {
+                $errors['airline_custom_nombre'] = 'Ingrese el nombre de la aerolínea.';
+            }
+            if (empty($data['aircraft_type_custom'])) {
+                $errors['aircraft_type_custom'] = 'Ingrese el tipo de avión.';
+            }
         }
         if (!in_array($data['tipo_atencion'], FlightService::$tiposAtencion, true)) {
             $errors['tipo_atencion'] = 'Seleccione un tipo de atención.';
@@ -312,7 +326,8 @@ class FlightServicesController extends Controller {
         if (empty($data['matricula'])) {
             $errors['matricula'] = 'La matrícula es obligatoria.';
         }
-        if (empty($data['aircraft_type_id'])) {
+        // Solo requerir aircraft_type_id si no es "otra"
+        if ($data['airline_id'] !== 'otra' && $data['airline_id'] != 'otra' && empty($data['aircraft_type_id'])) {
             $errors['aircraft_type_id'] = 'Seleccione el tipo de avión.';
         }
         if (empty($data['vuelo_saliendo'])) {
