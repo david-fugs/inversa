@@ -17,3 +17,53 @@
 2026-06-09 22:55:03 | VALIDATION RESULT | Errors count: 0
 2026-06-09 22:55:03 | BEFORE INSERT | About to call model->create
 2026-06-09 22:55:03 | CREATE SUCCESS | ID: 3
+2026-06-26 11:07:29 | STORE START | POST recibido
+2026-06-26 11:07:29 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:07:29 | VALIDATION RESULT | Errors count: 6
+2026-06-26 11:07:48 | STORE START | POST recibido
+2026-06-26 11:07:48 | DATA COLLECTED | Airline ID: 1
+2026-06-26 11:07:48 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:08:00 | STORE START | POST recibido
+2026-06-26 11:08:00 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:08:00 | VALIDATION RESULT | Errors count: 0
+2026-06-26 11:08:00 | BEFORE INSERT | About to call model->create
+2026-06-26 11:08:00 | STORE ERROR | SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'airline_id' cannot be null | File: C:\xampp\htdocs\inversa\app\core\Database.php | Line: 51
+2026-06-26 11:08:07 | STORE START | POST recibido
+2026-06-26 11:08:07 | DATA COLLECTED | Airline ID: 0
+2026-06-26 11:08:07 | VALIDATION RESULT | Errors count: 8
+2026-06-26 11:08:16 | STORE START | POST recibido
+2026-06-26 11:08:16 | DATA COLLECTED | Airline ID: 0
+2026-06-26 11:08:16 | VALIDATION RESULT | Errors count: 6
+2026-06-26 11:12:07 | STORE START | POST recibido
+2026-06-26 11:12:07 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:12:07 | VALIDATION RESULT | Errors count: 0
+2026-06-26 11:12:07 | BEFORE INSERT | About to call model->create
+2026-06-26 11:12:07 | STORE ERROR | SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'aircraft_type_id' cannot be null | File: C:\xampp\htdocs\inversa\app\core\Database.php | Line: 51
+2026-06-26 11:12:26 | STORE START | POST recibido
+2026-06-26 11:12:26 | DATA COLLECTED | Airline ID: 0
+2026-06-26 11:12:26 | VALIDATION RESULT | Errors count: 8
+2026-06-26 11:16:26 | STORE START | POST recibido
+2026-06-26 11:16:26 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:16:26 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:16:36 | STORE START | POST recibido
+2026-06-26 11:16:36 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:16:36 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:17:17 | STORE START | POST recibido
+2026-06-26 11:17:17 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:17:17 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:38:28 | STORE START | POST recibido
+2026-06-26 11:38:28 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:38:28 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:40:04 | STORE START | POST recibido
+2026-06-26 11:40:04 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:40:04 | VALIDATION RESULT | Errors count: 1
+2026-06-26 11:40:09 | STORE START | POST recibido
+2026-06-26 11:40:09 | DATA COLLECTED | Airline ID: otra
+2026-06-26 11:40:09 | VALIDATION RESULT | Errors count: 0
+2026-06-26 11:40:09 | BEFORE INSERT | About to call model->create
+2026-06-26 11:40:09 | STORE ERROR | SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`softepuc_inversa`.`flight_services`, CONSTRAINT `fk_fs_airline` FOREIGN KEY (`airline_id`) REFERENCES `airlines` (`id`) ON UPDATE CASCADE) | File: C:\xampp\htdocs\inversa\app\core\Database.php | Line: 51
+2026-06-26 12:00:48 | STORE START | POST recibido
+2026-06-26 12:00:48 | DATA COLLECTED | Airline ID: otra
+2026-06-26 12:00:48 | VALIDATION RESULT | Errors count: 0
+2026-06-26 12:00:48 | BEFORE INSERT | About to call model->create
+2026-06-26 12:00:48 | CREATE SUCCESS | ID: 5

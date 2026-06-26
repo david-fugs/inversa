@@ -71,9 +71,9 @@
             </div>
 
             <div class="col-md-3">
-                <label class="form-label">Despacho</label>
+                <label class="form-label">Despacho <small class="text-muted">(Automático si es AVIANCA)</small></label>
                 <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
-                    <span id="despacho_display"><?= $service['despacho'] ? 'Sí' : 'No' ?></span>
+                    <span id="despacho_display">--</span>
                 </div>
                 <input type="hidden" name="despacho" id="despacho" value="<?= (int)$service['despacho'] ?>">
             </div>
@@ -90,19 +90,20 @@
 
             <div class="col-md-6">
                 <label for="airline_id" class="form-label">Aerolínea <span class="required-mark">*</span></label>
-                <select class="form-select select2" id="airline_id" name="airline_id">
+                <select class="form-select" id="airline_id" name="airline_id">
                     <option value="">-- Seleccione aerolínea --</option>
                     <?php foreach ($airlines as $a): ?>
-                        <option value="<?= $a['id'] ?>" <?= $service['airline_id'] == $a['id'] ? 'selected' : '' ?>>
+                        <option value="<?= $a['id'] ?>" data-nombre="<?= htmlspecialchars($a['nombre']) ?>" <?= $service['airline_id'] == $a['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($a['nombre']) ?>
                         </option>
                     <?php endforeach; ?>
+                    <option value="otra" <?= $service['airline_id'] == 'otra' ? 'selected' : '' ?>>Otra (especificar)</option>
                 </select>
             </div>
 
             <div class="col-md-6">
                 <label for="aircraft_type_id" class="form-label">Tipo de Avión <span class="required-mark">*</span></label>
-                <select class="form-select select2" id="aircraft_type_id" name="aircraft_type_id">
+                <select class="form-select" id="aircraft_type_id" name="aircraft_type_id">
                     <option value="">-- Seleccione --</option>
                     <?php foreach ($aircraftTypes as $at): ?>
                         <option value="<?= $at['id'] ?>"
@@ -113,6 +114,29 @@
                     <?php endforeach; ?>
                 </select>
                 <input type="hidden" id="tiempo_cumplimiento_ref" value="<?= $service['tiempo_cumplimiento'] ?>">
+            </div>
+
+            <div class="col-md-6" id="airline_custom_container" style="display:none;">
+                <label for="airline_custom_nombre" class="form-label">Nombre de la Aerolínea <span class="required-mark">*</span></label>
+                <input type="text" class="form-control" id="airline_custom_nombre" name="airline_custom_nombre"
+                    value="<?= htmlspecialchars($service['airline_custom_nombre'] ?? '') ?>"
+                    placeholder="Ej: Aerolínea XYZ" style="text-transform:uppercase;">
+            </div>
+
+            <div class="col-md-6" id="aircraft_type_custom_container" style="display:none;">
+                <label for="aircraft_type_custom" class="form-label">Especificar Tipo de Avión</label>
+                <input type="text" class="form-control" id="aircraft_type_custom" name="aircraft_type_custom"
+                    value="<?= htmlspecialchars($service['aircraft_type_custom'] ?? '') ?>"
+                    placeholder="Ej: Boeing 737, Airbus A320">
+            </div>
+
+            <div class="col-md-3" id="tiempo_cumplimiento_custom_container" style="display:none;">
+                <label for="tiempo_cumplimiento_custom" class="form-label">Tiempo de Cumplimiento (min) <span class="required-mark">*</span></label>
+                <input type="number" class="form-control <?= isset($errors['tiempo_cumplimiento_custom']) ? 'is-invalid' : '' ?>" id="tiempo_cumplimiento_custom" name="tiempo_cumplimiento_custom"
+                    value="<?= htmlspecialchars($service['tiempo_cumplimiento_custom'] ?? '') ?>"
+                    min="1" max="120" placeholder="Ej: 20, 25, 30, 40">
+                <small class="text-muted">Minutos permitidos para el cumplimiento operacional</small>
+                <?php if (isset($errors['tiempo_cumplimiento_custom'])): ?><div class="invalid-feedback d-block"><?= $errors['tiempo_cumplimiento_custom'] ?></div><?php endif; ?>
             </div>
 
         </div>
@@ -192,7 +216,11 @@
                 <input type="time" class="form-control" id="hora_itinerada_salida" name="hora_itinerada_salida"
                     value="<?= $service['hora_itinerada_salida'] ?? '' ?>">
             </div>
-            <div class="col-md-3"></div>
+            <div class="col-md-3" id="satena_hora_cierre_container" style="display:none;">
+                <label for="satena_hora_cierre_modulo" class="form-label">Hora Cierre Módulo (SATENA)</label>
+                <input type="time" class="form-control" id="satena_hora_cierre_modulo" name="satena_hora_cierre_modulo"
+                    value="<?= $service['satena_hora_cierre_modulo'] ?? '' ?>">
+            </div>
             <div class="col-md-3">
                 <label for="hora_real_llegada" class="form-label">Hora Real Llegada</label>
                 <input type="time" class="form-control" id="hora_real_llegada" name="hora_real_llegada"
@@ -464,7 +492,7 @@
     <div class="card-body">
         <div class="row g-3">
             <?php
-                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU','SVPFREE', 'PEP'];
                 $gseSeleccionados = !empty($service['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $service['equipo_gse_inoperativo']))
                     : [];
@@ -517,85 +545,233 @@
 </form>
 
 <script>
-document.getElementById('dia').addEventListener('input', function() {
-    const dia = parseInt(this.value) || 0;
-    document.getElementById('quincena_display').value = dia <= 15 ? '1ª Quincena' : '2ª Quincena';
-});
+document.addEventListener('DOMContentLoaded', function() {
+    // ══ CONFIGURACIÓN Y UTILIDADES ═══════════════════════
+    const AVIANCA_ID = 1; // ID de AVIANCA en la BD
+    const BASES_ESPECIALES = ['UC', 'UIB']; // Bases especiales para despacho
 
-['vuelo_llegando','vuelo_saliendo','matricula'].forEach(function(id) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
-});
-
-// GSE Inoperativo -> Afectó la operación (auto)
-function updateAfectoOperacion() {
-    const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
-    document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
-    toggleRpnField();
-}
-document.querySelectorAll('.gse-check').forEach(function(cb) {
-    cb.addEventListener('change', updateAfectoOperacion);
-});
-updateAfectoOperacion();
-
-// Mostrar/ocultar campos de demora cuando NO cumple tiempo
-function toggleDemoraFields() {
-    const cumpleInput = document.getElementById('cumple_tiempo');
-    const demoraContainer = document.getElementById('demora-fields-container');
-    if (cumpleInput && demoraContainer) {
-        const cumpleValue = cumpleInput.value;
-        demoraContainer.style.display = cumpleValue === '0' ? 'block' : 'none';
+    // Actualizar quincena al cambiar día
+    const diaField = document.getElementById('dia');
+    if (diaField) {
+        diaField.addEventListener('input', function() {
+            const dia = parseInt(this.value) || 0;
+            document.getElementById('quincena_display').value = dia <= 15 ? '1ª Quincena' : '2ª Quincena';
+        });
     }
-}
-const observer = new MutationObserver(toggleDemoraFields);
-const cumpleInput = document.getElementById('cumple_tiempo');
-if (cumpleInput) {
-    observer.observe(cumpleInput, { attributes: true });
-    toggleDemoraFields();
-}
 
-// Mostrar/ocultar campo RPN cuando afectó la operación
-function toggleRpnField() {
-    const afectoInput = document.getElementById('afecto_operacion');
-    const rpnContainer = document.getElementById('rpn-field-container');
-    if (afectoInput && rpnContainer) {
-        rpnContainer.style.display = afectoInput.value === '1' ? 'block' : 'none';
-    }
-}
-const afectoInput = document.getElementById('afecto_operacion');
-if (afectoInput) {
-    afectoInput.addEventListener('change', toggleRpnField);
-    toggleRpnField();
-}
+    // Convertir a mayúsculas campos de vuelo/matrícula
+    ['vuelo_llegando','vuelo_saliendo','matricula','airline_custom_nombre','aircraft_type_custom'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
+    });
 
-// Deshabilitar secciones cuando tipo_atencion = "Cancelado"
-function toggleCanceladoSecciones() {
-    const tipoAtencion = document.getElementById('tipo_atencion');
-    const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
-    
-    const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'afecto_operacion', 'rpn'];
-    
-    fieldsToDisable.forEach(function(fieldId) {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            if (isCancelado) {
-                field.disabled = true;
-                field.removeAttribute('required');
-            } else {
-                field.disabled = false;
-            }
+    // ══ CONTROL PRINCIPAL: AEROLÍNEA ══════════════════════════
+    function updateAllAirlineLogic() {
+        const airlineSelect = document.getElementById('airline_id');
+        const airlineValue = airlineSelect.value;
+
+        // Elementos a controlar
+        const customNameContainer = document.getElementById('airline_custom_container');
+        const customTypeContainer = document.getElementById('aircraft_type_custom_container');
+        const tiempoCustomContainer = document.getElementById('tiempo_cumplimiento_custom_container');
+        const aircraftSelect = document.getElementById('aircraft_type_id');
+        const despachoDisplay = document.getElementById('despacho_display');
+        const despachoInput = document.getElementById('despacho');
+        const satenaContainer = document.getElementById('satena_hora_cierre_container');
+
+        // 1. MOSTRAR/OCULTAR CAMPOS DE "OTRA" ══════════════════════
+        if (airlineValue === 'otra' || airlineValue == 'otra') {
+            customNameContainer.style.display = 'block';
+            customTypeContainer.style.display = 'block';
+            tiempoCustomContainer.style.display = 'block';
+            aircraftSelect.disabled = true;
+            aircraftSelect.style.display = 'none';
+        } else {
+            customNameContainer.style.display = 'none';
+            customTypeContainer.style.display = 'none';
+            tiempoCustomContainer.style.display = 'none';
+            aircraftSelect.disabled = false;
+            aircraftSelect.style.display = 'block';
+            const tiempoCustomField = document.getElementById('tiempo_cumplimiento_custom');
+            if (tiempoCustomField) tiempoCustomField.value = '';
         }
-    });
-    
-    // Deshabilitar checkboxes de GSE
-    document.querySelectorAll('.gse-check').forEach(function(cb) {
-        cb.disabled = isCancelado;
-    });
-}
 
-const tipoAtencionSelect = document.getElementById('tipo_atencion');
-if (tipoAtencionSelect) {
-    tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);
-    toggleCanceladoSecciones();
-}
+        // 2. DESPACHO AUTOMÁTICO (AVIANCA o BASES ESPECIALES) ════════════════════
+        const isAvianca = airlineValue == AVIANCA_ID;
+        const baseSelect = document.getElementById('base');
+        const baseValue = baseSelect ? baseSelect.value : '';
+        const isBaseEspecial = BASES_ESPECIALES.includes(baseValue);
+
+        const tieneDespacho = isAvianca || isBaseEspecial;
+        console.log('updateAllAirlineLogic - tieneDespacho:', tieneDespacho);
+        if (tieneDespacho) {
+            console.log('→ Estableciendo despacho a SÍ');
+            despachoDisplay.textContent = 'Sí';
+            despachoInput.value = '1';
+            despachoDisplay.style.color = '#198754'; // Verde
+        } else {
+            console.log('→ Estableciendo despacho a NO');
+            despachoDisplay.textContent = 'No';
+            despachoInput.value = '0';
+            despachoDisplay.style.color = '#dc3545'; // Rojo
+        }
+        console.log('→ FINAL despacho_display.textContent =', despachoDisplay.textContent);
+
+        // Monitorear cambios al despacho
+        const observer = new MutationObserver((mutations) => {
+            console.log('⚠️ CAMBIO DETECTADO en despacho_display! Nuevo valor:', despachoDisplay.textContent);
+        });
+        observer.observe(despachoDisplay, { childList: true, characterData: true, subtree: true });
+
+        // 3. SATENA - HORA DE CIERRE DE MÓDULO ═════════════════════
+        const selectedOption = airlineSelect.options[airlineSelect.selectedIndex];
+        const selectedText = selectedOption ? selectedOption.text : '';
+        if (selectedText === 'SATENA') {
+            if (satenaContainer) satenaContainer.style.display = 'block';
+        } else {
+            if (satenaContainer) satenaContainer.style.display = 'none';
+            const satenaField = document.getElementById('satena_hora_cierre_modulo');
+            if (satenaField) satenaField.value = '';
+        }
+    }
+
+    // Escuchar cambios en aerolínea y base (ambos afectan el despacho)
+    const airlineSelectElement = document.getElementById('airline_id');
+    if (airlineSelectElement) {
+        airlineSelectElement.addEventListener('change', updateAllAirlineLogic);
+    }
+    const baseSelectElement = document.getElementById('base');
+    if (baseSelectElement) {
+        baseSelectElement.addEventListener('change', updateAllAirlineLogic);
+    }
+    // Llamar al inicio para precarga
+    updateAllAirlineLogic();
+
+    // ══ CÁLCULO DE CUMPLIMIENTO CON LLEGADAS ANTICIPADAS ══
+    function calcularCumplimiento() {
+        const horaItinerada = document.getElementById('hora_itinerada_llegada').value;
+        const horaReal = document.getElementById('hora_real_llegada').value;
+        const tiempoRef = document.getElementById('tiempo_cumplimiento_ref').value;
+        const tiempoCustom = document.getElementById('tiempo_cumplimiento_custom').value;
+        const cumpleInput = document.getElementById('cumple_tiempo');
+        const cumpleDisplay = document.getElementById('cumple_tiempo_display');
+        const demoraInput = document.getElementById('demora_llegando');
+
+        // Determinar qué tiempo de cumplimiento usar
+        const tiempoAUsar = tiempoCustom ? parseInt(tiempoCustom) : (tiempoRef ? parseInt(tiempoRef) : null);
+
+        if (!horaItinerada || !horaReal || !tiempoAUsar) {
+            cumpleInput.value = '';
+            cumpleDisplay.innerHTML = '--';
+            demoraInput.value = '';
+            return;
+        }
+
+        const [hI, mI] = horaItinerada.split(':').map(Number);
+        const [hR, mR] = horaReal.split(':').map(Number);
+
+        const minItinerada = hI * 60 + mI;
+        const minReal = hR * 60 + mR;
+        const demora = minReal - minItinerada;
+
+        let cumple;
+        if (demora <= 0) {
+            cumple = 1;
+            demoraInput.value = 0;
+        } else {
+            cumple = demora <= tiempoAUsar ? 1 : 0;
+            demoraInput.value = Math.max(0, demora);
+        }
+
+        cumpleInput.value = cumple;
+        if (cumple === 1) {
+            cumpleDisplay.innerHTML = '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>';
+        } else {
+            cumpleDisplay.innerHTML = '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>';
+        }
+
+        toggleDemoraFields();
+    }
+
+    // Escuchar cambios en horarios Y en tiempo personalizado
+    ['hora_itinerada_llegada', 'hora_real_llegada', 'tiempo_cumplimiento_custom'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', calcularCumplimiento);
+        if (el) el.addEventListener('change', calcularCumplimiento);
+    });
+
+    // Mostrar/ocultar campos de demora cuando NO cumple tiempo
+    function toggleDemoraFields() {
+        const cumpleInput = document.getElementById('cumple_tiempo');
+        const demoraContainer = document.getElementById('demora-fields-container');
+        if (cumpleInput && demoraContainer) {
+            const cumpleValue = cumpleInput.value;
+            demoraContainer.style.display = cumpleValue === '0' ? 'block' : 'none';
+        }
+    }
+
+    const observer = new MutationObserver(toggleDemoraFields);
+    const cumpleInput = document.getElementById('cumple_tiempo');
+    if (cumpleInput) {
+        observer.observe(cumpleInput, { attributes: true });
+        toggleDemoraFields();
+    }
+
+    // GSE Inoperativo -> Afectó la operación (auto)
+    function updateAfectoOperacion() {
+        const anyChecked = document.querySelectorAll('.gse-check:checked').length > 0;
+        document.getElementById('afecto_operacion').value = anyChecked ? '1' : '0';
+        toggleRpnField();
+    }
+
+    document.querySelectorAll('.gse-check').forEach(function(cb) {
+        cb.addEventListener('change', updateAfectoOperacion);
+    });
+    updateAfectoOperacion();
+
+    // Mostrar/ocultar campo RPN cuando afectó la operación
+    function toggleRpnField() {
+        const afectoInput = document.getElementById('afecto_operacion');
+        const rpnContainer = document.getElementById('rpn-field-container');
+        if (afectoInput && rpnContainer) {
+            rpnContainer.style.display = afectoInput.value === '1' ? 'block' : 'none';
+        }
+    }
+
+    const afectoInput = document.getElementById('afecto_operacion');
+    if (afectoInput) {
+        afectoInput.addEventListener('change', toggleRpnField);
+        toggleRpnField();
+    }
+
+    // Deshabilitar secciones cuando tipo_atencion = "Cancelado"
+    function toggleCanceladoSecciones() {
+        const tipoAtencion = document.getElementById('tipo_atencion');
+        const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
+
+        const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'afecto_operacion', 'rpn'];
+
+        fieldsToDisable.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                if (isCancelado) {
+                    field.disabled = true;
+                    field.removeAttribute('required');
+                } else {
+                    field.disabled = false;
+                }
+            }
+        });
+
+        document.querySelectorAll('.gse-check').forEach(function(cb) {
+            cb.disabled = isCancelado;
+        });
+    }
+
+    const tipoAtencionSelect = document.getElementById('tipo_atencion');
+    if (tipoAtencionSelect) {
+        tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);
+        toggleCanceladoSecciones();
+    }
+});
 </script>

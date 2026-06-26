@@ -277,23 +277,15 @@ function initAircraftByAirline() {
 
     if (!airlineSelect || !aircraftSelect) return;
 
-    // Select2 no dispara eventos nativos — usar jQuery
-    $(airlineSelect).on('change', function () {
+    // Escuchar cambios en aerolínea
+    airlineSelect.addEventListener('change', function () {
         const airlineId = this.value;
         aircraftSelect.innerHTML = '<option value="">Cargando...</option>';
 
-        // Destruir y recrear Select2 en aircraft mientras recargamos
-        if (typeof $.fn.select2 !== 'undefined') {
-            $(aircraftSelect).select2('destroy');
-        }
-
-        if (!airlineId) {
+        if (!airlineId || airlineId === 'otra') {
             aircraftSelect.innerHTML = '<option value="">-- Seleccione aerolínea primero --</option>';
             const ref = document.getElementById('tiempo_cumplimiento_ref');
             if (ref) ref.value = '';
-            if (typeof $.fn.select2 !== 'undefined') {
-                $(aircraftSelect).select2({ placeholder: '-- Seleccione aerolínea primero --', allowClear: true, width: '100%' });
-            }
             return;
         }
 
@@ -311,21 +303,15 @@ function initAircraftByAirline() {
                     opt.dataset.tiempo = item.tiempo_cumplimiento;
                     aircraftSelect.appendChild(opt);
                 });
-                if (typeof $.fn.select2 !== 'undefined') {
-                    $(aircraftSelect).select2({ placeholder: '-- Seleccione tipo de avión --', allowClear: true, width: '100%' });
-                }
             })
             .catch(function (err) {
                 console.error('Error cargando tipos de avión:', err);
                 aircraftSelect.innerHTML = '<option value="">Error al cargar</option>';
-                if (typeof $.fn.select2 !== 'undefined') {
-                    $(aircraftSelect).select2({ placeholder: 'Error al cargar', allowClear: true, width: '100%' });
-                }
             });
     });
 
     // Actualizar tiempo de cumplimiento al cambiar tipo de avión
-    $(aircraftSelect).on('change', function () {
+    aircraftSelect.addEventListener('change', function () {
         const selected = this.options[this.selectedIndex];
         const ref = document.getElementById('tiempo_cumplimiento_ref');
         if (ref && selected && selected.dataset.tiempo) {
@@ -338,6 +324,12 @@ function initAircraftByAirline() {
 
 /* ── Cálculo de despacho según base ──────────────────── */
 function initDespachoCalc() {
+    // NO ejecutar en página de edición (edit.php tiene su propia lógica)
+    if (window.location.pathname.includes('/edit/')) {
+        console.log('initDespachoCalc: Deshabilitado en página de edición');
+        return;
+    }
+
     const baseSelect      = document.getElementById('base');
     const despachoInput   = document.getElementById('despacho');
     const despachoDisplay = document.getElementById('despacho_display');

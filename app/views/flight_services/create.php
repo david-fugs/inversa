@@ -83,7 +83,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Despacho</label>
+                    <label class="form-label">Despacho <small class="text-muted"></small></label>
                     <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
                         <span id="despacho_display">--</span>
                     </div>
@@ -104,7 +104,7 @@
 
                 <div class="col-md-6">
                     <label for="airline_id" class="form-label">Aerolínea <span class="required-mark">*</span></label>
-                    <select class="form-select select2 <?= isset($errors['airline_id']) ? 'is-invalid' : '' ?>"
+                    <select class="form-select <?= isset($errors['airline_id']) ? 'is-invalid' : '' ?>"
                         id="airline_id" name="airline_id">
                         <option value="">-- Seleccione aerolínea --</option>
                         <?php foreach ($airlines as $a): ?>
@@ -121,7 +121,7 @@
 
                 <div class="col-md-6">
                     <label for="aircraft_type_id" class="form-label">Tipo de Avión <span class="required-mark">*</span></label>
-                    <select class="form-select select2 <?= isset($errors['aircraft_type_id']) ? 'is-invalid' : '' ?>"
+                    <select class="form-select <?= isset($errors['aircraft_type_id']) ? 'is-invalid' : '' ?>"
                         id="aircraft_type_id" name="aircraft_type_id">
                         <option value="">-- Seleccione aerolínea primero --</option>
                     </select>
@@ -142,6 +142,15 @@
                     <input type="text" class="form-control" id="aircraft_type_custom" name="aircraft_type_custom"
                         value="<?= htmlspecialchars($old['aircraft_type_custom'] ?? '') ?>"
                         placeholder="Ej: Boeing 737" style="text-transform:uppercase;">
+                </div>
+
+                <div id="tiempo_cumplimiento_custom_container" class="col-md-3" style="display:none;">
+                    <label for="tiempo_cumplimiento_custom" class="form-label">Tiempo de Cumplimiento (min) <span class="required-mark">*</span></label>
+                    <input type="number" class="form-control <?= isset($errors['tiempo_cumplimiento_custom']) ? 'is-invalid' : '' ?>" id="tiempo_cumplimiento_custom" name="tiempo_cumplimiento_custom"
+                        value="<?= htmlspecialchars($old['tiempo_cumplimiento_custom'] ?? '') ?>"
+                        min="1" max="120" placeholder="Ej: 20, 25, 30, 40">
+                    <small class="text-muted">Minutos permitidos para el cumplimiento operacional</small>
+                    <?php if (isset($errors['tiempo_cumplimiento_custom'])): ?><div class="invalid-feedback d-block"><?= $errors['tiempo_cumplimiento_custom'] ?></div><?php endif; ?>
                 </div>
 
             </div>
@@ -252,6 +261,11 @@
                         value="<?= htmlspecialchars($old['hora_itinerada_salida'] ?? '') ?>">
                 </div>
 
+                <div class="col-md-3" id="satena_hora_cierre_container" style="display:none;">
+                    <label for="satena_hora_cierre_modulo" class="form-label">Hora Cierre Módulo (SATENA)</label>
+                    <input type="time" class="form-control" id="satena_hora_cierre_modulo" name="satena_hora_cierre_modulo"
+                        value="<?= htmlspecialchars($old['satena_hora_cierre_modulo'] ?? '') ?>">
+                </div>
 
                 <div class="col-md-3">
                     <label for="hora_real_salida" class="form-label">Hora Real Salida</label>
@@ -516,7 +530,7 @@
             <div class="row g-3">
 
                 <?php
-                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP'];
                 $gseSeleccionados = !empty($old['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $old['equipo_gse_inoperativo']))
                     : [];
@@ -599,60 +613,73 @@
         });
     });
 
-    // ═══ LÓGICA: AEROLÍNEA "OTRA" ═════════════════════════
-    function toggleAirlineCustomFields() {
+    // ═══ CONTROL PRINCIPAL: AEROLÍNEA ═════════════════════════
+    function updateAllAirlineLogic() {
         const airlineSelect = document.getElementById('airline_id');
+        const airlineValue = airlineSelect.value;
+
+        // Elementos a controlar
         const customNameContainer = document.getElementById('airline_custom_container');
         const customTypeContainer = document.getElementById('aircraft_type_custom_container');
+        const tiempoCustomContainer = document.getElementById('tiempo_cumplimiento_custom_container');
         const aircraftSelect = document.getElementById('aircraft_type_id');
+        const despachoDisplay = document.getElementById('despacho_display');
+        const despachoInput = document.getElementById('despacho');
+        const satenaContainer = document.getElementById('satena_hora_cierre_container');
 
-        if (airlineSelect.value === 'otra') {
+        // 1. MOSTRAR/OCULTAR CAMPOS DE "OTRA" ══════════════════════
+        if (airlineValue === 'otra') {
             customNameContainer.style.display = 'block';
             customTypeContainer.style.display = 'block';
+            tiempoCustomContainer.style.display = 'block';
+            aircraftSelect.disabled = true;
             aircraftSelect.style.display = 'none';
-            document.getElementById('airline_custom_nombre').focus();
         } else {
             customNameContainer.style.display = 'none';
             customTypeContainer.style.display = 'none';
+            tiempoCustomContainer.style.display = 'none';
+            aircraftSelect.disabled = false;
             aircraftSelect.style.display = 'block';
+            document.getElementById('tiempo_cumplimiento_custom').value = '';
         }
-    }
-    document.getElementById('airline_id').addEventListener('change', toggleAirlineCustomFields);
-    toggleAirlineCustomFields();
 
-    // ═══ LÓGICA: DESPACHO (UC/UIB + AVIANCA) ══════════════
-    /*
-     * NOTA: El despacho se deshabilita automáticamente para:
-     * - Si la base es UC o UIB (bases especiales)
-     * - Y la aerolínea seleccionada es AVIANCA (ID 1)
-     * En estos casos, el sistema establece despacho = No (0)
-     * Solo AVIANCA requiere esta restricción según configuración operativa
-     */
-    function updateDespachoLogic() {
-        const base = document.getElementById('base').value;
-        const airlineId = document.getElementById('airline_id').value;
-        const despachoDisplay = document.getElementById('despacho_display');
-        const despachoInput = document.getElementById('despacho');
+        // 2. DESPACHO AUTOMÁTICO (AVIANCA o BASES ESPECIALES) ════════════════════
+        const isAvianca = airlineValue == AVIANCA_ID;
+        const baseSelect = document.getElementById('base');
+        const baseValue = baseSelect ? baseSelect.value : '';
+        const isBaseEspecial = BASES_ESPECIALES.includes(baseValue);
 
-        // Validar si es base UC/UIB Y aerolínea AVIANCA
-        const isSpecialBase = BASES_ESPECIALES.includes(base);
-        const isAvianca = airlineId == AVIANCA_ID;
-
-        if (isSpecialBase && isAvianca) {
-            // Despacho debe ser NO para UC/UIB cuando es AVIANCA
-            despachoDisplay.textContent = 'No';
-            despachoInput.value = '0';
-            despachoDisplay.style.color = 'var(--bs-danger)';
+        const tieneDespacho = isAvianca || isBaseEspecial;
+        if (tieneDespacho) {
+            despachoDisplay.textContent = 'Sí';
+            despachoInput.value = '1';
+            despachoDisplay.style.color = '#198754'; // Verde
         } else {
-            // En otros casos, permitir selección manual (aquí mostraría un select)
             despachoDisplay.textContent = 'No';
             despachoInput.value = '0';
-            despachoDisplay.style.color = 'inherit';
+            despachoDisplay.style.color = '#dc3545'; // Rojo
+        }
+
+        // 3. SATENA - HORA DE CIERRE DE MÓDULO ═════════════════════
+        const selectedOption = airlineSelect.options[airlineSelect.selectedIndex];
+        const selectedText = selectedOption ? selectedOption.text : '';
+        if (selectedText === 'SATENA') {
+            satenaContainer.style.display = 'block';
+        } else {
+            satenaContainer.style.display = 'none';
+            const satenaField = document.getElementById('satena_hora_cierre_modulo');
+            if (satenaField) satenaField.value = '';
         }
     }
-    document.getElementById('base').addEventListener('change', updateDespachoLogic);
-    document.getElementById('airline_id').addEventListener('change', updateDespachoLogic);
-    updateDespachoLogic();
+
+    // Escuchar cambios en aerolínea y base (ambos afectan el despacho)
+    document.getElementById('airline_id').addEventListener('change', updateAllAirlineLogic);
+    const baseSelect = document.getElementById('base');
+    if (baseSelect) {
+        baseSelect.addEventListener('change', updateAllAirlineLogic);
+    }
+    // Llamar al inicio
+    updateAllAirlineLogic();
 
     // ═══ LÓGICA: PAX CANCELADO (desabilitar en Tránsito) ═══
     function updatePaxCanceladoState() {
@@ -675,24 +702,23 @@
 
     // ═══ LÓGICA: CUMPLE TIEMPO ════════════════════════════
     /*
-     * Mejorado: No es demora si:
-     * - El avión llega ANTES o EN la hora itinerada de llegada, Y
-     * - El avión sale EN la hora itinerada de salida
-     *
-     * Es demora si:
-     * - El avión llega DESPUÉS de la hora itinerada, O
-     * - El avión sale DESPUÉS de la hora itinerada
+     * Mejorado: Llegadas anticipadas se consideran como CUMPLIMIENTO
+     * - Si hora_real_llegada < hora_itinerada_llegada → CUMPLIMIENTO ✅
+     * - Usa tiempo_cumplimiento_custom si se selecciona "Otra"
+     * - Usa tiempo_cumplimiento_ref si se selecciona aerolínea normal
      */
     function calculateTiempoAndCumple() {
         const horaRealLlegada = document.getElementById('hora_real_llegada').value;
         const horaRealSalida = document.getElementById('hora_real_salida').value;
         const horaItineradaLlegada = document.getElementById('hora_itinerada_llegada').value;
-        const horaItineradaSalida = document.getElementById('hora_itinerada_salida').value;
+        const tiempoRef = document.getElementById('tiempo_cumplimiento_ref').value;
+        const tiempoCustom = document.getElementById('tiempo_cumplimiento_custom').value;
 
         const tiempoTransitoDisplay = document.getElementById('tiempo_transito_display');
         const cumpleDisplay = document.getElementById('cumple_tiempo_display');
         const tiempoInput = document.getElementById('tiempo_transito');
         const cumpleInput = document.getElementById('cumple_tiempo');
+        const demoraInput = document.getElementById('demora_llegando');
 
         // Calcular tiempo de tránsito
         if (horaRealLlegada && horaRealSalida) {
@@ -712,22 +738,31 @@
             tiempoInput.value = '';
         }
 
-        // Calcular cumple tiempo (mejorado)
-        if (horaRealLlegada && horaRealSalida && horaItineradaLlegada && horaItineradaSalida) {
-            const realLlegada = new Date(`2000-01-01 ${horaRealLlegada}`);
-            const realSalida = new Date(`2000-01-01 ${horaRealSalida}`);
-            const itinerarioLlegada = new Date(`2000-01-01 ${horaItineradaLlegada}`);
-            const itinerarioSalida = new Date(`2000-01-01 ${horaItineradaSalida}`);
+        // Determinar qué tiempo de cumplimiento usar
+        // Si hay tiempo personalizado (Otra), usarlo; si no, usar el de la BD
+        const tiempoAUsar = tiempoCustom ? parseInt(tiempoCustom) : (tiempoRef ? parseInt(tiempoRef) : null);
 
-            // No es demora si:
-            // - Llega antes o en hora itinerada AND
-            // - Sale en hora itinerada
-            const llegoAntes = realLlegada <= itinerarioLlegada;
-            const saleEnHora = realSalida <= itinerarioSalida;
+        // Calcular cumple tiempo CON CONSIDERACIÓN DE LLEGADAS ANTICIPADAS
+        if (horaRealLlegada && horaItineradaLlegada && tiempoAUsar) {
+            const [hR, mR] = horaRealLlegada.split(':').map(Number);
+            const [hI, mI] = horaItineradaLlegada.split(':').map(Number);
 
-            const cumple = llegoAntes && saleEnHora;
+            const minReal = hR * 60 + mR;
+            const minItinerada = hI * 60 + mI;
+            const demora = minReal - minItinerada;
 
-            cumpleInput.value = cumple ? '1' : '0';
+            // Si llegó anticipada (negativo), es CUMPLIMIENTO
+            let cumple;
+            if (demora <= 0) {
+                cumple = 1; // Llegada anticipada = cumplimiento
+                if (demoraInput) demoraInput.value = 0;
+            } else {
+                // Si llegó tarde, verificar si está dentro del tiempo permitido
+                cumple = demora <= tiempoAUsar ? 1 : 0;
+                if (demoraInput) demoraInput.value = Math.max(0, demora);
+            }
+
+            cumpleInput.value = cumple;
             cumpleDisplay.textContent = cumple ? '✓ SÍ' : '✗ NO';
             cumpleDisplay.style.color = cumple ? '#198754' : '#dc3545';
 
@@ -738,9 +773,17 @@
         }
     }
 
-    ['hora_real_llegada', 'hora_real_salida', 'hora_itinerada_llegada', 'hora_itinerada_salida'].forEach(id => {
-        document.getElementById(id).addEventListener('change', calculateTiempoAndCumple);
+    // Escuchar cambios en horarios Y en tiempo personalizado
+    ['hora_real_llegada', 'hora_itinerada_llegada', 'tiempo_cumplimiento_custom'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', calculateTiempoAndCumple);
+            el.addEventListener('input', calculateTiempoAndCumple);
+        }
     });
+
+    // También disparar cálculo cuando cambia el avión seleccionado
+    document.getElementById('aircraft_type_id').addEventListener('change', calculateTiempoAndCumple);
 
     // ═══ LÓGICA: RESTRICCIÓN DE HORAS (GPU, ACU, Ventiladores) ══════
     /*

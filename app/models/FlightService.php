@@ -51,14 +51,14 @@ class FlightService extends Model
     {
         return $this->db->fetchAll(
             "SELECT fs.*,
-                    a.nombre  AS airline_nombre,
-                    at.tipo   AS aircraft_tipo,
-                    at.tiempo_cumplimiento,
+                    COALESCE(a.nombre, fs.airline_custom_nombre)  AS airline_nombre,
+                    COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo,
+                    COALESCE(at.tiempo_cumplimiento, fs.tiempo_cumplimiento_custom) AS tiempo_cumplimiento,
                     u.nombre_completo AS registrado_por
              FROM flight_services fs
-             JOIN airlines       a  ON fs.airline_id       = a.id
-             JOIN aircraft_types at ON fs.aircraft_type_id = at.id
-             JOIN users          u  ON fs.user_id          = u.id
+             LEFT JOIN airlines       a  ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             LEFT JOIN aircraft_types at ON fs.aircraft_type_id = at.id
+             JOIN users               u  ON fs.user_id = u.id
              ORDER BY fs.anio DESC, fs.mes DESC, fs.dia DESC, fs.id DESC"
         );
     }
@@ -67,14 +67,14 @@ class FlightService extends Model
     {
         return $this->db->fetchAll(
             "SELECT fs.*,
-                    a.nombre  AS airline_nombre,
-                    at.tipo   AS aircraft_tipo,
-                    at.tiempo_cumplimiento,
+                    COALESCE(a.nombre, fs.airline_custom_nombre)  AS airline_nombre,
+                    COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo,
+                    COALESCE(at.tiempo_cumplimiento, fs.tiempo_cumplimiento_custom) AS tiempo_cumplimiento,
                     u.nombre_completo AS registrado_por
              FROM flight_services fs
-             JOIN airlines       a  ON fs.airline_id       = a.id
-             JOIN aircraft_types at ON fs.aircraft_type_id = at.id
-             JOIN users          u  ON fs.user_id          = u.id
+             LEFT JOIN airlines       a  ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             LEFT JOIN aircraft_types at ON fs.aircraft_type_id = at.id
+             JOIN users               u  ON fs.user_id = u.id
              WHERE fs.base = ?
              ORDER BY fs.anio DESC, fs.mes DESC, fs.dia DESC, fs.id DESC",
             [$base]
@@ -88,14 +88,14 @@ class FlightService extends Model
     {
         $service = $this->db->fetchOne(
             "SELECT fs.*,
-                    a.nombre  AS airline_nombre,
-                    at.tipo   AS aircraft_tipo,
-                    at.tiempo_cumplimiento,
+                    COALESCE(a.nombre, fs.airline_custom_nombre)  AS airline_nombre,
+                    COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo,
+                    COALESCE(at.tiempo_cumplimiento, fs.tiempo_cumplimiento_custom) AS tiempo_cumplimiento,
                     u.nombre_completo AS registrado_por
              FROM flight_services fs
-             JOIN airlines       a  ON fs.airline_id       = a.id
-             JOIN aircraft_types at ON fs.aircraft_type_id = at.id
-             JOIN users          u  ON fs.user_id          = u.id
+             LEFT JOIN airlines       a  ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             LEFT JOIN aircraft_types at ON fs.aircraft_type_id = at.id
+             JOIN users               u  ON fs.user_id = u.id
              WHERE fs.id = ?",
             [$id]
         );
@@ -151,18 +151,18 @@ class FlightService extends Model
         $pdo->beginTransaction();
 
         try {
-            // Convertir 'otra' a null para airline_id (se usará airline_custom_nombre en su lugar)
-            $airlineId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['airline_id'];
+            // Si es 'otra', guardar como string; si no, guardar como int
+            $airlineId = $data['airline_id'];
             $aircraftTypeId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['aircraft_type_id'];
 
             $this->db->query(
                 "INSERT INTO flight_services (
                     anio, mes, quincena, dia, base, despacho,
                     airline_id, airline_custom_nombre, tipo_atencion,
-                    vuelo_llegando, base_destino, matricula, aircraft_type_id, aircraft_type_custom,
+                    vuelo_llegando, base_destino, matricula, aircraft_type_id, aircraft_type_custom, tiempo_cumplimiento_custom,
                     pax_saliendo, pax_cancelado, ajes_transportados, vuelo_saliendo,
                     hora_itinerada_llegada, demora_llegando,
-                    hora_itinerada_salida, hora_real_llegada, hora_real_salida,
+                    hora_itinerada_salida, satena_hora_cierre_modulo, hora_real_llegada, hora_real_salida,
                     tiempo_transito, cumple_tiempo,
                     codigo_demora, observacion_demora,
                     hora_conexion_gpu, hora_desconexion_gpu, tiempo_gpu, fracciones_adc_gpu, fracciones_adicionales_gpu,
@@ -175,7 +175,7 @@ class FlightService extends Model
                     potable, drenaje,
                     equipo_gse_inoperativo, afecto_operacion, rpn, observaciones, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['anio'],
@@ -192,6 +192,7 @@ class FlightService extends Model
                     $data['matricula'],
                     $aircraftTypeId,
                     $data['aircraft_type_custom'] ?: null,
+                    $data['tiempo_cumplimiento_custom'],
                     $data['pax_saliendo'],
                     $data['pax_cancelado'],
                     $data['ajes_transportados'],
@@ -199,6 +200,7 @@ class FlightService extends Model
                     $data['hora_itinerada_llegada'] ?: null,
                     $data['demora_llegando'],
                     $data['hora_itinerada_salida'] ?: null,
+                    $data['satena_hora_cierre_modulo'] ?: null,
                     $data['hora_real_llegada'] ?: null,
                     $data['hora_real_salida'] ?: null,
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,
@@ -262,18 +264,18 @@ class FlightService extends Model
         $pdo->beginTransaction();
 
         try {
-            // Convertir 'otra' a null para airline_id (se usará airline_custom_nombre en su lugar)
-            $airlineId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['airline_id'];
+            // Si es 'otra', guardar como string; si no, guardar como int
+            $airlineId = $data['airline_id'];
             $aircraftTypeId = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra') ? null : $data['aircraft_type_id'];
 
             $this->db->query(
                 "UPDATE flight_services SET
                     anio=?, mes=?, quincena=?, dia=?, base=?, despacho=?,
                     airline_id=?, airline_custom_nombre=?, tipo_atencion=?,
-                    vuelo_llegando=?, base_destino=?, matricula=?, aircraft_type_id=?, aircraft_type_custom=?,
+                    vuelo_llegando=?, base_destino=?, matricula=?, aircraft_type_id=?, aircraft_type_custom=?, tiempo_cumplimiento_custom=?,
                     pax_saliendo=?, pax_cancelado=?, ajes_transportados=?, vuelo_saliendo=?,
                     hora_itinerada_llegada=?, demora_llegando=?,
-                    hora_itinerada_salida=?, hora_real_llegada=?, hora_real_salida=?,
+                    hora_itinerada_salida=?, satena_hora_cierre_modulo=?, hora_real_llegada=?, hora_real_salida=?,
                     tiempo_transito=?, cumple_tiempo=?,
                     codigo_demora=?, observacion_demora=?,
                     hora_conexion_gpu=?, hora_desconexion_gpu=?, tiempo_gpu=?, fracciones_adc_gpu=?, fracciones_adicionales_gpu=?,
@@ -301,6 +303,7 @@ class FlightService extends Model
                     $data['matricula'],
                     $aircraftTypeId,
                     $data['aircraft_type_custom'] ?: null,
+                    $data['tiempo_cumplimiento_custom'],
                     $data['pax_saliendo'],
                     $data['pax_cancelado'],
                     $data['ajes_transportados'],
@@ -308,6 +311,7 @@ class FlightService extends Model
                     $data['hora_itinerada_llegada'] ?: null,
                     $data['demora_llegando'],
                     $data['hora_itinerada_salida'] ?: null,
+                    $data['satena_hora_cierre_modulo'] ?: null,
                     $data['hora_real_llegada'] ?: null,
                     $data['hora_real_salida'] ?: null,
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,

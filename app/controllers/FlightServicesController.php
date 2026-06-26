@@ -96,12 +96,9 @@ class FlightServicesController extends Controller {
             // Registrar error en log
             $logMessage = date('Y-m-d H:i:s') . " | STORE ERROR | " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine() . "\n";
             error_log($logMessage, 3, dirname(__DIR__) . '/../logs/flight_services.log');
-            
-            // En desarrollo, mostrar error más detallado
-            $errorMsg = 'Error al guardar el registro.';
-            if (defined('DEBUG') && DEBUG) {
-                $errorMsg .= ' ' . $e->getMessage();
-            }
+
+            // Mostrar error detallado (cambiar a error más genérico en producción si es necesario)
+            $errorMsg = 'Error al guardar el registro: ' . $e->getMessage();
             $this->redirectWith('flight-services/create', 'error', $errorMsg);
         }
     }
@@ -131,7 +128,10 @@ class FlightServicesController extends Controller {
             $this->redirectWith('flight-services', 'error', 'Servicio no encontrado.');
             return;
         }
-        $aircraftTypes = $this->aircraftModel->getByAirline((int)$service['airline_id']);
+        // Si airline_id es 'otra' (string), no cargar aircraftTypes; si no, cargar según aerolínea
+        $aircraftTypes = ($service['airline_id'] === 'otra' || $service['airline_id'] == 'otra')
+            ? []
+            : $this->aircraftModel->getByAirline((int)$service['airline_id']);
         $this->view('flight_services/edit', [
             'pageTitle'    => 'Editar Servicio #' . $service['id'],
             'breadcrumbs'  => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Editar' => null],
@@ -162,7 +162,10 @@ class FlightServicesController extends Controller {
 
         if (!empty($errors)) {
             $service = $this->model->findFullById($serviceId);
-            $aircraftTypes = $this->aircraftModel->getByAirline((int)$data['airline_id']);
+            // Si airline_id es 'otra' (string), no cargar aircraftTypes; si no, cargar según aerolínea
+            $aircraftTypes = ($data['airline_id'] === 'otra' || $data['airline_id'] == 'otra')
+                ? []
+                : $this->aircraftModel->getByAirline((int)$data['airline_id']);
             $this->view('flight_services/edit', [
                 'pageTitle'    => 'Editar Servicio #' . $serviceId,
                 'breadcrumbs'  => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Editar' => null],
@@ -190,12 +193,9 @@ class FlightServicesController extends Controller {
             // Registrar error en log
             $logMessage = date('Y-m-d H:i:s') . " | UPDATE ERROR | ID: $serviceId | " . $e->getMessage() . " | File: " . $e->getFile() . " | Line: " . $e->getLine() . "\n";
             error_log($logMessage, 3, dirname(__DIR__) . '/../logs/flight_services.log');
-            
-            // En desarrollo, mostrar error más detallado
-            $errorMsg = 'Error al actualizar. Intente de nuevo.';
-            if (defined('DEBUG') && DEBUG) {
-                $errorMsg .= ' ' . $e->getMessage();
-            }
+
+            // Mostrar error detallado
+            $errorMsg = 'Error al actualizar: ' . $e->getMessage();
             $this->redirectWith('flight-services/edit/' . $serviceId, 'error', $errorMsg);
         }
     }
@@ -215,6 +215,9 @@ class FlightServicesController extends Controller {
 
     /** Recolectar y sanitizar datos del formulario */
     private function collectFormData(): array {
+        $airlineInput = $this->input('airline_id');
+        $airlineId = ($airlineInput === 'otra') ? 'otra' : (int)$airlineInput;
+
         return [
             'anio'                   => (int)$this->input('anio'),
             'mes'                    => (int)$this->input('mes'),
@@ -222,7 +225,7 @@ class FlightServicesController extends Controller {
             'dia'                    => (int)$this->input('dia'),
             'base'                   => $this->input('base', ''),
             'despacho'               => (int)$this->input('despacho', 0),
-            'airline_id'             => (int)$this->input('airline_id'),
+            'airline_id'             => $airlineId,
             'tipo_atencion'          => $this->input('tipo_atencion', ''),
             'vuelo_llegando'         => $this->input('vuelo_llegando', ''),
             'base_destino'           => $this->input('base_destino', ''),
@@ -235,7 +238,9 @@ class FlightServicesController extends Controller {
             'hora_itinerada_llegada' => $this->inputRaw('hora_itinerada_llegada', ''),
             'demora_llegando'        => (int)$this->input('demora_llegando', 0),
             'hora_itinerada_salida'  => $this->inputRaw('hora_itinerada_salida', ''),
+            'satena_hora_cierre_modulo' => $this->inputRaw('satena_hora_cierre_modulo', ''),
             'hora_real_llegada'      => $this->inputRaw('hora_real_llegada', ''),
+            'tiempo_cumplimiento_custom' => (int)$this->input('tiempo_cumplimiento_custom', 0) ?: null,
             'hora_real_salida'       => $this->inputRaw('hora_real_salida', ''),
             'tiempo_transito'        => $this->inputRaw('tiempo_transito', ''),
             'cumple_tiempo'          => $this->inputRaw('cumple_tiempo', ''),
@@ -274,7 +279,7 @@ class FlightServicesController extends Controller {
             // Observaciones
             'equipo_gse_inoperativo' => implode(',', array_intersect(
                 array_map('trim', (array)($_POST['equipo_gse_inoperativo'] ?? [])),
-                ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'E318/A320','SVPFREE', 'PEP']
+                ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP']
             )),
             'afecto_operacion'       => (int)$this->input('afecto_operacion', 0),
             'rpn'                    => $this->input('rpn', ''),
@@ -312,6 +317,9 @@ class FlightServicesController extends Controller {
             }
             if (empty($data['aircraft_type_custom'])) {
                 $errors['aircraft_type_custom'] = 'Ingrese el tipo de avión.';
+            }
+            if (empty($data['tiempo_cumplimiento_custom'])) {
+                $errors['tiempo_cumplimiento_custom'] = 'Ingrese el tiempo de cumplimiento (en minutos).';
             }
         }
         if (!in_array($data['tipo_atencion'], FlightService::$tiposAtencion, true)) {
