@@ -279,7 +279,7 @@ class FlightServicesController extends Controller {
             // Observaciones
             'equipo_gse_inoperativo' => implode(',', array_intersect(
                 array_map('trim', (array)($_POST['equipo_gse_inoperativo'] ?? [])),
-                ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP']
+                ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP','GPU']
             )),
             'afecto_operacion'       => (int)$this->input('afecto_operacion', 0),
             'rpn'                    => $this->input('rpn', ''),

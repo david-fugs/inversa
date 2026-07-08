@@ -342,12 +342,12 @@
                         value="<?= number_format((float)($old['fracciones_adc_gpu'] ?? 0), 2) ?>"
                         readonly style="background:var(--bg-body);">
                 </div>
-                <div class="col-md-2">
+                <!-- <div class="col-md-2">
                     <label for="fracciones_adicionales_gpu" class="form-label">Fracciones Adicionales GPU</label>
                     <input type="number" step="0.01" class="form-control" id="fracciones_adicionales_gpu" name="fracciones_adicionales_gpu"
                         value="<?= number_format((float)($old['fracciones_adicionales_gpu'] ?? 0), 2) ?>"
                         readonly style="background:var(--bg-body);">
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -530,7 +530,7 @@
             <div class="row g-3">
 
                 <?php
-                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU', 'SVPFREE', 'PEP','GPU'];
                 $gseSeleccionados = !empty($old['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $old['equipo_gse_inoperativo']))
                     : [];
@@ -565,10 +565,10 @@
             <div id="rpn-field-container" style="display:none;">
                 <div class="row g-3 mt-3">
                     <div class="col-md-6">
-                        <label for="rpn" class="form-label">RPN</label>
+                        <label for="rpn" class="form-label">RPM</label>
                         <input type="text" class="form-control" id="rpn" name="rpn"
                             value="<?= htmlspecialchars($old['rpn'] ?? '') ?>"
-                            placeholder="Ingrese el RPN (alfanumérico)" style="text-transform:uppercase;">
+                            placeholder="Ingrese el RPM (alfanumérico)" style="text-transform:uppercase;">
                     </div>
                 </div>
             </div>

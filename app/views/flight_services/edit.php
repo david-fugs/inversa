@@ -492,7 +492,7 @@
     <div class="card-body">
         <div class="row g-3">
             <?php
-                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU','SVPFREE', 'PEP'];
+                $gseOpciones     = ['ACU', 'TRA', 'CON', 'PAY', 'ASU','SVPFREE', 'PEP','GPU'];
                 $gseSeleccionados = !empty($service['equipo_gse_inoperativo'])
                     ? array_map('trim', explode(',', $service['equipo_gse_inoperativo']))
                     : [];
@@ -525,10 +525,10 @@
         <div id="rpn-field-container" style="display:none;">
             <div class="row g-3 mt-3">
                 <div class="col-md-6">
-                    <label for="rpn" class="form-label">RPN</label>
+                    <label for="rpn" class="form-label">RPM</label>
                     <input type="text" class="form-control" id="rpn" name="rpn"
                         value="<?= htmlspecialchars($service['rpn'] ?? '') ?>"
-                        placeholder="Ingrese el RPN (alfanumérico)" style="text-transform:uppercase;">
+                        placeholder="Ingrese el RPM (alfanumérico)" style="text-transform:uppercase;">
                 </div>
             </div>
         </div>

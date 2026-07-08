@@ -182,11 +182,11 @@ function initGpuCalculation() {
         if (diff < 0) diff += 1440;
         if (tiempoGpu) tiempoGpu.value = diff;
 
-        // Fracciones ADC GPU = (tiempo_gpu - 70) / 15
+        // Fracciones ADC GPU = (tiempo_gpu - 70) / 15, redondeado hacia arriba si tiene decimales
         const fracGpu     = document.getElementById('fracciones_adc_gpu');
         const fracAdicGpu = document.getElementById('fracciones_adicionales_gpu');
         if (fracGpu) {
-            const val = (diff - 70) / 15;
+            const val = Math.ceil((diff - 70) / 15);
             fracGpu.value = val.toFixed(2);
             if (fracAdicGpu) fracAdicGpu.value = Math.max(0, val).toFixed(2);
         }
