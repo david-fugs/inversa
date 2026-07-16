@@ -49,18 +49,16 @@
                     <label for="tiempo_cumplimiento" class="form-label">
                         Tiempo de Cumplimiento <span class="required-mark">*</span>
                     </label>
-                    <select class="form-select <?= isset($errors['tiempo_cumplimiento']) ? 'is-invalid' : '' ?>"
-                            id="tiempo_cumplimiento" name="tiempo_cumplimiento">
-                        <?php foreach ($tiempoOptions as $t): ?>
-                            <option value="<?= $t ?>"
-                                <?= $type['tiempo_cumplimiento'] == $t ? 'selected' : '' ?>>
-                                <?= $t ?> minutos
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <?php if (isset($errors['tiempo_cumplimiento'])): ?>
-                        <div class="invalid-feedback"><?= $errors['tiempo_cumplimiento'] ?></div>
-                    <?php endif; ?>
+                    <div class="input-group">
+                        <input type="number" step="1" min="1" max="255"
+                            class="form-control <?= isset($errors['tiempo_cumplimiento']) ? 'is-invalid' : '' ?>"
+                            id="tiempo_cumplimiento" name="tiempo_cumplimiento"
+                            value="<?= htmlspecialchars((string)$type['tiempo_cumplimiento']) ?>">
+                        <span class="input-group-text">minutos</span>
+                        <?php if (isset($errors['tiempo_cumplimiento'])): ?>
+                            <div class="invalid-feedback"><?= $errors['tiempo_cumplimiento'] ?></div>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
             </div>

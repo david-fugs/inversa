@@ -8,8 +8,6 @@ class AircraftTypesController extends Controller {
     private AircraftType $model;
     private Airline      $airlineModel;
 
-    private array $tiempoOptions = [20, 25, 30, 40];
-
     public function __construct() {
         parent::__construct();
         Session::requireAuth();
@@ -32,7 +30,6 @@ class AircraftTypesController extends Controller {
             'pageTitle'    => 'Nuevo Tipo de Avión',
             'breadcrumbs'  => ['Tipos de Avión' => BASE_URL . '/aircraft-types', 'Nuevo' => null],
             'airlines'     => $airlines,
-            'tiempoOptions'=> $this->tiempoOptions,
             'errors'       => [],
             'old'          => [],
         ]);
@@ -52,7 +49,6 @@ class AircraftTypesController extends Controller {
                 'pageTitle'    => 'Nuevo Tipo de Avión',
                 'breadcrumbs'  => ['Tipos de Avión' => BASE_URL . '/aircraft-types', 'Nuevo' => null],
                 'airlines'     => $airlines,
-                'tiempoOptions'=> $this->tiempoOptions,
                 'errors'       => $errors,
                 'old'          => $data,
             ]);
@@ -75,7 +71,6 @@ class AircraftTypesController extends Controller {
             'breadcrumbs'  => ['Tipos de Avión' => BASE_URL . '/aircraft-types', 'Editar' => null],
             'type'         => $type,
             'airlines'     => $airlines,
-            'tiempoOptions'=> $this->tiempoOptions,
             'errors'       => [],
         ]);
     }
@@ -102,7 +97,6 @@ class AircraftTypesController extends Controller {
                 'breadcrumbs'  => ['Tipos de Avión' => BASE_URL . '/aircraft-types', 'Editar' => null],
                 'type'         => array_merge($type, $data),
                 'airlines'     => $airlines,
-                'tiempoOptions'=> $this->tiempoOptions,
                 'errors'       => $errors,
             ]);
             return;
@@ -143,8 +137,8 @@ class AircraftTypesController extends Controller {
         if (empty($data['tipo'])) {
             $errors['tipo'] = 'El tipo de avión es obligatorio.';
         }
-        if (!in_array($data['tiempo_cumplimiento'], $this->tiempoOptions, true)) {
-            $errors['tiempo_cumplimiento'] = 'Seleccione un tiempo de cumplimiento válido.';
+        if ($data['tiempo_cumplimiento'] <= 0 || $data['tiempo_cumplimiento'] > 255) {
+            $errors['tiempo_cumplimiento'] = 'Ingrese un tiempo de cumplimiento válido en minutos (1 - 255).';
         }
         return $errors;
     }
