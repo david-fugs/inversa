@@ -66,6 +66,13 @@ $router->post('/aircraft-types/edit/{id}',   'AircraftTypesController', 'update'
 $router->get('/aircraft-types/delete/{id}',  'AircraftTypesController', 'delete');
 $router->get('/aircraft-types/by-airline/{airline_id}', 'AircraftTypesController', 'byAirline');
 
+// ─── Tarifas / Cobros GPU ───────────────────────────────────────────
+$router->get('/tarifas-cobros',              'TarifasGpuController', 'index');
+$router->post('/tarifas-cobros/create',      'TarifasGpuController', 'store');
+$router->post('/tarifas-cobros/edit/{id}',   'TarifasGpuController', 'update');
+$router->get('/tarifas-cobros/delete/{id}',  'TarifasGpuController', 'delete');
+$router->get('/tarifas-cobros/by-airline/{airline_id}', 'TarifasGpuController', 'byAirline');
+
 // ─── Bases ──────────────────────────────────────────────────────────
 $router->get('/bases',              'BasesController', 'index');
 $router->get('/bases/create',       'BasesController', 'createForm');

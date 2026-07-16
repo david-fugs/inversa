@@ -166,13 +166,71 @@ function initTransitCalculation() {
     calcularDemora();
 }
 
+/* ── Cálculo de fracciones GPU según tarifa de la aerolínea ──
+ * Regla de negocio (tarifas_gpu):
+ *  - Si la aerolínea tiene "primeros_minutos" configurado, ese tramo
+ *    completo cuenta como 1 fracción. Cada "fraccion_minutos"
+ *    adicionales (o parte de ellos) suma 1 fracción más.
+ *    Ej: primeros=60, fraccion=15 → 60 min=1, 61 min=2, 76 min=3
+ *  - Si la aerolínea NO tiene "primeros_minutos" (solo maneja
+ *    fracción), las fracciones se cuentan directamente cada
+ *    "fraccion_minutos" desde el minuto 0.
+ *  - Sin tarifa configurada para la aerolínea → 0 fracciones.
+ */
+function calcularFraccionesGpuValor(tiempoMin, tarifa) {
+    const fraccion = tarifa ? parseInt(tarifa.fraccion_minutos, 10) : 0;
+    if (!fraccion || fraccion <= 0) return 0;
+    if (!tiempoMin || tiempoMin <= 0) return 0;
+
+    const primeros = tarifa && tarifa.primeros_minutos !== null && tarifa.primeros_minutos !== undefined
+        ? parseInt(tarifa.primeros_minutos, 10)
+        : 0;
+
+    if (primeros > 0) {
+        if (tiempoMin <= primeros) return 1;
+        return 1 + Math.ceil((tiempoMin - primeros) / fraccion);
+    }
+
+    return Math.ceil(tiempoMin / fraccion);
+}
+
 /* ── Cálculo GPU ──────────────────────────────────────── */
 function initGpuCalculation() {
-    const conexion     = document.getElementById('hora_conexion_gpu');
-    const desconexion  = document.getElementById('hora_desconexion_gpu');
-    const tiempoGpu    = document.getElementById('tiempo_gpu');
+    const conexion      = document.getElementById('hora_conexion_gpu');
+    const desconexion   = document.getElementById('hora_desconexion_gpu');
+    const tiempoGpu     = document.getElementById('tiempo_gpu');
+    const fracGpu       = document.getElementById('fracciones_adc_gpu');
+    const fracAdicGpu   = document.getElementById('fracciones_adicionales_gpu');
+    const airlineSelect = document.getElementById('airline_id');
 
     if (!conexion || !desconexion) return;
+
+    let tarifaActual = null;
+
+    function recalcularFracciones() {
+        const diff = parseInt(tiempoGpu ? tiempoGpu.value : '0', 10) || 0;
+        const val  = calcularFraccionesGpuValor(diff, tarifaActual);
+        if (fracGpu)     fracGpu.value     = val.toFixed(2);
+        if (fracAdicGpu) fracAdicGpu.value = val.toFixed(2);
+    }
+
+    function cargarTarifaAerolinea(airlineId) {
+        if (!airlineId || airlineId === 'otra') {
+            tarifaActual = null;
+            recalcularFracciones();
+            return;
+        }
+        fetch(BASE_URL + '/tarifas-cobros/by-airline/' + airlineId)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                tarifaActual = data;
+                recalcularFracciones();
+            })
+            .catch(function () {
+                tarifaActual = null;
+                recalcularFracciones();
+            });
+    }
 
     function calcular() {
         const c = timeToMinutes(conexion.value);
@@ -181,19 +239,21 @@ function initGpuCalculation() {
         let diff = d - c;
         if (diff < 0) diff += 1440;
         if (tiempoGpu) tiempoGpu.value = diff;
-
-        // Fracciones ADC GPU = (tiempo_gpu - 70) / 15, redondeado hacia arriba si tiene decimales
-        const fracGpu     = document.getElementById('fracciones_adc_gpu');
-        const fracAdicGpu = document.getElementById('fracciones_adicionales_gpu');
-        if (fracGpu) {
-            const val = Math.ceil((diff - 70) / 15);
-            fracGpu.value = val.toFixed(2);
-            if (fracAdicGpu) fracAdicGpu.value = Math.max(0, val).toFixed(2);
-        }
+        recalcularFracciones();
     }
 
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
+
+    if (airlineSelect) {
+        airlineSelect.addEventListener('change', function () {
+            cargarTarifaAerolinea(this.value);
+        });
+        // Cargar tarifa inicial si ya hay una aerolínea seleccionada (edición o reintento con errores)
+        if (airlineSelect.value) {
+            cargarTarifaAerolinea(airlineSelect.value);
+        }
+    }
 }
 
 /* ── Cálculo ACU ──────────────────────────────────────── */

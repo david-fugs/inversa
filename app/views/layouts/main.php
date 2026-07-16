@@ -46,7 +46,7 @@
         <div class="nav-item">
             <a href="<?= BASE_URL ?>/flight-services" class="nav-link">
                 <i class="bi bi-clipboard2-pulse-fill"></i>
-                <span>Servicios de Vuelo</span>
+                <span>Ground Handling</span>
             </a>
         </div>
 
@@ -64,6 +64,13 @@
             <a href="<?= BASE_URL ?>/aircraft-types" class="nav-link">
                 <i class="bi bi-airplane"></i>
                 <span>Tipos de Avión</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/tarifas-cobros" class="nav-link">
+                <i class="bi bi-cash-coin"></i>
+                <span>Tarifas / Cobros</span>
             </a>
         </div>
 
