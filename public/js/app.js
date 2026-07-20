@@ -99,6 +99,9 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ── Cálculo despacho según base ───────────────────── */
     initDespachoCalc();
 
+    /* ── Validación horas conexión/desconexión vs hora real ── */
+    initEquipmentHoursRangeValidation();
+
     /* ── Tipo de avión por aerolínea (AJAX) ────────────── */
     initAircraftByAirline();
 });
@@ -278,8 +281,8 @@ function initAcuCalculation() {
         const frac15   = document.getElementById('fracciones_15min_acu');
         const acuVal   = acuSelect ? parseInt(acuSelect.value) : 0;
         if (fracHora) fracHora.value = acuVal ? '1.00' : '0.00';
-        // Fracciones 15 min ACU = (tiempo_acu - 60) / 15
-        if (frac15)   frac15.value   = ((diff - 60) / 15).toFixed(2);
+        // Fracciones 15 min ACU: cada bloque de 15 min (1-15=1, 16-30=2, 31-45=3, ...) redondeando hacia arriba
+        if (frac15)   frac15.value   = diff > 0 ? Math.ceil(diff / 15).toFixed(2) : '0.00';
     }
 
     function calcularFracHora() {
@@ -328,6 +331,80 @@ function initVentiladoresCalculation() {
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
     if (ventSelect) ventSelect.addEventListener('change', calcularFracHora);
+}
+
+/* ── Validación horas conexión/desconexión vs hora real ──
+ * Las horas de conexión y desconexión de GPU, ACU y Ventiladores
+ * deben estar dentro del rango [hora_real_llegada, hora_real_salida].
+ */
+function initEquipmentHoursRangeValidation() {
+    const horaRealLlegada = document.getElementById('hora_real_llegada');
+    const horaRealSalida  = document.getElementById('hora_real_salida');
+    if (!horaRealLlegada || !horaRealSalida) return;
+
+    const EQUIPOS = [
+        { conexion: 'hora_conexion_gpu', desconexion: 'hora_desconexion_gpu' },
+        { conexion: 'hora_conexion_acu', desconexion: 'hora_desconexion_acu' },
+        { conexion: 'hora_conexion_ventiladores', desconexion: 'hora_desconexion_ventiladores' }
+    ];
+
+    function getFeedback(field) {
+        let feedback = field.nextElementSibling;
+        if (!feedback || !feedback.classList.contains('equipment-hour-feedback')) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback equipment-hour-feedback';
+            field.insertAdjacentElement('afterend', feedback);
+        }
+        return feedback;
+    }
+
+    function validateField(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        const min = timeToMinutes(horaRealLlegada.value);
+        const max = timeToMinutes(horaRealSalida.value);
+        const val = timeToMinutes(field.value);
+        const feedback = getFeedback(field);
+
+        if (val === null || min === null || max === null) {
+            field.classList.remove('is-invalid');
+            return;
+        }
+
+        let maxAjustado = max;
+        if (maxAjustado < min) maxAjustado += 1440; // la salida es al día siguiente
+        let valAjustado = val;
+        if (valAjustado < min) valAjustado += 1440;
+
+        const fueraDeRango = valAjustado < min || valAjustado > maxAjustado;
+
+        if (fueraDeRango) {
+            feedback.textContent = `Debe estar entre la hora real de llegada (${horaRealLlegada.value}) y la hora real de salida (${horaRealSalida.value}).`;
+            field.classList.add('is-invalid');
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    }
+
+    function validateAll() {
+        EQUIPOS.forEach(function (eq) {
+            validateField(eq.conexion);
+            validateField(eq.desconexion);
+        });
+    }
+
+    horaRealLlegada.addEventListener('change', validateAll);
+    horaRealSalida.addEventListener('change', validateAll);
+
+    EQUIPOS.forEach(function (eq) {
+        [eq.conexion, eq.desconexion].forEach(function (id) {
+            const field = document.getElementById(id);
+            if (field) field.addEventListener('change', validateAll);
+        });
+    });
+
+    validateAll();
 }
 
 /* ── Tipos de avión por aerolínea ─────────────────────── */

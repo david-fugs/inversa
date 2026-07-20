@@ -787,65 +787,6 @@
     // También disparar cálculo cuando cambia el avión seleccionado
     document.getElementById('aircraft_type_id').addEventListener('change', calculateTiempoAndCumple);
 
-    // ═══ LÓGICA: RESTRICCIÓN DE HORAS (GPU, ACU, Ventiladores) ══════
-    /*
-     * Las horas de conexión/desconexión de GPU, ACU y Ventiladores
-     * deben estar dentro del rango: [hora_real_llegada, hora_real_salida]
-     * No se puede conectar antes de la llegada ni después de la salida.
-     */
-    function validateTimeRange(fieldId, minTime, maxTime) {
-        const field = document.getElementById(fieldId);
-        if (!field || !minTime || !maxTime) return;
-
-        const value = field.value;
-        if (!value) return;
-
-        const fieldTime = new Date(`2000-01-01 ${value}`);
-        const min = new Date(`2000-01-01 ${minTime}`);
-        const max = new Date(`2000-01-01 ${maxTime}`);
-
-        if (fieldTime < min || fieldTime > max) {
-            field.style.borderColor = '#dc3545';
-            field.style.backgroundColor = '#fff5f5';
-            field.title = `Hora fuera del rango. Debe estar entre ${minTime} y ${maxTime}`;
-        } else {
-            field.style.borderColor = '';
-            field.style.backgroundColor = '';
-            field.title = '';
-        }
-    }
-
-    function restrictEquipmentHours() {
-        const horaRealLlegada = document.getElementById('hora_real_llegada').value;
-        const horaRealSalida = document.getElementById('hora_real_salida').value;
-
-        if (!horaRealLlegada || !horaRealSalida) return;
-
-        // Validar GPU
-        ['hora_conexion_gpu', 'hora_desconexion_gpu'].forEach(id => {
-            validateTimeRange(id, horaRealLlegada, horaRealSalida);
-        });
-
-        // Validar ACU
-        ['hora_conexion_acu', 'hora_desconexion_acu'].forEach(id => {
-            validateTimeRange(id, horaRealLlegada, horaRealSalida);
-        });
-
-        // Validar Ventiladores
-        ['hora_conexion_ventiladores', 'hora_desconexion_ventiladores'].forEach(id => {
-            validateTimeRange(id, horaRealLlegada, horaRealSalida);
-        });
-    }
-
-    document.getElementById('hora_real_llegada').addEventListener('change', restrictEquipmentHours);
-    document.getElementById('hora_real_salida').addEventListener('change', restrictEquipmentHours);
-
-    ['hora_conexion_gpu', 'hora_desconexion_gpu',
-     'hora_conexion_acu', 'hora_desconexion_acu',
-     'hora_conexion_ventiladores', 'hora_desconexion_ventiladores'].forEach(id => {
-        document.getElementById(id).addEventListener('change', restrictEquipmentHours);
-    });
-
     // ═══ LÓGICA: MOSTRAR/OCULTAR CAMPOS DE DEMORA ═════════
     function toggleDemoraFields() {
         const cumpleInput = document.getElementById('cumple_tiempo');
