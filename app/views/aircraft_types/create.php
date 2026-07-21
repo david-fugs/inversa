@@ -6,7 +6,7 @@
 
 <div class="card" style="max-width:580px;">
     <div class="card-header">
-        <h5><i class="bi bi-plus-circle-fill"></i> Nuevo Tipo de Avión</h5>
+        <h5><i class="bi bi-plus-circle-fill"></i> Nuevo Tipo de Avion</h5>
     </div>
     <div class="card-body">
         <form method="POST" action="<?= BASE_URL ?>/aircraft-types/create" novalidate>
@@ -15,11 +15,11 @@
 
                 <div class="col-12">
                     <label for="airline_id" class="form-label">
-                        Aerolínea <span class="required-mark">*</span>
+                        Aerolinea <span class="required-mark">*</span>
                     </label>
                     <select class="form-select select2 <?= isset($errors['airline_id']) ? 'is-invalid' : '' ?>"
                             id="airline_id" name="airline_id">
-                        <option value="">-- Seleccione aerolínea --</option>
+                        <option value="">-- Seleccione aerolinea --</option>
                         <?php foreach ($airlines as $a): ?>
                             <option value="<?= $a['id'] ?>"
                                 <?= ($old['airline_id'] ?? '') == $a['id'] ? 'selected' : '' ?>>
@@ -34,7 +34,7 @@
 
                 <div class="col-12">
                     <label for="tipo" class="form-label">
-                        Tipo de Avión <span class="required-mark">*</span>
+                        Tipo de Avion <span class="required-mark">*</span>
                     </label>
                     <input type="text" class="form-control <?= isset($errors['tipo']) ? 'is-invalid' : '' ?>"
                         id="tipo" name="tipo"
