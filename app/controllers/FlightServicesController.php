@@ -507,8 +507,6 @@ class FlightServicesController extends Controller {
                     'hora_conexion_ventiladores'    => 'Hora Conexión Vent.',
                     'hora_desconexion_ventiladores' => 'Hora Desconexión Vent.',
                     'tiempo_ventiladores'           => 'Tiempo Vent. (min)',
-                    'fracciones_hora_ventiladores'  => 'Fracciones Hora Vent.',
-                    'fracciones_15min_ventiladores' => 'Fracciones 15min Vent.',
                 ],
             ],
             [
