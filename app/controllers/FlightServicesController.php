@@ -102,6 +102,8 @@ class FlightServicesController extends Controller {
                 'cumple_tiempo'   => $s['cumple_tiempo'] === null ? null : (bool)$s['cumple_tiempo'],
                 'tiempo_transito' => $s['tiempo_transito'] !== null ? (int)$s['tiempo_transito'] : null,
                 'pax_saliendo'    => (int)$s['pax_saliendo'],
+                'demora_llegando' => $s['demora_llegando'] !== null ? (int)$s['demora_llegando'] : null,
+                'codigo_demora'   => $s['codigo_demora'] ?: null,
             ];
         }
         sort($basesUniques);
@@ -457,7 +459,6 @@ class FlightServicesController extends Controller {
                     'pax_saliendo'             => 'PAX Saliendo',
                     'pax_cancelado'            => 'PAX Cancelado',
                     'ajes_transportados'       => 'AJES Transportados',
-                    'equipajes_transportados'  => 'Equipajes Transportados',
                 ],
             ],
             [
@@ -484,7 +485,6 @@ class FlightServicesController extends Controller {
                     'hora_desconexion_gpu'       => 'Hora Desconexión GPU',
                     'tiempo_gpu'                 => 'Tiempo GPU (min)',
                     'fracciones_adc_gpu'         => 'Fracciones ADC GPU',
-                    'fracciones_adicionales_gpu' => 'Fracciones Adicionales GPU',
                 ],
             ],
             [
@@ -514,7 +514,6 @@ class FlightServicesController extends Controller {
                 'color' => '#8E44AD',
                 'columns' => [
                     'sillas_ruedas'      => 'Sillas de Ruedas',
-                    'ventiladores'       => 'Ventiladores (cant.)',
                     'rampa_escalera'     => 'Rampa Escalera',
                     'remolque_aeronave'  => 'Remolque Aeronave',
                     'remolque_equipajes' => 'Remolque Equipajes',
@@ -528,7 +527,7 @@ class FlightServicesController extends Controller {
                 'columns' => [
                     'equipo_gse_inoperativo' => 'Equipo GSE Inoperativo',
                     'afecto_operacion'       => 'Afectó Operación',
-                    'rpn'                    => 'RPN',
+                    'rpn'                    => 'RPM',
                     'adicionales_resumen'    => 'Servicios Adicionales',
                     'observaciones'          => 'Observaciones',
                     'registrado_por'         => 'Registrado por',

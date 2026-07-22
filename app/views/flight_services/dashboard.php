@@ -84,6 +84,28 @@
     </div>
 </div>
 
+<!-- ══ KPIs DEMORAS ═══════════════════════════════════ -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon warning"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-info">
+                <p>Servicios con Demora</p>
+                <h3 id="kpi_demoras">0</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon danger"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-info">
+                <p>Demora Promedio Llegando</p>
+                <h3 id="kpi_demora_promedio">—</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ══ GRÁFICOS DE MAGNITUD ═══════════════════════════ -->
 <div class="row g-3 mb-3">
     <div class="col-lg-6">
@@ -132,6 +154,28 @@
     </div>
 </div>
 
+<!-- ══ DEMORAS ══════════════════════════════════════════ -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><h5><i class="bi bi-exclamation-triangle-fill"></i> Demoras por Código</h5></div>
+            <div class="card-body">
+                <div id="chart_demoras" class="bar-list"></div>
+                <p id="empty_demoras" class="viz-empty" hidden>Sin demoras registradas para los filtros seleccionados.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><h5><i class="bi bi-airplane-engines-fill"></i> Demoras por Aerolínea</h5></div>
+            <div class="card-body">
+                <div id="chart_demoras_aerolinea" class="bar-list"></div>
+                <p id="empty_demoras_aerolinea" class="viz-empty" hidden>Sin demoras registradas para los filtros seleccionados.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ══ TABLA DINÁMICA (PIVOT) ══════════════════════════ -->
 <div class="card">
     <div class="card-header">
@@ -163,6 +207,9 @@
     --ink-primary: #0b0b0b; --ink-secondary: #52514e; --ink-muted: #898781;
     --grid: #e1e0d9;
 }
+
+.stat-icon.warning { background: linear-gradient(135deg, #E8B92E, #F1C94A); }
+.stat-icon.danger { background: linear-gradient(135deg, #C0392B, #E74C3C); }
 
 .viz-empty { color: var(--ink-muted); font-size: 13px; margin: 8px 0 0; }
 .viz-caption { color: var(--ink-secondary); font-size: 12px; margin: 10px 0 0; text-align: center; }
@@ -449,6 +496,24 @@ function renderKpis(rows) {
 
     const totalPax = rows.reduce((sum, r) => sum + (r.pax_saliendo || 0), 0);
     document.getElementById('kpi_pax').textContent = totalPax.toLocaleString('es-CO');
+
+    const conDemora = rows.filter(r => r.demora_llegando > 0);
+    document.getElementById('kpi_demoras').textContent = conDemora.length;
+
+    const promedioEl = document.getElementById('kpi_demora_promedio');
+    if (conDemora.length === 0) {
+        promedioEl.textContent = '—';
+    } else {
+        const promedio = conDemora.reduce((sum, r) => sum + r.demora_llegando, 0) / conDemora.length;
+        promedioEl.textContent = Math.round(promedio) + ' min';
+    }
+}
+
+/* ── Render: demoras por código y por aerolínea ───────── */
+function renderDemoras(rows) {
+    const conDemora = rows.filter(r => r.demora_llegando > 0);
+    renderBarList('chart_demoras', 'empty_demoras', contarPor(conDemora, 'codigo_demora'));
+    renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
 }
 
 /* ── Render: tabla dinámica Base × Aerolínea ──────────── */
@@ -570,6 +635,7 @@ function renderDashboard() {
     renderBarList('chart_aerolinea', 'empty_aerolinea', contarPor(rows, 'aerolinea'), 8);
     renderStackedBar(rows);
     renderMeter(rows);
+    renderDemoras(rows);
     renderPivot(rows);
 }
 
