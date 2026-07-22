@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="base-url" content="<?= BASE_URL ?>">
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' - ' : '' ?><?= APP_NAME ?></title>
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/img/logo.png">
 
     <!-- Bootstrap 5 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
@@ -28,12 +29,10 @@
     <!-- Brand -->
     <div class="sidebar-brand">
         <div class="brand-logo">
-            <div class="brand-icon">
-                <i class="bi bi-airplane-fill"></i>
-            </div>
+            <img src="<?= BASE_URL ?>/img/logo.png" alt="<?= APP_NAME ?>" class="brand-icon-img">
             <div class="brand-text">
                 <h5>Operaciones</h5>
-                
+
                 <span>Aeroportuarias</span>
             </div>
         </div>

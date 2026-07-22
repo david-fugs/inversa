@@ -143,6 +143,26 @@ class FlightService extends Model
     }
 
     /**
+     * Obtener adicionales de varios servicios de una vez, agrupados por flight_service_id
+     */
+    public function getAdicionalesForIds(array $serviceIds): array
+    {
+        if (empty($serviceIds)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($serviceIds), '?'));
+        $rows = $this->db->fetchAll(
+            "SELECT * FROM flight_service_adicionales WHERE flight_service_id IN ($placeholders)",
+            $serviceIds
+        );
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[$row['flight_service_id']][] = $row;
+        }
+        return $grouped;
+    }
+
+    /**
      * Crear servicio de vuelo con todos sus relacionados
      */
     public function create(array $data, array $gpuFracciones, array $acuFracciones, array $ventiladoresFracciones, array $adicionales): int

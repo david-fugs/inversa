@@ -4,16 +4,27 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
 
 $meses = FlightService::$meses;
 $basesUniques = [];
+$aerolineasUniques = [];
 foreach ($services as $s) {
     if (!in_array($s['base'], $basesUniques)) {
         $basesUniques[] = $s['base'];
     }
+    if (!in_array($s['airline_nombre'], $aerolineasUniques)) {
+        $aerolineasUniques[] = $s['airline_nombre'];
+    }
 }
 sort($basesUniques);
+sort($aerolineasUniques);
 ?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services/create" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Servicio
+    </a>
+    <a href="<?= BASE_URL ?>/flight-services/dashboard" class="btn btn-outline-primary">
+        <i class="bi bi-bar-chart-line-fill"></i> Panel Analítico
+    </a>
+    <a href="#" id="btn_exportar_excel" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
     </a>
 </div>
 
@@ -34,6 +45,15 @@ sort($basesUniques);
                     <option value="">-- Todas --</option>
                     <?php foreach ($basesUniques as $base): ?>
                         <option value="<?= htmlspecialchars($base) ?>"><?= htmlspecialchars($base) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filter_aerolinea" class="form-label">Aerolínea</label>
+                <select class="form-select" id="filter_aerolinea">
+                    <option value="">-- Todas --</option>
+                    <?php foreach ($aerolineasUniques as $aerolinea): ?>
+                        <option value="<?= htmlspecialchars($aerolinea) ?>"><?= htmlspecialchars($aerolinea) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -146,6 +166,7 @@ sort($basesUniques);
     const filterInputs = {
         fecha: document.getElementById('filter_fecha'),
         base: document.getElementById('filter_base'),
+        aerolinea: document.getElementById('filter_aerolinea'),
     };
 
     const originalRows = Array.from(document.querySelectorAll('#tableServices tbody tr'));
@@ -168,16 +189,19 @@ sort($basesUniques);
         }
 
         const filtroBase = filterInputs.base.value || null;
+        const filtroAerolinea = filterInputs.aerolinea.value || null;
         let visibles = 0;
 
         originalRows.forEach(row => {
             const diaMatch = row.querySelector('td:nth-child(2)');
             const baseMatch = row.querySelector('td:nth-child(3)');
+            const aerolineaMatch = row.querySelector('td:nth-child(4)');
 
-            if (!diaMatch || !baseMatch) return;
+            if (!diaMatch || !baseMatch || !aerolineaMatch) return;
 
             const rowFecha = diaMatch.textContent.trim();
             const rowBase = baseMatch.textContent.trim();
+            const rowAerolinea = aerolineaMatch.textContent.trim();
 
             let mostrar = true;
 
@@ -200,6 +224,11 @@ sort($basesUniques);
                 mostrar = mostrar && rowBase.includes(filtroBase);
             }
 
+            // Filtrar por aerolínea
+            if (filtroAerolinea) {
+                mostrar = mostrar && rowAerolinea === filtroAerolinea;
+            }
+
             row.style.display = mostrar ? '' : 'none';
             if (mostrar) visibles++;
         });
@@ -210,11 +239,23 @@ sort($basesUniques);
     // Event listeners para los filtros
     filterInputs.fecha.addEventListener('change', aplicarFiltros);
     filterInputs.base.addEventListener('change', aplicarFiltros);
+    filterInputs.aerolinea.addEventListener('change', aplicarFiltros);
 
     // Botón limpiar filtros
     document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
         filterInputs.fecha.value = '';
         filterInputs.base.value = '';
+        filterInputs.aerolinea.value = '';
         aplicarFiltros();
+    });
+
+    // Exportar a Excel respetando los filtros activos
+    document.getElementById('btn_exportar_excel').addEventListener('click', (e) => {
+        e.preventDefault();
+        const params = new URLSearchParams();
+        if (filterInputs.fecha.value) params.set('fecha', filterInputs.fecha.value);
+        if (filterInputs.base.value) params.set('base', filterInputs.base.value);
+        if (filterInputs.aerolinea.value) params.set('aerolinea', filterInputs.aerolinea.value);
+        window.location.href = BASE_URL + '/flight-services/export?' + params.toString();
     });
 </script>

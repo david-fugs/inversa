@@ -3,10 +3,7 @@
 
         <!-- Logo -->
         <div class="login-logo">
-            <div class="logo-icon">
-                <i class="bi bi-airplane-fill"></i>
-            </div>
-            <h3><?= APP_NAME ?></h3>
+            <img src="<?= BASE_URL ?>/img/logo_completo.png" alt="<?= APP_NAME ?>" class="login-logo-img">
             <p>Plataforma de Operaciones Aeroportuarias</p>
         </div>
 

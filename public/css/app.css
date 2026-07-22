@@ -97,20 +97,11 @@ a:hover { color: var(--color-primary-dark); }
   gap: 12px;
 }
 
-.sidebar-brand .brand-icon {
+.sidebar-brand .brand-icon-img {
   width: 42px;
   height: 42px;
-  background: var(--color-secondary);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  object-fit: contain;
   flex-shrink: 0;
-}
-
-.sidebar-brand .brand-icon i {
-  font-size: 22px;
-  color: white;
 }
 
 .sidebar-brand .brand-text h5 {
@@ -595,19 +586,13 @@ a:hover { color: var(--color-primary-dark); }
   margin-bottom: 28px;
 }
 
-.login-logo .logo-icon {
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  border-radius: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.login-logo-img {
+  max-width: 220px;
+  width: 100%;
+  height: auto;
   margin-bottom: 14px;
 }
 
-.login-logo .logo-icon i { font-size: 36px; color: white; }
-.login-logo h3 { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0; }
 .login-logo p  { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; }
 
 .login-card .form-control {
