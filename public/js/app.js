@@ -148,6 +148,9 @@ function initTransitCalculation() {
             } else {
                 cumpleDisplay.innerHTML = '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>';
             }
+            // Mostrar/ocultar Código Demora y Observación de la Demora
+            // (función definida en create.php/edit.php) según el resultado.
+            if (typeof toggleDemoraFields === 'function') toggleDemoraFields();
         }
     }
 
