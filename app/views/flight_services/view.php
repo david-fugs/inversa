@@ -115,6 +115,9 @@
                         <?= $gf['hora_conexion'] ?> → <?= $gf['hora_desconexion'] ?>
                         <span class="ms-2 badge badge-info"><?= $gf['tiempo'] ?> min</span>
                         <span class="ms-1 text-muted">ADC: <?= $gf['fracciones_adc'] ?></span>
+                        <?php if (!empty($gf['observacion'])): ?>
+                            <div class="text-muted mt-1"><?= htmlspecialchars($gf['observacion']) ?></div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>

@@ -163,6 +163,27 @@ class FlightService extends Model
     }
 
     /**
+     * Obtener fracciones adicionales de GPU de varios servicios de una vez,
+     * agrupadas por flight_service_id
+     */
+    public function getGpuFraccionesForIds(array $serviceIds): array
+    {
+        if (empty($serviceIds)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($serviceIds), '?'));
+        $rows = $this->db->fetchAll(
+            "SELECT * FROM flight_service_gpu_fracciones WHERE flight_service_id IN ($placeholders)",
+            $serviceIds
+        );
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[$row['flight_service_id']][] = $row;
+        }
+        return $grouped;
+    }
+
+    /**
      * Crear servicio de vuelo con todos sus relacionados
      */
     public function create(array $data, array $gpuFracciones, array $acuFracciones, array $ventiladoresFracciones, array $adicionales): int
@@ -392,18 +413,21 @@ class FlightService extends Model
 
     private function saveGpuFracciones(int $serviceId, array $rows): void
     {
+        // Máximo 3 fracciones adicionales de GPU por servicio
+        $rows = array_slice($rows, 0, 3);
         foreach ($rows as $row) {
             if (empty($row['hora_conexion']) && empty($row['hora_desconexion'])) continue;
             $this->db->query(
                 "INSERT INTO flight_service_gpu_fracciones
-                 (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_adc)
-                 VALUES (?,?,?,?,?)",
+                 (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_adc, observacion)
+                 VALUES (?,?,?,?,?,?)",
                 [
                     $serviceId,
                     $row['hora_conexion']  ?: null,
                     $row['hora_desconexion'] ?: null,
                     $row['tiempo'] !== '' ? (int)$row['tiempo'] : null,
                     (float)($row['fracciones_adc'] ?? 0),
+                    !empty($row['observacion']) ? trim((string)$row['observacion']) : null,
                 ]
             );
         }

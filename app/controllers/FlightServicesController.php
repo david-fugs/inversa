@@ -68,8 +68,9 @@ class FlightServicesController extends Controller {
         }
 
         $adicionalesPorServicio = $this->model->getAdicionalesForIds(array_column($services, 'id'));
+        $gpuFraccionesPorServicio = $this->model->getGpuFraccionesForIds(array_column($services, 'id'));
 
-        $this->downloadExcel($services, $adicionalesPorServicio, $filtroFecha, $filtroBase, $filtroAerolinea);
+        $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroFecha, $filtroBase, $filtroAerolinea);
     }
 
     /** Panel analítico (tipo BI) con KPIs, gráficos y tabla dinámica, filtrable en el cliente */
@@ -485,6 +486,7 @@ class FlightServicesController extends Controller {
                     'hora_desconexion_gpu'       => 'Hora Desconexión GPU',
                     'tiempo_gpu'                 => 'Tiempo GPU (min)',
                     'fracciones_adc_gpu'         => 'Fracciones ADC GPU',
+                    'gpu_fracciones_resumen'     => 'GPU Adicionales',
                 ],
             ],
             [
@@ -560,6 +562,14 @@ class FlightServicesController extends Controller {
                     fn($a) => $a['servicio'] . ' x' . $a['cantidad'],
                     $service['adicionales']
                 ));
+            case 'gpu_fracciones_resumen':
+                if (empty($service['gpu_fracciones'])) return '—';
+                return implode('; ', array_map(function ($gf) {
+                    $txt = substr((string)$gf['hora_conexion'], 0, 5) . '-' . substr((string)$gf['hora_desconexion'], 0, 5)
+                        . ' (' . ($gf['tiempo'] ?? '—') . 'min, ADC:' . ($gf['fracciones_adc'] ?? 0) . ')';
+                    if (!empty($gf['observacion'])) $txt .= ' [' . $gf['observacion'] . ']';
+                    return $txt;
+                }, $service['gpu_fracciones']));
             case 'equipo_gse_inoperativo':
                 $gse = $service['equipo_gse_inoperativo'] ?? null;
                 return ($gse === null || $gse === '') ? '—' : $gse;
@@ -677,9 +687,10 @@ XML;
     }
 
     /** Generar y enviar el reporte de servicios de vuelo como un archivo .xlsx real */
-    private function downloadExcel(array $services, array $adicionalesPorServicio, string $filtroFecha, string $filtroBase, string $filtroAerolinea = ''): void {
+    private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroFecha, string $filtroBase, string $filtroAerolinea = ''): void {
         foreach ($services as &$s) {
-            $s['adicionales'] = $adicionalesPorServicio[$s['id']] ?? [];
+            $s['adicionales']     = $adicionalesPorServicio[$s['id']] ?? [];
+            $s['gpu_fracciones']  = $gpuFraccionesPorServicio[$s['id']] ?? [];
         }
         unset($s);
 

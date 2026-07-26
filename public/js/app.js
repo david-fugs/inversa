@@ -104,6 +104,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── Tipo de avión por aerolínea (AJAX) ────────────── */
     initAircraftByAirline();
+
+    /* ── Exigir AM/PM completo en horas antes de enviar ── */
+    initTimeInputsRequireAmPm();
+
+    /* ── Estado inicial del botón "Agregar otro GPU" (máx. 3) ── */
+    updateGpuAddButtonState();
 });
 
 /* ── Tiempo de tránsito ───────────────────────────────── */
@@ -112,9 +118,8 @@ function initTransitCalculation() {
     const horaRealLlegada = document.getElementById('hora_real_llegada');
     const horaRealSalida  = document.getElementById('hora_real_salida');
     const tiempoDisplay   = document.getElementById('tiempo_transito_display');
+    const tiempoNote      = document.getElementById('tiempo_transito_note');
     const tiempoInput     = document.getElementById('tiempo_transito');
-    const cumpleDisplay   = document.getElementById('cumple_tiempo_display');
-    const cumpleInput     = document.getElementById('cumple_tiempo');
     const demoraInput     = document.getElementById('demora_llegando');
 
     if (!horaRealLlegada || !horaRealSalida) return;
@@ -135,22 +140,17 @@ function initTransitCalculation() {
         if (tiempoInput)   tiempoInput.value = diff;
         if (tiempoDisplay) tiempoDisplay.textContent = diff + ' min';
 
-        // Verificar cumplimiento
-        const tiempoCumplimiento = parseInt(
-            document.getElementById('tiempo_cumplimiento_ref')?.value || '0'
-        );
+        // El cumplimiento (cumple_tiempo) se calcula en create.php/edit.php
+        // (calculateTiempoAndCumple / calcularCumplimiento), que conocen la
+        // regla completa de llegada anticipada vs. tardía. No se recalcula
+        // aquí para evitar que esta versión simplificada la sobreescriba.
 
-        if (tiempoCumplimiento > 0 && cumpleDisplay && cumpleInput) {
-            const cumple = diff <= tiempoCumplimiento;
-            cumpleInput.value = cumple ? '1' : '0';
-            if (cumple) {
-                cumpleDisplay.innerHTML = '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>';
-            } else {
-                cumpleDisplay.innerHTML = '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>';
-            }
-            // Mostrar/ocultar Código Demora y Observación de la Demora
-            // (función definida en create.php/edit.php) según el resultado.
-            if (typeof toggleDemoraFields === 'function') toggleDemoraFields();
+        // Aviso informativo: llegada anticipada respecto a la hora itinerada
+        if (tiempoNote) {
+            const itinerada = timeToMinutes(horaItineradaLlegada ? horaItineradaLlegada.value : '');
+            tiempoNote.textContent = (itinerada !== null && llegada < itinerada)
+                ? 'Llegó antes de la hora itinerada'
+                : '';
         }
     }
 
@@ -167,9 +167,40 @@ function initTransitCalculation() {
     horaRealLlegada.addEventListener('change', calcularTransito);
     horaRealLlegada.addEventListener('change', calcularDemora);
     horaRealSalida.addEventListener('change', calcularTransito);
-    if (horaItineradaLlegada) horaItineradaLlegada.addEventListener('change', calcularDemora);
+    if (horaItineradaLlegada) {
+        horaItineradaLlegada.addEventListener('change', calcularDemora);
+        horaItineradaLlegada.addEventListener('change', calcularTransito);
+    }
     calcularTransito();
     calcularDemora();
+}
+
+/* ── Exigir hora completa (con AM/PM) antes de enviar el formulario ──
+ * Un input[type=time] sin el segmento AM/PM seleccionado reporta
+ * validity.badInput = true y value = "". Los formularios de servicios de
+ * vuelo usan novalidate (validación propia por PHP), así que se valida
+ * esto manualmente al enviar.
+ */
+function initTimeInputsRequireAmPm() {
+    const form = document.getElementById('flightServiceForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        let primerInvalido = null;
+        form.querySelectorAll('input[type="time"]').forEach(function(input) {
+            if (input.validity.badInput) {
+                input.setCustomValidity('Debe completar la hora, incluyendo AM/PM.');
+                if (!primerInvalido) primerInvalido = input;
+            } else {
+                input.setCustomValidity('');
+            }
+        });
+        if (primerInvalido) {
+            e.preventDefault();
+            primerInvalido.reportValidity();
+            primerInvalido.focus();
+        }
+    });
 }
 
 /* ── Cálculo de fracciones GPU según tarifa de la aerolínea ──
@@ -200,6 +231,10 @@ function calcularFraccionesGpuValor(tiempoMin, tarifa) {
     return Math.ceil(tiempoMin / fraccion);
 }
 
+// Tarifa GPU de la aerolínea seleccionada, compartida entre el GPU
+// principal y las filas adicionales (agregar otro GPU).
+let gpuTarifaActual = null;
+
 /* ── Cálculo GPU ──────────────────────────────────────── */
 function initGpuCalculation() {
     const conexion      = document.getElementById('hora_conexion_gpu');
@@ -211,29 +246,28 @@ function initGpuCalculation() {
 
     if (!conexion || !desconexion) return;
 
-    let tarifaActual = null;
-
     function recalcularFracciones() {
         const diff = parseInt(tiempoGpu ? tiempoGpu.value : '0', 10) || 0;
-        const val  = calcularFraccionesGpuValor(diff, tarifaActual);
+        const val  = calcularFraccionesGpuValor(diff, gpuTarifaActual);
         if (fracGpu)     fracGpu.value     = val.toFixed(2);
         if (fracAdicGpu) fracAdicGpu.value = val.toFixed(2);
+        recalcularFraccionesGpuAdicionales();
     }
 
     function cargarTarifaAerolinea(airlineId) {
         if (!airlineId || airlineId === 'otra') {
-            tarifaActual = null;
+            gpuTarifaActual = null;
             recalcularFracciones();
             return;
         }
         fetch(BASE_URL + '/tarifas-cobros/by-airline/' + airlineId)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
-                tarifaActual = data;
+                gpuTarifaActual = data;
                 recalcularFracciones();
             })
             .catch(function () {
-                tarifaActual = null;
+                gpuTarifaActual = null;
                 recalcularFracciones();
             });
     }
@@ -260,6 +294,19 @@ function initGpuCalculation() {
             cargarTarifaAerolinea(airlineSelect.value);
         }
     }
+}
+
+// Recalcula, con la misma tarifa de la aerolínea, las fracciones ADC
+// de todas las filas adicionales de GPU ya agregadas (a partir de su tiempo).
+function recalcularFraccionesGpuAdicionales() {
+    const container = document.getElementById('gpu-fracciones-container');
+    if (!container) return;
+    container.querySelectorAll('.dynamic-row').forEach(function (row) {
+        const tiempoInp = row.querySelector('input[name$="[tiempo]"]');
+        const fracInp   = row.querySelector('input[name$="[fracciones_adc]"]');
+        const tiempoMin = parseInt(tiempoInp ? tiempoInp.value : '0', 10) || 0;
+        if (fracInp) fracInp.value = calcularFraccionesGpuValor(tiempoMin, gpuTarifaActual).toFixed(2);
+    });
 }
 
 /* ── Cálculo ACU ──────────────────────────────────────── */
@@ -487,14 +534,33 @@ function initDespachoCalc() {
     calcular();
 }
 
-/* ── Filas dinámicas GPU ──────────────────────────────── */
+/* ── Filas dinámicas GPU (máximo 3 adicionales) ────────── */
+const GPU_MAX_ADICIONALES = 3;
+
+function updateGpuAddButtonState() {
+    const container = document.getElementById('gpu-fracciones-container');
+    const btn = document.getElementById('btnAddGpuRow');
+    if (!container || !btn) return;
+    const count = container.querySelectorAll('.dynamic-row').length;
+    btn.disabled = count >= GPU_MAX_ADICIONALES;
+    btn.title = btn.disabled ? `Máximo ${GPU_MAX_ADICIONALES} GPU adicionales` : '';
+}
+
+function removeGpuRow(btn) {
+    btn.closest('.dynamic-row').remove();
+    updateGpuAddButtonState();
+}
+
 function addGpuRow() {
     const container = document.getElementById('gpu-fracciones-container');
-    const idx = container.querySelectorAll('.dynamic-row').length;
+    const rows = container.querySelectorAll('.dynamic-row');
+    if (rows.length >= GPU_MAX_ADICIONALES) return;
+
+    const idx = rows.length;
     const row = document.createElement('div');
     row.className = 'dynamic-row';
     row.innerHTML = `
-        <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()">
+        <button type="button" class="btn-remove-row" onclick="removeGpuRow(this)">
             <i class="bi bi-x"></i>
         </button>
         <div class="row g-3">
@@ -510,27 +576,36 @@ function addGpuRow() {
             </div>
             <div class="col-md-2">
                 <label class="form-label">Tiempo (min)</label>
-                <input type="number" class="form-control" name="gpu_fracciones[${idx}][tiempo]" readonly>
+                <input type="number" class="form-control" name="gpu_fracciones[${idx}][tiempo]" readonly style="background:var(--bg-body);">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label class="form-label">Fracciones ADC GPU</label>
-                <input type="number" step="0.01" class="form-control" name="gpu_fracciones[${idx}][fracciones_adc]" value="0">
+                <input type="number" step="0.01" class="form-control" name="gpu_fracciones[${idx}][fracciones_adc]" value="0.00" readonly style="background:var(--bg-body);">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Observación</label>
+                <input type="text" class="form-control" name="gpu_fracciones[${idx}][observacion]" placeholder="Observación">
             </div>
         </div>`;
     container.appendChild(row);
+    updateGpuAddButtonState();
 }
 
+// Igual que el GPU principal: tiempo = desconexión - conexión, y las
+// fracciones ADC se calculan con la misma tarifa de la aerolínea (gpuTarifaActual).
 function calcFraccionGpu(anyInput) {
     const row            = anyInput.closest('.dynamic-row');
     const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
     const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
     const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
+    const fracInp        = row.querySelector('input[name$="[fracciones_adc]"]');
     const c = timeToMinutes(conexionInp ? conexionInp.value : '');
     const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
     if (c !== null && d !== null) {
         let diff = d - c;
         if (diff < 0) diff += 1440;
         if (tiempoInp) tiempoInp.value = diff;
+        if (fracInp) fracInp.value = calcularFraccionesGpuValor(diff, gpuTarifaActual).toFixed(2);
     }
 }
 

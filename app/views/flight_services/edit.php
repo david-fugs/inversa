@@ -238,6 +238,7 @@
                         <?= $service['tiempo_transito'] !== null ? $service['tiempo_transito'] . ' min' : '--' ?>
                     </span>
                 </div>
+                <small id="tiempo_transito_note" class="text-muted"></small>
                 <input type="hidden" name="tiempo_transito" id="tiempo_transito" value="<?= $service['tiempo_transito'] ?? '' ?>">
             </div>
             <div class="col-md-3">
@@ -312,6 +313,28 @@
                     readonly style="background:var(--bg-body);">
             </div>
         </div>
+        <div id="gpu-fracciones-container">
+            <?php foreach ($service['gpu_fracciones'] as $i => $gf): ?>
+            <div class="dynamic-row">
+                <button type="button" class="btn-remove-row" onclick="removeGpuRow(this)"><i class="bi bi-x"></i></button>
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">Hora Conexión</label>
+                        <input type="time" class="form-control" name="gpu_fracciones[<?= $i ?>][hora_conexion]" value="<?= $gf['hora_conexion'] ?? '' ?>" oninput="calcFraccionGpu(this)"></div>
+                    <div class="col-md-3"><label class="form-label">Hora Desconexión</label>
+                        <input type="time" class="form-control" name="gpu_fracciones[<?= $i ?>][hora_desconexion]" value="<?= $gf['hora_desconexion'] ?? '' ?>" oninput="calcFraccionGpu(this)"></div>
+                    <div class="col-md-2"><label class="form-label">Tiempo (min)</label>
+                        <input type="number" class="form-control" name="gpu_fracciones[<?= $i ?>][tiempo]" value="<?= $gf['tiempo'] ?? '' ?>" readonly style="background:var(--bg-body);"></div>
+                    <div class="col-md-2"><label class="form-label">Fracciones ADC GPU</label>
+                        <input type="number" step="0.01" class="form-control" name="gpu_fracciones[<?= $i ?>][fracciones_adc]" value="<?= number_format((float)($gf['fracciones_adc'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);"></div>
+                    <div class="col-md-2"><label class="form-label">Observación</label>
+                        <input type="text" class="form-control" name="gpu_fracciones[<?= $i ?>][observacion]" value="<?= htmlspecialchars($gf['observacion'] ?? '') ?>" placeholder="Observación"></div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAddGpuRow" onclick="addGpuRow()">
+            <i class="bi bi-plus-circle"></i> Agregar otro GPU
+        </button>
     </div>
 </div>
 
@@ -649,10 +672,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Llamar al inicio para precarga
     updateAllAirlineLogic();
 
-    // ══ CÁLCULO DE CUMPLIMIENTO CON LLEGADAS ANTICIPADAS ══
+    // ══ CÁLCULO DE CUMPLIMIENTO ══
+    /*
+     * El tránsito se ancla a la hora de llegada real si llegó tarde
+     * (hora_real_llegada > hora_itinerada_llegada), o a la hora itinerada
+     * de llegada si llegó anticipado (una llegada temprano NO regala
+     * minutos extra de plataforma). El tránsito efectivo así calculado
+     * (hora_real_salida - referencia) se compara contra el tiempo de
+     * cumplimiento del tipo de avión (o el personalizado si es "Otra").
+     */
     function calcularCumplimiento() {
         const horaItinerada = document.getElementById('hora_itinerada_llegada').value;
         const horaReal = document.getElementById('hora_real_llegada').value;
+        const horaRealSalida = document.getElementById('hora_real_salida').value;
         const tiempoRef = document.getElementById('tiempo_cumplimiento_ref').value;
         const tiempoCustom = document.getElementById('tiempo_cumplimiento_custom').value;
         const cumpleInput = document.getElementById('cumple_tiempo');
@@ -662,28 +694,36 @@ document.addEventListener('DOMContentLoaded', function() {
         // Determinar qué tiempo de cumplimiento usar
         const tiempoAUsar = tiempoCustom ? parseInt(tiempoCustom) : (tiempoRef ? parseInt(tiempoRef) : null);
 
-        if (!horaItinerada || !horaReal || !tiempoAUsar) {
+        // Demora de llegada (informativo, respecto a la hora itinerada)
+        if (horaItinerada && horaReal) {
+            const [hI, mI] = horaItinerada.split(':').map(Number);
+            const [hR, mR] = horaReal.split(':').map(Number);
+            const demora = (hR * 60 + mR) - (hI * 60 + mI);
+            demoraInput.value = Math.max(0, demora);
+        }
+
+        if (!horaItinerada || !horaReal || !horaRealSalida || !tiempoAUsar) {
             cumpleInput.value = '';
             cumpleDisplay.innerHTML = '--';
-            demoraInput.value = '';
             return;
         }
 
         const [hI, mI] = horaItinerada.split(':').map(Number);
         const [hR, mR] = horaReal.split(':').map(Number);
+        const [hS, mS] = horaRealSalida.split(':').map(Number);
 
         const minItinerada = hI * 60 + mI;
         const minReal = hR * 60 + mR;
-        const demora = minReal - minItinerada;
+        let minSalida = hS * 60 + mS;
 
-        let cumple;
-        if (demora <= 0) {
-            cumple = 1;
-            demoraInput.value = 0;
-        } else {
-            cumple = demora <= tiempoAUsar ? 1 : 0;
-            demoraInput.value = Math.max(0, demora);
-        }
+        // Referencia: si llegó tarde, se ancla a la llegada real;
+        // si llegó anticipado, se ancla a la itinerada (no se premia la llegada temprana)
+        const minReferencia = Math.max(minReal, minItinerada);
+
+        let transitoEfectivo = minSalida - minReferencia;
+        if (transitoEfectivo < 0) transitoEfectivo += 24 * 60; // cruce de medianoche
+
+        const cumple = transitoEfectivo <= tiempoAUsar ? 1 : 0;
 
         cumpleInput.value = cumple;
         if (cumple === 1) {
@@ -696,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Escuchar cambios en horarios Y en tiempo personalizado
-    ['hora_itinerada_llegada', 'hora_real_llegada', 'tiempo_cumplimiento_custom'].forEach(function(id) {
+    ['hora_itinerada_llegada', 'hora_real_llegada', 'hora_real_salida', 'tiempo_cumplimiento_custom'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', calcularCumplimiento);
         if (el) el.addEventListener('change', calcularCumplimiento);
