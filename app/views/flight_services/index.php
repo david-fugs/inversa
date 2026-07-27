@@ -1,5 +1,6 @@
 <?php
 $esColaborador  = Session::get('user_rol') === 'Colaborador';
+$esVisualizador = Session::get('user_rol') === 'Visualizador';
 $puedeEditar    = (bool)Session::get('user_puede_editar');
 
 $meses = FlightService::$meses;
@@ -137,13 +138,13 @@ sort($aerolineasUniques);
                                        class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle">
                                         <i class="bi bi-eye-fill"></i>
                                     </a>
-                                    <?php if (!$esColaborador || $puedeEditar): ?>
+                                    <?php if (!$esVisualizador && (!$esColaborador || $puedeEditar)): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-outline-secondary btn-sm" title="Editar">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
                                     <?php endif; ?>
-                                    <?php if (!$esColaborador): ?>
+                                    <?php if (!$esVisualizador && !$esColaborador): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/delete/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-danger btn-sm"
                                        title="Eliminar"

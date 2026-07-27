@@ -1,15 +1,24 @@
+<?php
+$esColaborador  = Session::get('user_rol') === 'Colaborador';
+$esVisualizador = Session::get('user_rol') === 'Visualizador';
+$puedeEditar    = (bool)Session::get('user_puede_editar');
+?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services" class="btn btn-light">
         <i class="bi bi-arrow-left"></i> Volver al listado
     </a>
+    <?php if (!$esVisualizador && (!$esColaborador || $puedeEditar)): ?>
     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $service['id'] ?>" class="btn btn-outline-secondary">
         <i class="bi bi-pencil-fill"></i> Editar
     </a>
+    <?php endif; ?>
+    <?php if (!$esVisualizador && !$esColaborador): ?>
     <a href="<?= BASE_URL ?>/flight-services/delete/<?= $service['id'] ?>"
        class="btn btn-danger"
        data-confirm="¿Está seguro de eliminar el servicio #<?= $service['id'] ?>?">
         <i class="bi bi-trash-fill"></i> Eliminar
     </a>
+    <?php endif; ?>
 </div>
 
 <!-- Encabezado -->
@@ -65,6 +74,7 @@
                 <tr><td class="text-muted">Tipo de Avión</td><td><?= htmlspecialchars($service['aircraft_tipo']) ?></td></tr>
                 <tr><td class="text-muted">Pax Saliendo</td><td><?= $service['pax_saliendo'] ?></td></tr>
                 <tr><td class="text-muted">Pax Cancelado</td><td><?= $service['pax_cancelado'] ?></td></tr>
+                <tr><td class="text-muted">AJES Transportados</td><td><?= $service['ajes_transportados'] ?></td></tr>
             </table>
         </div>
     </div>
@@ -86,6 +96,14 @@
                         <strong class="time-display"><?= $service['tiempo_transito'] ?> min</strong>
                         <small class="text-muted">(objetivo: <?= $service['tiempo_cumplimiento'] ?> min)</small>
                     <?php else: ?>—<?php endif; ?>
+                </td></tr>
+                <tr><td class="text-muted">Cumple Tiempo</td><td>
+                    <?php if ($service['cumple_tiempo'] === null): ?>—
+                    <?php elseif ($service['cumple_tiempo']): ?>
+                        <span class="indicator-si"><i class="bi bi-check-circle-fill"></i> Sí</span>
+                    <?php else: ?>
+                        <span class="indicator-no"><i class="bi bi-x-circle-fill"></i> No</span>
+                    <?php endif; ?>
                 </td></tr>
                 <?php if (!$service['cumple_tiempo'] && !empty($service['codigo_demora'])): ?>
                 <tr><td colspan="2"><hr class="my-2"></td></tr>

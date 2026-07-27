@@ -199,7 +199,8 @@ class FlightServicesController extends Controller {
 
     /** Formulario editar */
     public function editForm(string $id): void {
-        if (Session::get('user_rol') === 'Colaborador' && !Session::get('user_puede_editar')) {
+        $rol = Session::get('user_rol');
+        if ($rol === 'Visualizador' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -226,7 +227,8 @@ class FlightServicesController extends Controller {
 
     /** Actualizar registro */
     public function update(string $id): void {
-        if (Session::get('user_rol') === 'Colaborador' && !Session::get('user_puede_editar')) {
+        $rol = Session::get('user_rol');
+        if ($rol === 'Visualizador' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -282,7 +284,8 @@ class FlightServicesController extends Controller {
 
     /** Eliminar */
     public function delete(string $id): void {
-        if (Session::get('user_rol') === 'Colaborador') {
+        $rol = Session::get('user_rol');
+        if ($rol === 'Colaborador' || $rol === 'Visualizador') {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para eliminar registros.');
             return;
         }
