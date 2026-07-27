@@ -218,11 +218,12 @@
 <?php endif; ?>
 
 <!-- Observaciones -->
-<?php if (!empty($service['equipo_gse_inoperativo'])): ?>
+<?php if (!empty($service['equipo_gse_inoperativo']) || !empty($service['observaciones'])): ?>
 <div class="col-12">
     <div class="card">
         <div class="card-header"><h5><i class="bi bi-chat-text-fill"></i> Observaciones Operativas</h5></div>
         <div class="card-body">
+            <?php if (!empty($service['equipo_gse_inoperativo'])): ?>
             <p class="mb-2"><strong>Equipo GSE Inoperativo:</strong>
                 <?php foreach (explode(',', $service['equipo_gse_inoperativo']) as $item): ?>
                     <span class="badge badge-info ms-1"><?= htmlspecialchars(trim($item)) ?></span>
@@ -235,6 +236,11 @@
             </p>
             <?php if ($service['afecto_operacion'] && !empty($service['rpn'])): ?>
             <p class="mb-0 mt-2"><strong>RPN:</strong> <code><?= htmlspecialchars($service['rpn']) ?></code></p>
+            <?php endif; ?>
+            <?php endif; ?>
+            <?php if (!empty($service['observaciones'])): ?>
+            <p class="mb-0 mt-2"><strong>Observaciones Generales:</strong></p>
+            <p class="mb-0" style="white-space:pre-wrap;"><?= htmlspecialchars($service['observaciones']) ?></p>
             <?php endif; ?>
         </div>
     </div>

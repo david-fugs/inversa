@@ -162,79 +162,66 @@ sort($aerolineasUniques);
 </div>
 
 <script>
-    // Sistema de filtros
+// Este bloque se renderiza en el <body>, antes de que se carguen jQuery,
+// DataTables y app.js (que van al final del layout). Se espera al evento
+// "load" para que app.js ya haya inicializado la tabla como DataTable.
+window.addEventListener('load', function () {
+    // Sistema de filtros — integrado con la API de DataTables para que
+    // funcione correctamente junto con la paginación (no basta con ocultar
+    // filas por CSS: DataTables solo mantiene en el DOM las filas de la
+    // página actual, por lo que ocultar filas "a mano" ignora las que están
+    // en otras páginas).
+    const table = $('#tableServices').DataTable();
+
     const filterInputs = {
         fecha: document.getElementById('filter_fecha'),
         base: document.getElementById('filter_base'),
         aerolinea: document.getElementById('filter_aerolinea'),
     };
 
-    const originalRows = Array.from(document.querySelectorAll('#tableServices tbody tr'));
     const badgeRegistros = document.getElementById('badge_registros');
     const mesesNombre = {
         'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4, 'Mayo': 5, 'Junio': 6,
         'Julio': 7, 'Agosto': 8, 'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
     };
 
-    function aplicarFiltros() {
-        // Parsear fecha seleccionada (formato: YYYY-MM-DD)
-        let filtroFecha = null;
+    $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
+        if (settings.nTable.id !== 'tableServices') return true;
+
         if (filterInputs.fecha.value) {
-            const [anio, mes, dia] = filterInputs.fecha.value.split('-');
-            filtroFecha = {
-                anio: parseInt(anio),
-                mes: parseInt(mes),
-                dia: parseInt(dia)
-            };
+            const [fAnio, fMes, fDia] = filterInputs.fecha.value.split('-').map(Number);
+
+            const $fechaCell = $(table.cell(dataIndex, 1).node()).clone();
+            $fechaCell.find('small').remove();
+            const [diaStr, mesStr, anioStr] = $fechaCell.text().trim().split('/');
+
+            const rowDia = parseInt(diaStr, 10);
+            const rowMes = mesesNombre[mesStr] || null;
+            const rowAnio = parseInt(anioStr, 10);
+
+            if (rowDia !== fDia || rowMes !== fMes || rowAnio !== fAnio) return false;
         }
 
-        const filtroBase = filterInputs.base.value || null;
-        const filtroAerolinea = filterInputs.aerolinea.value || null;
-        let visibles = 0;
+        if (filterInputs.base.value) {
+            const rowBase = $(table.cell(dataIndex, 2).node()).text().trim();
+            if (!rowBase.includes(filterInputs.base.value)) return false;
+        }
 
-        originalRows.forEach(row => {
-            const diaMatch = row.querySelector('td:nth-child(2)');
-            const baseMatch = row.querySelector('td:nth-child(3)');
-            const aerolineaMatch = row.querySelector('td:nth-child(4)');
+        if (filterInputs.aerolinea.value) {
+            const rowAerolinea = $(table.cell(dataIndex, 3).node()).text().trim();
+            if (rowAerolinea !== filterInputs.aerolinea.value) return false;
+        }
 
-            if (!diaMatch || !baseMatch || !aerolineaMatch) return;
+        return true;
+    });
 
-            const rowFecha = diaMatch.textContent.trim();
-            const rowBase = baseMatch.textContent.trim();
-            const rowAerolinea = aerolineaMatch.textContent.trim();
-
-            let mostrar = true;
-
-            // Filtrar por fecha si está seleccionada
-            if (filtroFecha) {
-                const [diaStr, mesStr, anioStr] = rowFecha.split('/');
-                const mesNum = mesesNombre[mesStr] || null;
-                const rowDia = parseInt(diaStr);
-                const rowMes = mesNum;
-                const rowAnio = parseInt(anioStr);
-
-                mostrar = mostrar &&
-                    (rowDia === filtroFecha.dia &&
-                    rowMes === filtroFecha.mes &&
-                    rowAnio === filtroFecha.anio);
-            }
-
-            // Filtrar por base
-            if (filtroBase) {
-                mostrar = mostrar && rowBase.includes(filtroBase);
-            }
-
-            // Filtrar por aerolínea
-            if (filtroAerolinea) {
-                mostrar = mostrar && rowAerolinea === filtroAerolinea;
-            }
-
-            row.style.display = mostrar ? '' : 'none';
-            if (mostrar) visibles++;
-        });
-
-        badgeRegistros.textContent = visibles + ' registros';
+    function aplicarFiltros() {
+        table.draw();
     }
+
+    table.on('draw', function () {
+        badgeRegistros.textContent = table.rows({ search: 'applied' }).count() + ' registros';
+    });
 
     // Event listeners para los filtros
     filterInputs.fecha.addEventListener('change', aplicarFiltros);
@@ -258,4 +245,5 @@ sort($aerolineasUniques);
         if (filterInputs.aerolinea.value) params.set('aerolinea', filterInputs.aerolinea.value);
         window.location.href = BASE_URL + '/flight-services/export?' + params.toString();
     });
+});
 </script>

@@ -555,6 +555,15 @@
                 </div>
             </div>
         </div>
+
+        <div class="row g-3 mt-3">
+            <div class="col-12">
+                <label for="observaciones" class="form-label">Observaciones Generales</label>
+                <textarea class="form-control" id="observaciones" name="observaciones"
+                    placeholder="Ingrese cualquier observación adicional sobre el servicio..."
+                    rows="3"><?= htmlspecialchars($service['observaciones'] ?? '') ?></textarea>
+            </div>
+        </div>
     </div>
 </div>
 
