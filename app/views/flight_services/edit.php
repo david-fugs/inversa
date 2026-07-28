@@ -206,6 +206,11 @@
                     value="<?= $service['hora_itinerada_llegada'] ?? '' ?>">
             </div>
             <div class="col-md-3">
+                <label for="hora_real_llegada" class="form-label">Hora Real Llegada</label>
+                <input type="time" class="form-control" id="hora_real_llegada" name="hora_real_llegada"
+                    value="<?= $service['hora_real_llegada'] ?? '' ?>">
+            </div>
+            <div class="col-md-3">
                 <label for="demora_llegando" class="form-label">Demora Llegando (min)</label>
                 <input type="number" class="form-control" id="demora_llegando" name="demora_llegando"
                     value="<?= $service['demora_llegando'] ?>" min="0"
@@ -220,11 +225,6 @@
                 <label for="satena_hora_cierre_modulo" class="form-label">Hora Cierre Módulo (SATENA)</label>
                 <input type="time" class="form-control" id="satena_hora_cierre_modulo" name="satena_hora_cierre_modulo"
                     value="<?= $service['satena_hora_cierre_modulo'] ?? '' ?>">
-            </div>
-            <div class="col-md-3">
-                <label for="hora_real_llegada" class="form-label">Hora Real Llegada</label>
-                <input type="time" class="form-control" id="hora_real_llegada" name="hora_real_llegada"
-                    value="<?= $service['hora_real_llegada'] ?? '' ?>">
             </div>
             <div class="col-md-3">
                 <label for="hora_real_salida" class="form-label">Hora Real Salida</label>
@@ -701,9 +701,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const cumpleInput = document.getElementById('cumple_tiempo');
         const cumpleDisplay = document.getElementById('cumple_tiempo_display');
         const demoraInput = document.getElementById('demora_llegando');
+        const tiempoTransitoDisplay = document.getElementById('tiempo_transito_display');
+        const tiempoTransitoNote = document.getElementById('tiempo_transito_note');
+        const tiempoInput = document.getElementById('tiempo_transito');
 
         // Determinar qué tiempo de cumplimiento usar
         const tiempoAUsar = tiempoCustom ? parseInt(tiempoCustom) : (tiempoRef ? parseInt(tiempoRef) : null);
+
+        // Tiempo de tránsito real en plataforma (informativo): llegada real -> salida real
+        if (horaReal && horaRealSalida) {
+            const [hR2, mR2] = horaReal.split(':').map(Number);
+            const [hS2, mS2] = horaRealSalida.split(':').map(Number);
+            let minutos = (hS2 * 60 + mS2) - (hR2 * 60 + mR2);
+            if (minutos < 0) minutos += 24 * 60;
+            if (tiempoTransitoDisplay) tiempoTransitoDisplay.textContent = minutos + ' min';
+            if (tiempoInput) tiempoInput.value = minutos;
+        } else {
+            if (tiempoTransitoDisplay) tiempoTransitoDisplay.textContent = '--';
+            if (tiempoInput) tiempoInput.value = '';
+        }
+
+        // Aviso informativo: llegada anticipada respecto a la hora itinerada
+        if (tiempoTransitoNote) {
+            if (horaReal && horaItinerada) {
+                const [hR0, mR0] = horaReal.split(':').map(Number);
+                const [hI0, mI0] = horaItinerada.split(':').map(Number);
+                tiempoTransitoNote.textContent = (hR0 * 60 + mR0) < (hI0 * 60 + mI0)
+                    ? 'Llegó antes de la hora itinerada'
+                    : '';
+            } else {
+                tiempoTransitoNote.textContent = '';
+            }
+        }
 
         // Demora de llegada (informativo, respecto a la hora itinerada)
         if (horaItinerada && horaReal) {
