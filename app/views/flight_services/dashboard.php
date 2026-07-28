@@ -156,7 +156,7 @@
 
 <!-- ══ DEMORAS ══════════════════════════════════════════ -->
 <div class="row g-3 mb-3">
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-header"><h5><i class="bi bi-exclamation-triangle-fill"></i> Demoras por Código</h5></div>
             <div class="card-body">
@@ -165,12 +165,21 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-header"><h5><i class="bi bi-airplane-engines-fill"></i> Demoras por Aerolínea</h5></div>
             <div class="card-body">
                 <div id="chart_demoras_aerolinea" class="bar-list"></div>
                 <p id="empty_demoras_aerolinea" class="viz-empty" hidden>Sin demoras registradas para los filtros seleccionados.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><h5><i class="bi bi-geo-alt-fill"></i> Demoras por Base</h5></div>
+            <div class="card-body">
+                <div id="chart_demoras_base" class="bar-list"></div>
+                <p id="empty_demoras_base" class="viz-empty" hidden>Sin demoras registradas para los filtros seleccionados.</p>
             </div>
         </div>
     </div>
@@ -509,11 +518,12 @@ function renderKpis(rows) {
     }
 }
 
-/* ── Render: demoras por código y por aerolínea ───────── */
+/* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(r => r.demora_llegando > 0);
     renderBarList('chart_demoras', 'empty_demoras', contarPor(conDemora, 'codigo_demora'));
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
+    renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }
 
 /* ── Render: tabla dinámica Base × Aerolínea ──────────── */

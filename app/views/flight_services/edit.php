@@ -71,7 +71,7 @@
             </div>
 
             <div class="col-md-3">
-                <label class="form-label">Despacho <small class="text-muted">(Automático si es AVIANCA)</small></label>
+                <label class="form-label">Despacho <small class="text-muted">(Automático si es AVIANCA o REGIONAL EXPRESS)</small></label>
                 <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
                     <span id="despacho_display">--</span>
                 </div>
@@ -580,6 +580,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // ══ CONFIGURACIÓN Y UTILIDADES ═══════════════════════
     const AVIANCA_ID = 1; // ID de AVIANCA en la BD
+    const REGIONAL_EXPRESS_ID = 4; // ID de REGIONAL EXPRESS en la BD
     const BASES_ESPECIALES = ['AUC', 'UIB']; // Bases que fuerzan Despacho = No
 
     // Actualizar quincena al cambiar día
@@ -628,15 +629,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tiempoCustomField) tiempoCustomField.value = '';
         }
 
-        // 2. DESPACHO AUTOMÁTICO (AVIANCA = Sí, salvo BASES ESPECIALES que siempre son No) ════
+        // 2. DESPACHO AUTOMÁTICO (AVIANCA o REGIONAL EXPRESS = Sí, salvo BASES ESPECIALES que siempre son No) ════
         const isAvianca = airlineValue == AVIANCA_ID;
+        const isRegionalExpress = airlineValue == REGIONAL_EXPRESS_ID;
         const baseSelect = document.getElementById('base');
         const baseValue = baseSelect ? baseSelect.value : '';
         const isBaseEspecial = BASES_ESPECIALES.includes(baseValue);
 
         // La base tiene prioridad: si es AUC o UIB, despacho siempre es No,
-        // sin importar la aerolínea seleccionada (incluso si es AVIANCA).
-        const tieneDespacho = isBaseEspecial ? false : isAvianca;
+        // sin importar la aerolínea seleccionada (incluso si es AVIANCA o REGIONAL EXPRESS).
+        const tieneDespacho = isBaseEspecial ? false : (isAvianca || isRegionalExpress);
         console.log('updateAllAirlineLogic - tieneDespacho:', tieneDespacho);
         if (tieneDespacho) {
             console.log('→ Estableciendo despacho a SÍ');

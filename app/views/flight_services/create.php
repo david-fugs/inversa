@@ -602,6 +602,7 @@
 <script>
     // ═══ CONFIGURACIÓN Y UTILIDADES ═══════════════════════
     const AVIANCA_ID = 1; // ID de AVIANCA en la BD
+    const REGIONAL_EXPRESS_ID = 4; // ID de REGIONAL EXPRESS en la BD
     const BASES_ESPECIALES = ['AUC', 'UIB']; // Bases que fuerzan Despacho = No
 
     // Evitar que Enter envíe el formulario (excepto en textarea)
@@ -657,15 +658,16 @@
             document.getElementById('tiempo_cumplimiento_custom').value = '';
         }
 
-        // 2. DESPACHO AUTOMÁTICO (AVIANCA = Sí, salvo BASES ESPECIALES que siempre son No) ════
+        // 2. DESPACHO AUTOMÁTICO (AVIANCA o REGIONAL EXPRESS = Sí, salvo BASES ESPECIALES que siempre son No) ════
         const isAvianca = airlineValue == AVIANCA_ID;
+        const isRegionalExpress = airlineValue == REGIONAL_EXPRESS_ID;
         const baseSelect = document.getElementById('base');
         const baseValue = baseSelect ? baseSelect.value : '';
         const isBaseEspecial = BASES_ESPECIALES.includes(baseValue);
 
         // La base tiene prioridad: si es AUC o UIB, despacho siempre es No,
-        // sin importar la aerolínea seleccionada (incluso si es AVIANCA).
-        const tieneDespacho = isBaseEspecial ? false : isAvianca;
+        // sin importar la aerolínea seleccionada (incluso si es AVIANCA o REGIONAL EXPRESS).
+        const tieneDespacho = isBaseEspecial ? false : (isAvianca || isRegionalExpress);
         if (tieneDespacho) {
             despachoDisplay.textContent = 'Sí';
             despachoInput.value = '1';
