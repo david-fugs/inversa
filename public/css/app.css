@@ -97,6 +97,10 @@ a:hover { color: var(--color-primary-dark); }
   gap: 12px;
 }
 
+.nombre_aerolinea {
+  text-transform: capitalize !important;
+}
+
 .sidebar-brand .brand-icon-img {
   width: 42px;
   height: 42px;

@@ -38,9 +38,9 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
                     <span class="badge badge-info"><?= htmlspecialchars($service['tipo_atencion']) ?></span>
                     <?php if ($service['cumple_tiempo'] !== null): ?>
                         <?php if ($service['cumple_tiempo']): ?>
-                            <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> CUMPLE TIEMPO</span>
+                            <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> CUMPLE TIEMPO TRANSITO</span>
                         <?php else: ?>
-                            <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO CUMPLE TIEMPO</span>
+                            <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO CUMPLE TIEMPO TRANSITO</span>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>

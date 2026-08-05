@@ -31,9 +31,9 @@
         <div class="brand-logo">
             <img src="<?= BASE_URL ?>/img/logo.png" alt="<?= APP_NAME ?>" class="brand-icon-img">
             <div class="brand-text">
-                <h5>Operaciones</h5>
+                <h5>Inversa</h5>
 
-                <span>Aeroportuarias</span>
+                <span class="nombre_aerolinea">Operaciones Aeroportuarias</span>
             </div>
         </div>
     </div>

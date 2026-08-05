@@ -284,7 +284,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">¿Cumple Tiempo?</label>
+                    <label class="form-label">¿Cumple Tiempo Transito?</label>
                     <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
                         <span id="cumple_tiempo_display">--</span>
                     </div>
