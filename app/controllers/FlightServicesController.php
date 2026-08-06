@@ -83,7 +83,7 @@ class FlightServicesController extends Controller {
         $adicionalesPorServicio = $this->model->getAdicionalesForIds(array_column($services, 'id'));
         $gpuFraccionesPorServicio = $this->model->getGpuFraccionesForIds(array_column($services, 'id'));
 
-        $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroFecha, $filtroBase, $filtroAerolinea);
+        $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroInicio, $filtroFin, $filtroBase, $filtroAerolinea);
     }
 
     /** Panel analítico (tipo BI) con KPIs, gráficos y tabla dinámica, filtrable en el cliente */
@@ -703,7 +703,7 @@ XML;
     }
 
     /** Generar y enviar el reporte de servicios de vuelo como un archivo .xlsx real */
-    private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroFecha, string $filtroBase, string $filtroAerolinea = ''): void {
+    private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroInicio = '', string $filtroFin = '', string $filtroBase = '', string $filtroAerolinea = ''): void {
         foreach ($services as &$s) {
             $s['adicionales']     = $adicionalesPorServicio[$s['id']] ?? [];
             $s['gpu_fracciones']  = $gpuFraccionesPorServicio[$s['id']] ?? [];
@@ -716,7 +716,14 @@ XML;
         $subtitulo = 'Todas las bases';
         if ($filtroBase !== '') $subtitulo = 'Base ' . $filtroBase;
         if ($filtroAerolinea !== '') $subtitulo .= ' — ' . $filtroAerolinea;
-        if ($filtroFecha !== '') $subtitulo .= ' — ' . date('d/m/Y', strtotime($filtroFecha));
+        // Mostrar rango de fechas si fue provisto, si no mostrar la fecha única (compatibilidad)
+        if ($filtroInicio !== '' || $filtroFin !== '') {
+            $inicioText = $filtroInicio !== '' ? date('d/m/Y', strtotime($filtroInicio)) : '';
+            $finText = $filtroFin !== '' ? date('d/m/Y', strtotime($filtroFin)) : '';
+            if ($inicioText && $finText) $subtitulo .= ' — ' . $inicioText . ' a ' . $finText;
+            elseif ($inicioText) $subtitulo .= ' — Desde ' . $inicioText;
+            elseif ($finText) $subtitulo .= ' — Hasta ' . $finText;
+        }
 
         $lastCol   = $this->excelColLetter($totalCols);
         $dataStart = 5; // fila donde inician los datos (tras logo/título/subtítulo/grupos/encabezados)
