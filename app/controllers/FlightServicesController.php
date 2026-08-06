@@ -49,10 +49,23 @@ class FlightServicesController extends Controller {
             : $this->model->getAllWithJoins();
 
         $filtroFecha     = trim($_GET['fecha'] ?? '');
+        $filtroInicio    = trim($_GET['fecha_inicio'] ?? '');
+        $filtroFin       = trim($_GET['fecha_fin'] ?? '');
         $filtroBase      = trim($_GET['base'] ?? '');
         $filtroAerolinea = trim($_GET['aerolinea'] ?? '');
 
-        if ($filtroFecha !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $filtroFecha, $m)) {
+        // Si se proporciona un rango de fechas (inicio/fin), usarlo. Si solo viene "fecha", mantener compatibilidad.
+        if ($filtroInicio !== '' || $filtroFin !== '') {
+            $startTs = $filtroInicio !== '' ? strtotime($filtroInicio) : null;
+            $endTs = $filtroFin !== '' ? strtotime($filtroFin) : null;
+            $services = array_values(array_filter($services, function ($s) use ($startTs, $endTs) {
+                $rowDateStr = sprintf('%04d-%02d-%02d', (int)$s['anio'], (int)$s['mes'], (int)$s['dia']);
+                $rowTs = strtotime($rowDateStr);
+                if ($startTs !== null && $rowTs < $startTs) return false;
+                if ($endTs !== null && $rowTs > $endTs) return false;
+                return true;
+            }));
+        } elseif ($filtroFecha !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $filtroFecha, $m)) {
             [$fAnio, $fMes, $fDia] = [(int)$m[1], (int)$m[2], (int)$m[3]];
             $services = array_values(array_filter($services, function ($s) use ($fAnio, $fMes, $fDia) {
                 return (int)$s['anio'] === $fAnio && (int)$s['mes'] === $fMes && (int)$s['dia'] === $fDia;

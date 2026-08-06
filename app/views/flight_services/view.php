@@ -184,8 +184,6 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
                 <?php
                 $equipos = [
                     'sillas_ruedas' => 'Sillas de Ruedas',
-                    'ventiladores' => 'Ventiladores',
-                    'equipajes_transportados' => 'Equipajes Transportados',
                     'remolque_aeronave' => 'Remolque Aeronave',
                     'remolque_equipajes' => 'Remolque Equipajes',
                     'potable' => 'Potable',

@@ -35,11 +35,15 @@ sort($aerolineasUniques);
         <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h6>
     </div>
     <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label for="filter_fecha" class="form-label">Fecha</label>
-                <input type="date" class="form-control" id="filter_fecha" placeholder="Seleccionar fecha">
-            </div>
+        <?php $fechaInicio = trim($_GET['fecha_inicio'] ?? ''); $fechaFin = trim($_GET['fecha_fin'] ?? ''); ?>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Rango de Fecha</label>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control" id="filter_fecha_inicio" value="<?= htmlspecialchars($fechaInicio) ?>" placeholder="Fecha inicio">
+                        <input type="date" class="form-control" id="filter_fecha_fin" value="<?= htmlspecialchars($fechaFin) ?>" placeholder="Fecha fin">
+                    </div>
+                </div>
             <div class="col-md-3">
                 <label for="filter_base" class="form-label">Base</label>
                 <select class="form-select" id="filter_base">
@@ -175,7 +179,8 @@ window.addEventListener('load', function () {
     const table = $('#tableServices').DataTable();
 
     const filterInputs = {
-        fecha: document.getElementById('filter_fecha'),
+        fechaInicio: document.getElementById('filter_fecha_inicio'),
+        fechaFin: document.getElementById('filter_fecha_fin'),
         base: document.getElementById('filter_base'),
         aerolinea: document.getElementById('filter_aerolinea'),
     };
@@ -189,18 +194,25 @@ window.addEventListener('load', function () {
     $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
         if (settings.nTable.id !== 'tableServices') return true;
 
-        if (filterInputs.fecha.value) {
-            const [fAnio, fMes, fDia] = filterInputs.fecha.value.split('-').map(Number);
-
-            const $fechaCell = $(table.cell(dataIndex, 1).node()).clone();
-            $fechaCell.find('small').remove();
-            const [diaStr, mesStr, anioStr] = $fechaCell.text().trim().split('/');
-
+        // Filtrado por rango de fecha (inclusive)
+        if (filterInputs.fechaInicio.value || filterInputs.fechaFin.value) {
+            const [diaStr, mesStr, anioStr] = $(table.cell(dataIndex, 1).node()).clone().find('small').remove().end().text().trim().split('/');
             const rowDia = parseInt(diaStr, 10);
             const rowMes = mesesNombre[mesStr] || null;
             const rowAnio = parseInt(anioStr, 10);
+            if (!rowMes) return true; // fall back if parsing falla
+            const rowDate = new Date(rowAnio, rowMes - 1, rowDia);
 
-            if (rowDia !== fDia || rowMes !== fMes || rowAnio !== fAnio) return false;
+            if (filterInputs.fechaInicio.value) {
+                const [sY, sM, sD] = filterInputs.fechaInicio.value.split('-').map(Number);
+                const startDate = new Date(sY, sM - 1, sD);
+                if (rowDate < startDate) return false;
+            }
+            if (filterInputs.fechaFin.value) {
+                const [eY, eM, eD] = filterInputs.fechaFin.value.split('-').map(Number);
+                const endDate = new Date(eY, eM - 1, eD);
+                if (rowDate > endDate) return false;
+            }
         }
 
         if (filterInputs.base.value) {
@@ -225,13 +237,15 @@ window.addEventListener('load', function () {
     });
 
     // Event listeners para los filtros
-    filterInputs.fecha.addEventListener('change', aplicarFiltros);
+    filterInputs.fechaInicio.addEventListener('change', aplicarFiltros);
+    filterInputs.fechaFin.addEventListener('change', aplicarFiltros);
     filterInputs.base.addEventListener('change', aplicarFiltros);
     filterInputs.aerolinea.addEventListener('change', aplicarFiltros);
 
     // Botón limpiar filtros
     document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
-        filterInputs.fecha.value = '';
+        filterInputs.fechaInicio.value = '';
+        filterInputs.fechaFin.value = '';
         filterInputs.base.value = '';
         filterInputs.aerolinea.value = '';
         aplicarFiltros();
@@ -241,7 +255,8 @@ window.addEventListener('load', function () {
     document.getElementById('btn_exportar_excel').addEventListener('click', (e) => {
         e.preventDefault();
         const params = new URLSearchParams();
-        if (filterInputs.fecha.value) params.set('fecha', filterInputs.fecha.value);
+        if (filterInputs.fechaInicio.value) params.set('fecha_inicio', filterInputs.fechaInicio.value);
+        if (filterInputs.fechaFin.value) params.set('fecha_fin', filterInputs.fechaFin.value);
         if (filterInputs.base.value) params.set('base', filterInputs.base.value);
         if (filterInputs.aerolinea.value) params.set('aerolinea', filterInputs.aerolinea.value);
         window.location.href = BASE_URL + '/flight-services/export?' + params.toString();
