@@ -48,13 +48,16 @@
                 <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
                 <?php
                     $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
-                    $basesDisponibles = $baseColaborador ? [['nombre' => $baseColaborador]] : $bases;
+                    $basesDisponibles = $baseColaborador
+                        ? array_values(array_filter($bases, fn($b) => $b['nombre'] === $baseColaborador))
+                        : $bases;
                 ?>
                 <select class="form-select" id="base" name="base"
                     <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>
                     <?php foreach ($basesDisponibles as $b): ?>
                         <?php $baseNombre = $b['nombre']; ?>
-                        <option value="<?= htmlspecialchars($baseNombre) ?>" <?= ($service['base'] === $baseNombre || $baseColaborador === $baseNombre) ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($baseNombre) ?>" data-id="<?= (int)$b['id'] ?>"
+                            <?= ($service['base'] === $baseNombre || $baseColaborador === $baseNombre) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($baseNombre) ?>
                         </option>
                     <?php endforeach; ?>
@@ -342,6 +345,10 @@
 <div class="card">
     <div class="card-header"><h5><i class="bi bi-wind"></i> ACU</h5></div>
     <div class="card-body">
+        <div id="acu-tarifa-warning" class="alert alert-warning mb-3" style="display:none;font-size:13px;">
+            <i class="bi bi-exclamation-triangle"></i>
+            No hay tarifa de Aire Acondicionado (ACU) configurada para esta aerolínea/base en <a href="<?= BASE_URL ?>/tarifas-cobros" target="_blank">Tarifas / Cobros</a>. Las fracciones se calcularán en 0.
+        </div>
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">ACU</label>
@@ -358,8 +365,13 @@
                 <input type="number" class="form-control" id="tiempo_acu" name="tiempo_acu" value="<?= $service['tiempo_acu'] ?? '' ?>" readonly style="background:var(--bg-body);"></div>
             <div class="col-md-3"><label for="fracciones_hora_acu" class="form-label">Fracciones Hora ACU</label>
                 <input type="number" step="0.01" class="form-control" id="fracciones_hora_acu" name="fracciones_hora_acu" value="<?= number_format((float)($service['fracciones_hora_acu'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);"></div>
-            <div class="col-md-3"><label for="fracciones_15min_acu" class="form-label">Fracciones 15 min ACU</label>
-                <input type="number" step="0.01" class="form-control" id="fracciones_15min_acu" name="fracciones_15min_acu" value="<?= number_format((float)($service['fracciones_15min_acu'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);"></div>
+            <div class="col-md-3">
+                <label for="fracciones_15min_acu" class="form-label">
+                    Fracciones por Fracción ACU
+                    <small class="text-muted">(cada <span id="acu_fraccion_minutos_valor">—</span> min)</small>
+                </label>
+                <input type="number" step="0.01" class="form-control" id="fracciones_15min_acu" name="fracciones_15min_acu" value="<?= number_format((float)($service['fracciones_15min_acu'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
+            </div>
         </div>
         <div id="acu-fracciones-container">
             <?php foreach ($service['acu_fracciones'] as $i => $af): ?>
@@ -367,14 +379,14 @@
                 <button type="button" class="btn-remove-row" onclick="this.closest('.dynamic-row').remove()"><i class="bi bi-x"></i></button>
                 <div class="row g-3">
                     <div class="col-md-3"><label class="form-label">Hora Conexión</label>
-                        <input type="time" class="form-control" name="acu_fracciones[<?= $i ?>][hora_conexion]" value="<?= $af['hora_conexion'] ?? '' ?>"></div>
+                        <input type="time" class="form-control" name="acu_fracciones[<?= $i ?>][hora_conexion]" value="<?= $af['hora_conexion'] ?? '' ?>" oninput="calcFraccionAcu(this)"></div>
                     <div class="col-md-3"><label class="form-label">Hora Desconexión</label>
                         <input type="time" class="form-control" name="acu_fracciones[<?= $i ?>][hora_desconexion]" value="<?= $af['hora_desconexion'] ?? '' ?>" oninput="calcFraccionAcu(this)"></div>
                     <div class="col-md-2"><label class="form-label">Tiempo (min)</label>
                         <input type="number" class="form-control" name="acu_fracciones[<?= $i ?>][tiempo]" value="<?= $af['tiempo'] ?? '' ?>" readonly></div>
                     <div class="col-md-2"><label class="form-label">Fracc. Hora</label>
                         <input type="number" step="0.01" class="form-control" name="acu_fracciones[<?= $i ?>][fracciones_hora]" value="<?= $af['fracciones_hora'] ?? 0 ?>" readonly></div>
-                    <div class="col-md-2"><label class="form-label">Fracc. 15 min</label>
+                    <div class="col-md-2"><label class="form-label">Fracc. Fracción</label>
                         <input type="number" step="0.01" class="form-control" name="acu_fracciones[<?= $i ?>][fracciones_15min]" value="<?= $af['fracciones_15min'] ?? 0 ?>" readonly></div>
                 </div>
             </div>

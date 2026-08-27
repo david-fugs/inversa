@@ -109,6 +109,11 @@ class BasesController extends Controller {
             return;
         }
 
+        if ($this->baseModel->hasTarifasGpu((int)$id)) {
+            $this->redirectWith('bases', 'error', 'No se puede eliminar: la base tiene tarifas GPU configuradas.');
+            return;
+        }
+
         if ($this->baseModel->delete((int)$id)) {
             $this->redirectWith('bases', 'success', 'Base eliminada correctamente.');
         } else {

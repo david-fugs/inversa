@@ -70,17 +70,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── DataTables global ─────────────────────────────── */
     if (typeof $.fn.dataTable !== 'undefined') {
-        $('.data-table').DataTable({
-            language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
-                emptyTable: 'No hay registros disponibles'
-            },
-            responsive: true,
-            dom: '<"row align-items-center mb-3"<"col-sm-6"l><"col-sm-6 text-end"f>>rtip',
-            pageLength: 15,
-            columnDefs: [
-                { orderable: false, targets: -1 }
-            ]
+        $('.data-table').each(function () {
+            const $table = $(this);
+            const opts = {
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+                    emptyTable: 'No hay registros disponibles'
+                },
+                responsive: true,
+                dom: '<"row align-items-center mb-3"<"col-sm-6"l><"col-sm-6 text-end"f>>rtip',
+                pageLength: 15,
+                columnDefs: [
+                    { orderable: false, targets: -1 }
+                ]
+            };
+
+            // Agrupar filas por una columna: data-group-column="1" en el
+            // <table> (índice de columna 0-based). La tabla debe quedar
+            // ordenada por esa columna para que los grupos salgan juntos.
+            const groupCol = $table.data('group-column');
+            if (groupCol !== undefined && groupCol !== '' && !isNaN(groupCol)) {
+                opts.order = [[parseInt(groupCol, 10), 'asc']];
+                opts.rowGroup = {
+                    dataSrc: parseInt(groupCol, 10),
+                    // La celda agrupada puede traer HTML (p.ej. un badge);
+                    // el encabezado de grupo muestra solo el texto + conteo.
+                    startRender: function (rows, group) {
+                        const texto = $('<div>').html(group).text().trim() || group;
+                        return texto + ' (' + rows.count() + ')';
+                    }
+                };
+            }
+
+            $table.DataTable(opts);
         });
     }
 
@@ -243,6 +265,7 @@ function initGpuCalculation() {
     const fracGpu       = document.getElementById('fracciones_adc_gpu');
     const fracAdicGpu   = document.getElementById('fracciones_adicionales_gpu');
     const airlineSelect = document.getElementById('airline_id');
+    const baseSelect    = document.getElementById('base');
 
     if (!conexion || !desconexion) return;
 
@@ -254,13 +277,24 @@ function initGpuCalculation() {
         recalcularFraccionesGpuAdicionales();
     }
 
+    // El id de la base seleccionada viaja en el atributo data-id de la
+    // opción elegida (ver app/views/flight_services/create.php y edit.php).
+    function getBaseIdSeleccionado() {
+        if (!baseSelect || !baseSelect.value) return null;
+        const opt = baseSelect.options[baseSelect.selectedIndex];
+        return opt && opt.dataset.id ? opt.dataset.id : null;
+    }
+
     function cargarTarifaAerolinea(airlineId) {
         if (!airlineId || airlineId === 'otra') {
             gpuTarifaActual = null;
             recalcularFracciones();
             return;
         }
-        fetch(BASE_URL + '/tarifas-cobros/by-airline/' + airlineId)
+        const baseId = getBaseIdSeleccionado();
+        const url = BASE_URL + '/tarifas-cobros/by-airline/' + airlineId
+            + '?tipo_cobro=gpu' + (baseId ? '&base_id=' + encodeURIComponent(baseId) : '');
+        fetch(url)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 gpuTarifaActual = data;
@@ -294,6 +328,16 @@ function initGpuCalculation() {
             cargarTarifaAerolinea(airlineSelect.value);
         }
     }
+
+    // La tarifa también depende de la base: al cambiarla, recargar con
+    // la aerolínea ya seleccionada.
+    if (baseSelect) {
+        baseSelect.addEventListener('change', function () {
+            if (airlineSelect && airlineSelect.value) {
+                cargarTarifaAerolinea(airlineSelect.value);
+            }
+        });
+    }
 }
 
 // Recalcula, con la misma tarifa de la aerolínea, las fracciones ADC
@@ -309,14 +353,107 @@ function recalcularFraccionesGpuAdicionales() {
     });
 }
 
+/* ── Cálculo de fracciones ACU según tarifa de la aerolínea/base ──
+ * Misma regla de negocio que GPU (ver calcularFraccionesGpuValor),
+ * pero repartida en dos campos en vez de uno solo:
+ *  - "Fracciones Hora ACU"    → 1 si hay tarifa "primeros minutos"
+ *    configurada y el equipo estuvo conectado, 0 en otro caso.
+ *  - "Fracciones [fracción] ACU" → cantidad de fracciones de
+ *    "fraccion_minutos" adicionales (o desde el minuto 0 si la
+ *    aerolínea/base no maneja tarifa inicial).
+ */
+function calcularFraccionesAcuValores(tiempoMin, tarifa) {
+    if (!tarifa || !tiempoMin || tiempoMin <= 0) return { horas: 0, fracciones: 0 };
+
+    const fraccion = parseInt(tarifa.fraccion_minutos, 10) || 0;
+    const primeros = tarifa.primeros_minutos !== null && tarifa.primeros_minutos !== undefined
+        ? parseInt(tarifa.primeros_minutos, 10)
+        : 0;
+
+    if (primeros > 0) {
+        const fracciones = (fraccion > 0 && tiempoMin > primeros)
+            ? Math.ceil((tiempoMin - primeros) / fraccion)
+            : 0;
+        return { horas: 1, fracciones: fracciones };
+    }
+
+    return { horas: 0, fracciones: fraccion > 0 ? Math.ceil(tiempoMin / fraccion) : 0 };
+}
+
+// Tarifa ACU de la aerolínea/base seleccionada, compartida entre el
+// ACU principal y las filas adicionales (agregar otra fracción ACU).
+let acuTarifaActual = null;
+
 /* ── Cálculo ACU ──────────────────────────────────────── */
 function initAcuCalculation() {
-    const conexion     = document.getElementById('hora_conexion_acu');
-    const desconexion  = document.getElementById('hora_desconexion_acu');
-    const tiempoAcu    = document.getElementById('tiempo_acu');
-    const acuSelect    = document.getElementById('acu');
+    const conexion       = document.getElementById('hora_conexion_acu');
+    const desconexion    = document.getElementById('hora_desconexion_acu');
+    const tiempoAcu      = document.getElementById('tiempo_acu');
+    const acuSelect      = document.getElementById('acu');
+    const airlineSelect  = document.getElementById('airline_id');
+    const baseSelect     = document.getElementById('base');
+    const fraccionLabel  = document.getElementById('acu_fraccion_minutos_valor');
+    const warningEl      = document.getElementById('acu-tarifa-warning');
 
     if (!conexion || !desconexion) return;
+
+    function actualizarEtiquetaYAviso() {
+        if (fraccionLabel) {
+            fraccionLabel.textContent = (acuTarifaActual && acuTarifaActual.fraccion_minutos)
+                ? acuTarifaActual.fraccion_minutos
+                : '—';
+        }
+        if (warningEl) {
+            const airlineId = airlineSelect ? airlineSelect.value : '';
+            const sinTarifa = !airlineId || airlineId === 'otra'
+                ? false
+                : (!acuTarifaActual || acuTarifaActual.fraccion_minutos === null || acuTarifaActual.fraccion_minutos === undefined);
+            warningEl.style.display = sinTarifa ? '' : 'none';
+        }
+    }
+
+    function recalcularFracciones() {
+        const diff     = parseInt(tiempoAcu ? tiempoAcu.value : '0', 10) || 0;
+        const fracHora = document.getElementById('fracciones_hora_acu');
+        const frac15   = document.getElementById('fracciones_15min_acu');
+
+        // Igual que GPU: las fracciones se calculan a partir del tiempo
+        // conectado y la tarifa, sin depender del switch "ACU" (Sí/No) —
+        // ese switch es solo informativo, no debe anular el cálculo.
+        const valores = calcularFraccionesAcuValores(diff, acuTarifaActual);
+        if (fracHora) fracHora.value = valores.horas.toFixed(2);
+        if (frac15)   frac15.value   = valores.fracciones.toFixed(2);
+
+        recalcularFraccionesAcuAdicionales();
+        actualizarEtiquetaYAviso();
+    }
+
+    function getBaseIdSeleccionado() {
+        if (!baseSelect || !baseSelect.value) return null;
+        const opt = baseSelect.options[baseSelect.selectedIndex];
+        return opt && opt.dataset.id ? opt.dataset.id : null;
+    }
+
+    function cargarTarifaAcuAerolinea(airlineId) {
+        if (!airlineId || airlineId === 'otra') {
+            acuTarifaActual = null;
+            recalcularFracciones();
+            return;
+        }
+        const baseId = getBaseIdSeleccionado();
+        const url = BASE_URL + '/tarifas-cobros/by-airline/' + airlineId
+            + '?tipo_cobro=acu' + (baseId ? '&base_id=' + encodeURIComponent(baseId) : '');
+        fetch(url)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                acuTarifaActual = data;
+                recalcularFracciones();
+            })
+            .catch(function () {
+                acuTarifaActual = null;
+                recalcularFracciones();
+            });
+    }
 
     function calcular() {
         const c = timeToMinutes(conexion.value);
@@ -325,25 +462,48 @@ function initAcuCalculation() {
         let diff = d - c;
         if (diff < 0) diff += 1440;
         if (tiempoAcu) tiempoAcu.value = diff;
-
-        // Fracciones hora ACU: 1 si ACU=Sí, 0 si No
-        const fracHora = document.getElementById('fracciones_hora_acu');
-        const frac15   = document.getElementById('fracciones_15min_acu');
-        const acuVal   = acuSelect ? parseInt(acuSelect.value) : 0;
-        if (fracHora) fracHora.value = acuVal ? '1.00' : '0.00';
-        // Fracciones 15 min ACU: cada bloque de 15 min (1-15=1, 16-30=2, 31-45=3, ...) redondeando hacia arriba
-        if (frac15)   frac15.value   = diff > 0 ? Math.ceil(diff / 15).toFixed(2) : '0.00';
-    }
-
-    function calcularFracHora() {
-        const fracHora = document.getElementById('fracciones_hora_acu');
-        const acuVal   = acuSelect ? parseInt(acuSelect.value) : 0;
-        if (fracHora) fracHora.value = acuVal ? '1.00' : '0.00';
+        recalcularFracciones();
     }
 
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
-    if (acuSelect) acuSelect.addEventListener('change', calcularFracHora);
+    if (acuSelect) acuSelect.addEventListener('change', recalcularFracciones);
+
+    if (airlineSelect) {
+        airlineSelect.addEventListener('change', function () {
+            cargarTarifaAcuAerolinea(this.value);
+        });
+        // Cargar tarifa inicial si ya hay una aerolínea seleccionada (edición o reintento con errores)
+        if (airlineSelect.value) {
+            cargarTarifaAcuAerolinea(airlineSelect.value);
+        }
+    }
+
+    // La tarifa también depende de la base: al cambiarla, recargar con
+    // la aerolínea ya seleccionada.
+    if (baseSelect) {
+        baseSelect.addEventListener('change', function () {
+            if (airlineSelect && airlineSelect.value) {
+                cargarTarifaAcuAerolinea(airlineSelect.value);
+            }
+        });
+    }
+}
+
+// Recalcula, con la misma tarifa de la aerolínea/base, las fracciones
+// de todas las filas adicionales de ACU ya agregadas (a partir de su tiempo).
+function recalcularFraccionesAcuAdicionales() {
+    const container = document.getElementById('acu-fracciones-container');
+    if (!container) return;
+    container.querySelectorAll('.dynamic-row').forEach(function (row) {
+        const tiempoInp   = row.querySelector('input[name$="[tiempo]"]');
+        const fracHoraInp = row.querySelector('input[name$="[fracciones_hora]"]');
+        const frac15Inp   = row.querySelector('input[name$="[fracciones_15min]"]');
+        const tiempoMin   = parseInt(tiempoInp ? tiempoInp.value : '0', 10) || 0;
+        const valores = calcularFraccionesAcuValores(tiempoMin, acuTarifaActual);
+        if (fracHoraInp) fracHoraInp.value = valores.horas.toFixed(2);
+        if (frac15Inp)   frac15Inp.value   = valores.fracciones.toFixed(2);
+    });
 }
 
 /* ── Cálculo automático Ventiladores ─────────────────── */
@@ -639,28 +799,28 @@ function addAcuRow() {
                 <input type="number" step="0.01" class="form-control" name="acu_fracciones[${idx}][fracciones_hora]" readonly>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Fracc. 15 min</label>
+                <label class="form-label">Fracc. Fracción</label>
                 <input type="number" step="0.01" class="form-control" name="acu_fracciones[${idx}][fracciones_15min]" readonly>
             </div>
         </div>`;
     container.appendChild(row);
+    recalcularFraccionesAcuAdicionales();
 }
 
+// Igual que el ACU principal: tiempo = desconexión - conexión, y las
+// fracciones se calculan con la misma tarifa de la aerolínea/base (acuTarifaActual).
 function calcFraccionAcu(anyInput) {
     const row            = anyInput.closest('.dynamic-row');
     const conexionInp    = row.querySelector('input[name$="[hora_conexion]"]');
     const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
     const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
-    const fracHoraInp    = row.querySelector('input[name$="[fracciones_hora]"]');
-    const frac15Inp      = row.querySelector('input[name$="[fracciones_15min]"]');
     const c = timeToMinutes(conexionInp ? conexionInp.value : '');
     const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
     if (c !== null && d !== null) {
         let diff = d - c;
         if (diff < 0) diff += 1440;
-        if (tiempoInp)    tiempoInp.value    = diff;
-        if (fracHoraInp)  fracHoraInp.value  = (diff / 60).toFixed(2);
-        if (frac15Inp)    frac15Inp.value    = (diff / 15).toFixed(2);
+        if (tiempoInp) tiempoInp.value = diff;
+        recalcularFraccionesAcuAdicionales();
     }
 }
 

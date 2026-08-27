@@ -154,7 +154,7 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
                 <tr><td class="text-muted">Hora Desconexión</td><td><?= $service['hora_desconexion_acu'] ?? '—' ?></td></tr>
                 <tr><td class="text-muted">Tiempo ACU</td><td><?= $service['tiempo_acu'] !== null ? $service['tiempo_acu'] . ' min' : '—' ?></td></tr>
                 <tr><td class="text-muted">Fracciones Hora</td><td><?= $service['fracciones_hora_acu'] ?? 0 ?></td></tr>
-                <tr><td class="text-muted">Fracciones 15 min</td><td><?= $service['fracciones_15min_acu'] ?? 0 ?></td></tr>
+                <tr><td class="text-muted">Fracciones Fracción</td><td><?= $service['fracciones_15min_acu'] ?? 0 ?></td></tr>
             </table>
         </div>
     </div>

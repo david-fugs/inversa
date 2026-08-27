@@ -56,14 +56,17 @@
                     <label for="base" class="form-label">Base <span class="required-mark">*</span></label>
                     <?php
                     $baseColaborador = (Session::get('user_rol') === 'Colaborador') ? Session::get('user_base_asociada') : null;
-                    $basesDisponibles = $baseColaborador ? [['nombre' => $baseColaborador]] : $bases;
+                    $basesDisponibles = $baseColaborador
+                        ? array_values(array_filter($bases, fn($b) => $b['nombre'] === $baseColaborador))
+                        : $bases;
                     ?>
                     <select class="form-select <?= isset($errors['base']) ? 'is-invalid' : '' ?>" id="base" name="base"
                         <?= $baseColaborador ? 'readonly style="pointer-events:none;background:var(--bg-body);"' : '' ?>>
                         <option value="">-- Seleccione base --</option>
                         <?php foreach ($basesDisponibles as $b): ?>
                             <?php $baseNombre = $b['nombre']; ?>
-                            <option value="<?= htmlspecialchars($baseNombre) ?>" <?= ($old['base'] ?? $baseColaborador ?? '') === $baseNombre ? 'selected' : '' ?>>
+                            <option value="<?= htmlspecialchars($baseNombre) ?>" data-id="<?= (int)$b['id'] ?>"
+                                <?= ($old['base'] ?? $baseColaborador ?? '') === $baseNombre ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($baseNombre) ?>
                             </option>
                         <?php endforeach; ?>
@@ -363,6 +366,10 @@
             <h5><i class="bi bi-wind"></i> ACU (Unidad de Aire Acondicionado)</h5>
         </div>
         <div class="card-body">
+            <div id="acu-tarifa-warning" class="alert alert-warning mb-3" style="display:none;font-size:13px;">
+                <i class="bi bi-exclamation-triangle"></i>
+                No hay tarifa de Aire Acondicionado (ACU) configurada para esta aerolínea/base en <a href="<?= BASE_URL ?>/tarifas-cobros" target="_blank">Tarifas / Cobros</a>. Las fracciones se calcularán en 0.
+            </div>
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <label class="form-label">ACU</label>
@@ -392,13 +399,19 @@
                         value="<?= number_format((float)($old['fracciones_hora_acu'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
                 </div>
                 <div class="col-md-3">
-                    <label for="fracciones_15min_acu" class="form-label">Fracciones 15 min ACU</label>
+                    <label for="fracciones_15min_acu" class="form-label">
+                        Fracciones por Fracción ACU
+                        <small class="text-muted">(cada <span id="acu_fraccion_minutos_valor">—</span> min)</small>
+                    </label>
                     <input type="number" step="0.01" class="form-control" id="fracciones_15min_acu" name="fracciones_15min_acu"
                         value="<?= number_format((float)($old['fracciones_15min_acu'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);">
                 </div>
             </div>
 
             <div id="acu-fracciones-container"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnAddAcuRow" onclick="addAcuRow()">
+                <i class="bi bi-plus-circle"></i> Agregar otro ACU
+            </button>
         </div>
     </div>
 

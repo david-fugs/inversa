@@ -514,7 +514,7 @@ class FlightServicesController extends Controller {
                     'hora_desconexion_acu'   => 'Hora Desconexión ACU',
                     'tiempo_acu'             => 'Tiempo ACU (min)',
                     'fracciones_hora_acu'    => 'Fracciones Hora ACU',
-                    'fracciones_15min_acu'   => 'Fracciones 15min ACU',
+                    'fracciones_15min_acu'   => 'Fracciones Fracción ACU',
                 ],
             ],
             [

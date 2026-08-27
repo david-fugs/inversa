@@ -79,4 +79,12 @@ class Base extends Model {
         );
         return (int)($row['total'] ?? 0) > 0;
     }
+
+    public function hasTarifasGpu(int $baseId): bool {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) as total FROM tarifas_gpu WHERE base_id = ?",
+            [$baseId]
+        );
+        return (int)($row['total'] ?? 0) > 0;
+    }
 }
