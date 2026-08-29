@@ -81,6 +81,12 @@ $router->get('/bases/edit/{id}',    'BasesController', 'editForm');
 $router->post('/bases/edit/{id}',   'BasesController', 'update');
 $router->get('/bases/delete/{id}',  'BasesController', 'delete');
 
+// ─── Código Demoras ─────────────────────────────────────────────────
+$router->get('/codigo-demoras',              'CodigoDemorasController', 'index');
+$router->post('/codigo-demoras/create',      'CodigoDemorasController', 'store');
+$router->post('/codigo-demoras/edit/{id}',   'CodigoDemorasController', 'update');
+$router->get('/codigo-demoras/delete/{id}',  'CodigoDemorasController', 'delete');
+
 // ─── Bases destino ──────────────────────────────────────────────────
 $router->get('/base-destinos',              'BaseDestinosController', 'index');
 $router->get('/base-destinos/create',       'BaseDestinosController', 'createForm');

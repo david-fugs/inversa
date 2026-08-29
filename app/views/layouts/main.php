@@ -89,6 +89,13 @@
             </a>
         </div>
 
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/codigo-demoras" class="nav-link">
+                <i class="bi bi-clock-history"></i>
+                <span>Código Demoras</span>
+            </a>
+        </div>
+
         <p class="nav-section-title">Administración</p>
 
         <div class="nav-item">

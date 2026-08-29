@@ -38,11 +38,11 @@ class TarifasGpuController extends Controller {
         $errors = $this->validate($data);
 
         if (!empty($errors)) {
-            $this->renderIndex($errors, $data, 'create');
+            $this->renderIndex($errors, $this->toOldForm($data), 'create');
             return;
         }
 
-        $this->model->create($this->castData($data));
+        $this->saveBases($data);
         $this->redirectWith('tarifas-cobros', 'success', 'Tarifa creada correctamente.');
     }
 
@@ -58,13 +58,50 @@ class TarifasGpuController extends Controller {
         $errors = $this->validate($data, $tarifaId);
 
         if (!empty($errors)) {
-            $data['id'] = $tarifaId;
-            $this->renderIndex($errors, $data, 'edit');
+            $old = $this->toOldForm($data);
+            $old['id'] = $tarifaId;
+            $this->renderIndex($errors, $old, 'edit');
             return;
         }
 
-        $this->model->update($tarifaId, $this->castData($data));
+        // "Reemplazar": se borra el registro original y se crean registros
+        // individuales nuevos solo para las bases seleccionadas ahora.
+        $pdo = $this->db->getConnection();
+        $pdo->beginTransaction();
+        try {
+            $this->model->delete($tarifaId);
+            $this->saveBases($data);
+            $pdo->commit();
+        } catch (\Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
         $this->redirectWith('tarifas-cobros', 'success', 'Tarifa actualizada correctamente.');
+    }
+
+    /**
+     * Guarda una tarifa por cada base seleccionada (registros
+     * individuales). Si no se seleccionó ninguna base, se guarda un
+     * único registro con base_id = NULL ("todas las bases").
+     */
+    private function saveBases(array $data): void {
+        if (empty($data['base_ids'])) {
+            $this->model->create($this->castData($data, null));
+            return;
+        }
+        foreach ($data['base_ids'] as $baseId) {
+            $this->model->create($this->castData($data, (int)$baseId));
+        }
+    }
+
+    private function toOldForm(array $data): array {
+        return [
+            'airline_id'       => $data['airline_id'],
+            'base_id'          => $data['base_ids'],
+            'tipo_cobro'       => $data['tipo_cobro'],
+            'primeros_minutos' => $data['primeros_minutos'],
+            'fraccion_minutos' => $data['fraccion_minutos'],
+        ];
     }
 
     public function delete(string $id): void {
@@ -108,22 +145,26 @@ class TarifasGpuController extends Controller {
     }
 
     private function collectInput(): array {
-        $primeros  = $this->input('primeros_minutos', '');
-        $baseId    = $this->input('base_id', '');
+        $primeros   = $this->input('primeros_minutos', '');
+        $baseIdsRaw = $this->input('base_id', []);
+        if (!is_array($baseIdsRaw)) {
+            $baseIdsRaw = $baseIdsRaw === '' ? [] : [$baseIdsRaw];
+        }
+        $baseIds   = array_values(array_unique(array_filter($baseIdsRaw, fn($v) => $v !== '' && $v !== null)));
         $tipoCobro = $this->input('tipo_cobro', TarifaGpu::TIPO_GPU);
         return [
             'airline_id'       => (int)$this->input('airline_id'),
-            'base_id'          => $baseId === '' ? null : $baseId,
+            'base_ids'         => $baseIds,
             'tipo_cobro'       => $tipoCobro,
             'primeros_minutos' => $primeros === '' ? null : $primeros,
             'fraccion_minutos' => $this->input('fraccion_minutos', ''),
         ];
     }
 
-    private function castData(array $data): array {
+    private function castData(array $data, ?int $baseId): array {
         return [
             'airline_id'       => (int)$data['airline_id'],
-            'base_id'          => $data['base_id'] !== null ? (int)$data['base_id'] : null,
+            'base_id'          => $baseId,
             'tipo_cobro'       => $data['tipo_cobro'],
             'primeros_minutos' => $data['primeros_minutos'] !== null ? (int)$data['primeros_minutos'] : null,
             'fraccion_minutos' => (int)$data['fraccion_minutos'],
@@ -141,19 +182,24 @@ class TarifasGpuController extends Controller {
             $errors['tipo_cobro'] = 'Seleccione un tipo de cobro válido.';
         }
 
-        if ($data['base_id'] !== null) {
-            if (!ctype_digit((string)$data['base_id']) || !$this->baseModel->findById((int)$data['base_id'])) {
-                $errors['base_id'] = 'Seleccione una base válida.';
+        foreach ($data['base_ids'] as $baseId) {
+            if (!ctype_digit((string)$baseId) || !$this->baseModel->findById((int)$baseId)) {
+                $errors['base_id'] = 'Seleccione bases válidas.';
+                break;
             }
         }
 
         if (empty($errors['airline_id']) && empty($errors['base_id']) && empty($errors['tipo_cobro'])) {
-            $baseId = $data['base_id'] !== null ? (int)$data['base_id'] : null;
-            if ($this->model->airlineBaseTipoHasTarifa((int)$data['airline_id'], $baseId, $data['tipo_cobro'], $excludeId)) {
-                $tipoTexto = $data['tipo_cobro'] === TarifaGpu::TIPO_ACU ? 'Aire Acondicionado (ACU)' : 'Planta Eléctrica (GPU)';
-                $errors['base_id'] = $baseId === null
-                    ? "Esta aerolínea ya tiene una tarifa de {$tipoTexto} configurada para \"Todas las bases\"."
-                    : "Esta aerolínea ya tiene una tarifa de {$tipoTexto} configurada para esa base.";
+            $baseIdsToCheck = !empty($data['base_ids']) ? $data['base_ids'] : [null];
+            foreach ($baseIdsToCheck as $baseId) {
+                $baseId = $baseId !== null ? (int)$baseId : null;
+                if ($this->model->airlineBaseTipoHasTarifa((int)$data['airline_id'], $baseId, $data['tipo_cobro'], $excludeId)) {
+                    $tipoTexto = $data['tipo_cobro'] === TarifaGpu::TIPO_ACU ? 'Aire Acondicionado (ACU)' : 'Planta Eléctrica (GPU)';
+                    $errors['base_id'] = $baseId === null
+                        ? "Esta aerolínea ya tiene una tarifa de {$tipoTexto} configurada para \"Todas las bases\"."
+                        : "Esta aerolínea ya tiene una tarifa de {$tipoTexto} configurada para una de las bases seleccionadas.";
+                    break;
+                }
             }
         }
 

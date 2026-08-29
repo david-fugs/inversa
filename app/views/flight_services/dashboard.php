@@ -521,7 +521,11 @@ function renderKpis(rows) {
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(r => r.demora_llegando > 0);
-    renderBarList('chart_demoras', 'empty_demoras', contarPor(conDemora, 'codigo_demora'));
+    // Solo el código (sin descripción del catálogo); si no tiene código
+    // asignado se agrupa explícitamente como "Sin código" en vez del
+    // genérico "—" que usa contarPor() por defecto.
+    const conDemoraPorCodigo = conDemora.map(r => ({ ...r, codigo_demora: r.codigo_demora || 'Sin código' }));
+    renderBarList('chart_demoras', 'empty_demoras', contarPor(conDemoraPorCodigo, 'codigo_demora'));
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }

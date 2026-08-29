@@ -267,13 +267,30 @@
                     <hr class="my-2">
                     <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Se debe completar la información de la demora</small></p>
                 </div>
-                <div class="col-md-3">
-                    <label for="codigo_demora" class="form-label">Código Demora</label>
-                    <input type="text" class="form-control" id="codigo_demora" name="codigo_demora"
-                        value="<?= htmlspecialchars($service['codigo_demora'] ?? '') ?>"
-                        placeholder="Ej: D001" style="text-transform:uppercase;">
+                <div class="col-12">
+                    <label for="codigo_demora_id" class="form-label">Código Demora</label>
+                    <?php $codigoDemoraLegacy = empty($service['codigo_demora_id']) && !empty($service['codigo_demora']); ?>
+                    <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id" data-placeholder="Seleccione un código" style="width:100%">
+                        <option></option>
+                        <?php if ($codigoDemoraLegacy): ?>
+                            <!-- value="0" (no un id real del catálogo) para que select2 sí muestre
+                                 esta etiqueta; con value="" select2 la trata como placeholder y no la pinta. -->
+                            <option value="0" selected><?= htmlspecialchars($service['codigo_demora']) ?> (código anterior, sin catálogo)</option>
+                        <?php endif; ?>
+                        <?php foreach ($codigoDemoras as $cd): ?>
+                            <option value="<?= $cd['id'] ?>"
+                                <?= ($service['codigo_demora_id'] ?? '') == $cd['id'] ? 'selected' : '' ?>
+                                title="<?= htmlspecialchars($cd['descripcion']) ?>">
+                                <?= htmlspecialchars($cd['codigo']) ?> - <?= htmlspecialchars($cd['descripcion']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if ($codigoDemoraLegacy): ?>
+                        <input type="hidden" name="codigo_demora_texto_original" value="<?= htmlspecialchars($service['codigo_demora']) ?>">
+                        <small class="text-muted">Código anterior al catálogo. Puede dejarlo así o seleccionar uno de la lista para asociarlo.</small>
+                    <?php endif; ?>
                 </div>
-                <div class="col-md-9">
+                <div class="col-12">
                     <label for="observacion_demora" class="form-label">Observación de la Demora</label>
                     <textarea class="form-control" id="observacion_demora" name="observacion_demora"
                         placeholder="Describa el motivo de la demora..." rows="2"><?= htmlspecialchars($service['observacion_demora'] ?? '') ?></textarea>
@@ -868,4 +885,27 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleCanceladoSecciones();
     }
 });
+
+// El select2 de Código Demora se inicializa aparte, en el evento "load",
+// para asegurar que jQuery/select2 ya estén cargados (van en el footer
+// del layout, después de este bloque).
+window.addEventListener('load', function () {
+    $('#codigo_demora_id').select2({
+        placeholder: 'Seleccione un código',
+        allowClear: true,
+        width: '100%',
+        dropdownCssClass: 'codigo-demora-dropdown',
+        language: {
+            noResults: function () { return 'Sin resultados'; },
+            searching: function () { return 'Buscando…'; }
+        }
+    });
+});
 </script>
+
+<style>
+.codigo-demora-dropdown .select2-results__option {
+    white-space: normal;
+    word-break: break-word;
+}
+</style>

@@ -302,13 +302,20 @@
                         <hr class="my-2">
                         <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Se debe completar la información de la demora</small></p>
                     </div>
-                    <div class="col-md-3">
-                        <label for="codigo_demora" class="form-label">Código Demora</label>
-                        <input type="text" class="form-control" id="codigo_demora" name="codigo_demora"
-                            value="<?= htmlspecialchars($old['codigo_demora'] ?? '') ?>"
-                            placeholder="Ej: D001" style="text-transform:uppercase;">
+                    <div class="col-12">
+                        <label for="codigo_demora_id" class="form-label">Código Demora</label>
+                        <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id" data-placeholder="Seleccione un código" style="width:100%">
+                            <option></option>
+                            <?php foreach ($codigoDemoras as $cd): ?>
+                                <option value="<?= $cd['id'] ?>"
+                                    <?= ($old['codigo_demora_id'] ?? '') == $cd['id'] ? 'selected' : '' ?>
+                                    title="<?= htmlspecialchars($cd['descripcion']) ?>">
+                                    <?= htmlspecialchars($cd['codigo']) ?> - <?= htmlspecialchars($cd['descripcion']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div class="col-md-9">
+                    <div class="col-12">
                         <label for="observacion_demora" class="form-label">Observación de la Demora</label>
                         <textarea class="form-control" id="observacion_demora" name="observacion_demora"
                             placeholder="Describa el motivo de la demora..." rows="2"><?= htmlspecialchars($old['observacion_demora'] ?? '') ?></textarea>
@@ -903,4 +910,27 @@
         tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);
         toggleCanceladoSecciones();
     }
+
+    // El select2 de Código Demora se inicializa aparte (con ancho propio y
+    // dropdown auto-ajustable) porque jQuery/select2 aún no están cargados
+    // en este punto del <body>; se cargan en el footer del layout.
+    window.addEventListener('load', function () {
+        $('#codigo_demora_id').select2({
+            placeholder: 'Seleccione un código',
+            allowClear: true,
+            width: '100%',
+            dropdownCssClass: 'codigo-demora-dropdown',
+            language: {
+                noResults: function () { return 'Sin resultados'; },
+                searching: function () { return 'Buscando…'; }
+            }
+        });
+    });
 </script>
+
+<style>
+.codigo-demora-dropdown .select2-results__option {
+    white-space: normal;
+    word-break: break-word;
+}
+</style>

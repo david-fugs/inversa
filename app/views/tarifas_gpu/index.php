@@ -101,7 +101,7 @@ sort($aerolineasConTarifa);
                                         onclick='abrirModalEditarTarifa(<?= htmlspecialchars(json_encode([
                                             "id"               => (int)$t["id"],
                                             "airline_id"       => (int)$t["airline_id"],
-                                            "base_id"          => $t["base_id"] !== null ? (int)$t["base_id"] : null,
+                                            "base_ids"         => $t["base_id"] !== null ? [(int)$t["base_id"]] : [],
                                             "tipo_cobro"       => $t["tipo_cobro"],
                                             "primeros_minutos" => $t["primeros_minutos"] !== null ? (int)$t["primeros_minutos"] : null,
                                             "fraccion_minutos" => (int)$t["fraccion_minutos"],
@@ -171,13 +171,14 @@ sort($aerolineasConTarifa);
                     </div>
 
                     <div class="mb-3">
-                        <label for="tarifa_base_id" class="form-label">Base</label>
-                        <select class="form-select <?= isset($errors['base_id']) ? 'is-invalid' : '' ?>"
-                                id="tarifa_base_id" name="base_id">
-                            <option value="">-- Todas las bases --</option>
-                            <?php foreach ($bases as $b): ?>
+                        <label for="tarifa_base_id" class="form-label">Bases</label>
+                        <select class="form-select js-bases-select2 <?= isset($errors['base_id']) ? 'is-invalid' : '' ?>"
+                                id="tarifa_base_id" name="base_id[]" multiple>
+                            <?php
+                            $oldBaseIds = array_map('strval', (array)($old['base_id'] ?? []));
+                            foreach ($bases as $b): ?>
                                 <option value="<?= $b['id'] ?>"
-                                    <?= ($old['base_id'] ?? '') == $b['id'] ? 'selected' : '' ?>>
+                                    <?= in_array((string)$b['id'], $oldBaseIds, true) ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($b['nombre']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -185,7 +186,7 @@ sort($aerolineasConTarifa);
                         <?php if (isset($errors['base_id'])): ?>
                             <div class="invalid-feedback d-block"><?= $errors['base_id'] ?></div>
                         <?php endif; ?>
-                        <small class="text-muted">Deje en "Todas las bases" para que la tarifa aplique a la aerolínea sin importar la base.</small>
+                        <small class="text-muted">Seleccione una o varias bases. Se creará un registro individual por cada base. Deje vacío para que la tarifa aplique a la aerolínea sin importar la base ("todas las bases").</small>
                     </div>
 
                     <div class="mb-3">
@@ -234,13 +235,18 @@ sort($aerolineasConTarifa);
 </div>
 
 <script>
+function setTarifaBases(baseIds) {
+    var ids = (baseIds || []).map(String);
+    $('#tarifa_base_id').val(ids).trigger('change');
+}
+
 function abrirModalCrearTarifa() {
     document.getElementById('formTarifa').action = '<?= BASE_URL ?>/tarifas-cobros/create';
     document.getElementById('modalTarifaTitle').innerHTML = '<i class="bi bi-plus-circle-fill"></i> Nueva Tarifa';
     document.getElementById('modalTarifaSubmit').innerHTML = '<i class="bi bi-check-lg"></i> Guardar';
     document.getElementById('tarifa_airline_id').value = '';
     document.getElementById('tarifa_tipo_cobro').value = 'gpu';
-    document.getElementById('tarifa_base_id').value = '';
+    setTarifaBases([]);
     document.getElementById('tarifa_primeros_minutos').value = '';
     document.getElementById('tarifa_fraccion_minutos').value = '';
 }
@@ -251,7 +257,7 @@ function abrirModalEditarTarifa(t) {
     document.getElementById('modalTarifaSubmit').innerHTML = '<i class="bi bi-check-lg"></i> Actualizar';
     document.getElementById('tarifa_airline_id').value = t.airline_id;
     document.getElementById('tarifa_tipo_cobro').value = t.tipo_cobro || 'gpu';
-    document.getElementById('tarifa_base_id').value = (t.base_id === null || t.base_id === undefined) ? '' : t.base_id;
+    setTarifaBases(t.base_ids || []);
     document.getElementById('tarifa_primeros_minutos').value = (t.primeros_minutos === null || t.primeros_minutos === undefined) ? '' : t.primeros_minutos;
     document.getElementById('tarifa_fraccion_minutos').value = t.fraccion_minutos;
 }
@@ -263,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
             id: <?= (int)$old['id'] ?>,
             airline_id: <?= json_encode($old['airline_id'] ?? '') ?>,
             tipo_cobro: <?= json_encode($old['tipo_cobro'] ?? 'gpu') ?>,
-            base_id: <?= $old['base_id'] !== null ? (int)$old['base_id'] : 'null' ?>,
+            base_ids: <?= json_encode(array_values((array)($old['base_id'] ?? []))) ?>,
             primeros_minutos: <?= $old['primeros_minutos'] !== null ? (int)$old['primeros_minutos'] : 'null' ?>,
             fraccion_minutos: <?= json_encode($old['fraccion_minutos'] ?? '') ?>
         });
@@ -271,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
         abrirModalCrearTarifa();
         document.getElementById('tarifa_airline_id').value = <?= json_encode($old['airline_id'] ?? '') ?>;
         document.getElementById('tarifa_tipo_cobro').value = <?= json_encode($old['tipo_cobro'] ?? 'gpu') ?>;
-        document.getElementById('tarifa_base_id').value = <?= json_encode($old['base_id'] ?? '') ?>;
+        setTarifaBases(<?= json_encode(array_values((array)($old['base_id'] ?? []))) ?>);
         document.getElementById('tarifa_primeros_minutos').value = <?= json_encode((string)($old['primeros_minutos'] ?? '')) ?>;
         document.getElementById('tarifa_fraccion_minutos').value = <?= json_encode((string)($old['fraccion_minutos'] ?? '')) ?>;
     <?php endif; ?>
@@ -286,6 +292,16 @@ document.addEventListener('DOMContentLoaded', function () {
 // "load" para que app.js ya haya inicializado la tabla como DataTable
 // (con agrupación por aerolínea, ver data-group-column en el <table>).
 window.addEventListener('load', function () {
+    $('#tarifa_base_id').select2({
+        dropdownParent: $('#modalTarifa'),
+        placeholder: 'Todas las bases (dejar vacío)',
+        width: '100%',
+        language: {
+            noResults: function () { return 'Sin resultados'; },
+            searching: function () { return 'Buscando…'; }
+        }
+    });
+
     const table = $('#tablaTarifas').DataTable();
     const filterAerolinea = document.getElementById('filter_tarifa_aerolinea');
     const badgeRegistros  = document.getElementById('badge_registros_tarifa');

@@ -10,6 +10,7 @@ class FlightServicesController extends Controller {
     private AircraftType  $aircraftModel;
     private Base          $baseModel;
     private BaseDestino   $baseDestinoModel;
+    private CodigoDemora  $codigoDemoraModel;
 
     public function __construct() {
         parent::__construct();
@@ -19,6 +20,7 @@ class FlightServicesController extends Controller {
         $this->aircraftModel = new AircraftType();
         $this->baseModel     = new Base();
         $this->baseDestinoModel = new BaseDestino();
+        $this->codigoDemoraModel = new CodigoDemora();
     }
 
     /** Listado principal */
@@ -140,6 +142,7 @@ class FlightServicesController extends Controller {
             'airlines'    => $this->airlineModel->getAll(),
             'bases'       => $this->baseModel->getAll(),
             'baseDestinos'=> $this->baseDestinoModel->getAll(),
+            'codigoDemoras' => $this->codigoDemoraModel->getAll(),
             'errors'      => [],
             'old'         => [],
         ]);
@@ -163,6 +166,7 @@ class FlightServicesController extends Controller {
                 'airlines'    => $this->airlineModel->getAll(),
                 'bases'       => $this->baseModel->getAll(),
                 'baseDestinos'=> $this->baseDestinoModel->getAll(),
+                'codigoDemoras' => $this->codigoDemoraModel->getAll(),
                 'errors'      => $errors,
                 'old'         => $data,
             ]);
@@ -171,6 +175,7 @@ class FlightServicesController extends Controller {
 
         $data['user_id'] = (int)Session::get('user_id');
         $data['quincena'] = FlightService::calcularQuincena((int)$data['dia']);
+        $this->applyCodigoDemora($data);
 
         $gpuFracciones = $_POST['gpu_fracciones'] ?? [];
         $acuFracciones = $_POST['acu_fracciones'] ?? [];
@@ -234,6 +239,7 @@ class FlightServicesController extends Controller {
             'aircraftTypes'=> $aircraftTypes,
             'bases'        => $this->baseModel->getAll(),
             'baseDestinos' => $this->baseDestinoModel->getAll(),
+            'codigoDemoras' => $this->codigoDemoraModel->getAll(),
             'errors'       => [],
         ]);
     }
@@ -269,12 +275,14 @@ class FlightServicesController extends Controller {
                 'aircraftTypes'=> $aircraftTypes,
                 'bases'        => $this->baseModel->getAll(),
                 'baseDestinos' => $this->baseDestinoModel->getAll(),
+                'codigoDemoras' => $this->codigoDemoraModel->getAll(),
                 'errors'       => $errors,
             ]);
             return;
         }
 
         $data['quincena'] = FlightService::calcularQuincena((int)$data['dia']);
+        $this->applyCodigoDemora($data);
 
         $gpuFracciones = $_POST['gpu_fracciones'] ?? [];
         $acuFracciones = $_POST['acu_fracciones'] ?? [];
@@ -309,6 +317,30 @@ class FlightServicesController extends Controller {
         }
     }
 
+    /**
+     * Resuelve los campos `codigo_demora` (texto) y `codigo_demora_id`
+     * a partir de lo enviado en el formulario:
+     *  - Si se seleccionó un código del catálogo (`codigo_demora_id`),
+     *    se sincroniza el texto histórico con el código del catálogo.
+     *  - Si no se seleccionó ninguno pero el formulario traía un texto
+     *    histórico previo (`codigo_demora_texto_original`, ver
+     *    flight_services/edit.php: registros antiguos sin asociar al
+     *    catálogo, mostrados como la opción actual del select), se
+     *    conserva ese texto tal cual, sin id.
+     *  - Si no vino ninguno de los dos (registro nuevo sin selección),
+     *    quedan ambos en NULL.
+     */
+    private function applyCodigoDemora(array &$data): void {
+        if (!empty($data['codigo_demora_id'])) {
+            $registro = $this->codigoDemoraModel->findById($data['codigo_demora_id']);
+            $data['codigo_demora'] = $registro ? $registro['codigo'] : null;
+        } else {
+            $data['codigo_demora']    = $data['codigo_demora_texto_original'] ?: null;
+            $data['codigo_demora_id'] = null;
+        }
+        unset($data['codigo_demora_texto_original']);
+    }
+
     /** Recolectar y sanitizar datos del formulario */
     private function collectFormData(): array {
         $airlineInput = $this->input('airline_id');
@@ -341,7 +373,8 @@ class FlightServicesController extends Controller {
             'tiempo_transito'        => $this->inputRaw('tiempo_transito', ''),
             'cumple_tiempo'          => $this->inputRaw('cumple_tiempo', ''),
             // Campos de demora cuando NO cumple tiempo
-            'codigo_demora'          => $this->input('codigo_demora', ''),
+            'codigo_demora_id'            => (int)$this->input('codigo_demora_id', 0) ?: null,
+            'codigo_demora_texto_original' => $this->input('codigo_demora_texto_original', null),
             'observacion_demora'     => $this->input('observacion_demora', ''),
             // GPU
             'hora_conexion_gpu'          => $this->inputRaw('hora_conexion_gpu', ''),
@@ -589,6 +622,12 @@ class FlightServicesController extends Controller {
             case 'equipo_gse_inoperativo':
                 $gse = $service['equipo_gse_inoperativo'] ?? null;
                 return ($gse === null || $gse === '') ? '—' : $gse;
+            case 'codigo_demora':
+                // Solo el código (sin la descripción del catálogo); si el
+                // servicio no tiene código de demora asignado, se indica
+                // explícitamente en vez de dejar la celda genérica "—".
+                $codigo = $service['codigo_demora'] ?? null;
+                return ($codigo === null || $codigo === '') ? 'Sin código' : (string)$codigo;
         }
 
         if (in_array($key, $boolFields, true)) {

@@ -205,7 +205,7 @@ class FlightService extends Model
                     hora_itinerada_llegada, demora_llegando,
                     hora_itinerada_salida, satena_hora_cierre_modulo, hora_real_llegada, hora_real_salida,
                     tiempo_transito, cumple_tiempo,
-                    codigo_demora, observacion_demora,
+                    codigo_demora, codigo_demora_id, observacion_demora,
                     hora_conexion_gpu, hora_desconexion_gpu, tiempo_gpu, fracciones_adc_gpu, fracciones_adicionales_gpu,
                     acu, hora_conexion_acu, hora_desconexion_acu, tiempo_acu,
                     fracciones_hora_acu, fracciones_15min_acu,
@@ -216,7 +216,7 @@ class FlightService extends Model
                     potable, drenaje,
                     equipo_gse_inoperativo, afecto_operacion, rpn, observaciones, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['anio'],
@@ -247,6 +247,7 @@ class FlightService extends Model
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,
                     $data['cumple_tiempo'] !== '' ? $data['cumple_tiempo'] : null,
                     $data['codigo_demora'] ?: null,
+                    $data['codigo_demora_id'] ?: null,
                     $data['observacion_demora'] ?: null,
                     $data['hora_conexion_gpu'] ?: null,
                     $data['hora_desconexion_gpu'] ?: null,
@@ -318,7 +319,7 @@ class FlightService extends Model
                     hora_itinerada_llegada=?, demora_llegando=?,
                     hora_itinerada_salida=?, satena_hora_cierre_modulo=?, hora_real_llegada=?, hora_real_salida=?,
                     tiempo_transito=?, cumple_tiempo=?,
-                    codigo_demora=?, observacion_demora=?,
+                    codigo_demora=?, codigo_demora_id=?, observacion_demora=?,
                     hora_conexion_gpu=?, hora_desconexion_gpu=?, tiempo_gpu=?, fracciones_adc_gpu=?, fracciones_adicionales_gpu=?,
                     acu=?, hora_conexion_acu=?, hora_desconexion_acu=?, tiempo_acu=?,
                     fracciones_hora_acu=?, fracciones_15min_acu=?,
@@ -358,6 +359,7 @@ class FlightService extends Model
                     $data['tiempo_transito'] !== '' ? $data['tiempo_transito'] : null,
                     $data['cumple_tiempo'] !== '' ? $data['cumple_tiempo'] : null,
                     $data['codigo_demora'] ?: null,
+                    $data['codigo_demora_id'] ?: null,
                     $data['observacion_demora'] ?: null,
                     $data['hora_conexion_gpu'] ?: null,
                     $data['hora_desconexion_gpu'] ?: null,
