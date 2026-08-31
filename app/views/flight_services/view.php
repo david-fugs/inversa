@@ -101,6 +101,9 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
                     <?php if ($service['cumple_tiempo'] === null): ?>—
                     <?php elseif ($service['cumple_tiempo']): ?>
                         <span class="indicator-si"><i class="bi bi-check-circle-fill"></i> Sí</span>
+                        <?php if (!empty($service['hora_real_llegada']) && !empty($service['hora_itinerada_llegada']) && $service['hora_real_llegada'] < $service['hora_itinerada_llegada']): ?>
+                            <br><small class="text-muted">Cumple porque llegó antes</small>
+                        <?php endif; ?>
                     <?php else: ?>
                         <span class="indicator-no"><i class="bi bi-x-circle-fill"></i> No</span>
                     <?php endif; ?>

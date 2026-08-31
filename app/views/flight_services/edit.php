@@ -785,18 +785,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const minReal = hR * 60 + mR;
         let minSalida = hS * 60 + mS;
 
-        // Referencia: si llegó tarde, se ancla a la llegada real;
-        // si llegó anticipado, se ancla a la itinerada (no se premia la llegada temprana)
-        const minReferencia = Math.max(minReal, minItinerada);
+        // Tránsito real (sin anclar), con cruce de medianoche calculado
+        // solo con horas reales (igual que el bloque informativo de arriba).
+        let transitoReal = minSalida - minReal;
+        if (transitoReal < 0) transitoReal += 24 * 60;
 
-        let transitoEfectivo = minSalida - minReferencia;
-        if (transitoEfectivo < 0) transitoEfectivo += 24 * 60; // cruce de medianoche
+        // Si llegó antes de la itinerada, ese adelanto no cuenta como parte
+        // del tránsito (no se premia la llegada temprana): se resta el
+        // adelanto sin dejar el resultado negativo (turnarounds muy rápidos
+        // donde la salida real es incluso antes de la itinerada).
+        const adelanto = Math.max(0, minItinerada - minReal);
+        const transitoEfectivo = Math.max(0, transitoReal - adelanto);
 
         const cumple = transitoEfectivo <= tiempoAUsar ? 1 : 0;
+        const llegoAntes = minReal < minItinerada;
+        const notaLlegoAntes = llegoAntes ? '<br><small class="text-muted">Cumple porque llegó antes</small>' : '';
 
         cumpleInput.value = cumple;
         if (cumple === 1) {
-            cumpleDisplay.innerHTML = '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>';
+            cumpleDisplay.innerHTML = '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>' + notaLlegoAntes;
         } else {
             cumpleDisplay.innerHTML = '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>';
         }
