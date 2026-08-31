@@ -99,7 +99,7 @@
                     <input type="password"
                         class="form-control <?= isset($errors['password']) ? 'is-invalid' : '' ?>"
                         id="password" name="password"
-                        placeholder="Mínimo 8 caracteres"
+                        placeholder="Mínimo 6 caracteres"
                         autocomplete="new-password">
                     <?php if (isset($errors['password'])): ?>
                         <div class="invalid-feedback"><?= $errors['password'] ?></div>

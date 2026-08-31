@@ -213,14 +213,14 @@ class UsersController extends Controller {
         if ($excludeId === 0) {
             if (empty($data['password'])) {
                 $errors['password'] = 'La contraseña es obligatoria.';
-            } elseif (strlen($data['password']) < 8) {
-                $errors['password'] = 'La contraseña debe tener al menos 8 caracteres.';
+            } elseif (strlen($data['password']) < 6) {
+                $errors['password'] = 'La contraseña debe tener al menos 6 caracteres.';
             } elseif ($data['password'] !== $data['password_confirm']) {
                 $errors['password_confirm'] = 'Las contraseñas no coinciden.';
             }
         } elseif (!empty($data['password'])) {
-            if (strlen($data['password']) < 8) {
-                $errors['password'] = 'La contraseña debe tener al menos 8 caracteres.';
+            if (strlen($data['password']) < 6) {
+                $errors['password'] = 'La contraseña debe tener al menos 6 caracteres.';
             } elseif ($data['password'] !== $data['password_confirm']) {
                 $errors['password_confirm'] = 'Las contraseñas no coinciden.';
             }

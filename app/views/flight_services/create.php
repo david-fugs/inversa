@@ -740,17 +740,19 @@
 
     // ═══ LÓGICA: CUMPLE TIEMPO ════════════════════════════
     /*
-     * El tránsito se ancla a la hora de llegada real si llegó tarde
-     * (hora_real_llegada > hora_itinerada_llegada), o a la hora itinerada
-     * de llegada si llegó anticipado (una llegada temprano NO regala
-     * minutos extra de plataforma). El tránsito efectivo así calculado
-     * (hora_real_salida - referencia) se compara contra el tiempo de
-     * cumplimiento del tipo de avión (o el personalizado si es "Otra").
+     * Es demora SOLO cuando ocurren ambas cosas a la vez:
+     *  - Salió tarde (hora_real_salida > hora_itinerada_salida)
+     *  - El tránsito real (llegada real -> salida real) excede el
+     *    tiempo de cumplimiento del tipo de avión (o el personalizado
+     *    si es "Otra").
+     * En cualquier otro caso (salió a tiempo/antes, o el tránsito no
+     * excede el estipulado) se considera que SÍ cumple.
      */
     function calculateTiempoAndCumple() {
         const horaRealLlegada = document.getElementById('hora_real_llegada').value;
         const horaRealSalida = document.getElementById('hora_real_salida').value;
         const horaItineradaLlegada = document.getElementById('hora_itinerada_llegada').value;
+        const horaItineradaSalida = document.getElementById('hora_itinerada_salida').value;
         const tiempoRef = document.getElementById('tiempo_cumplimiento_ref').value;
         const tiempoCustom = document.getElementById('tiempo_cumplimiento_custom').value;
 
@@ -804,35 +806,21 @@
             if (demoraInput) demoraInput.value = Math.max(0, demora);
         }
 
-        // Cumple tiempo: tránsito anclado a la referencia (real o itinerada, la que sea posterior)
-        if (horaRealLlegada && horaItineradaLlegada && horaRealSalida && tiempoAUsar) {
-            const [hR, mR] = horaRealLlegada.split(':').map(Number);
-            const [hI, mI] = horaItineradaLlegada.split(':').map(Number);
-            const [hS, mS] = horaRealSalida.split(':').map(Number);
+        // Cumple tiempo: demora solo si salió tarde Y el tránsito excede el estipulado
+        if (horaRealSalida && horaItineradaSalida && tiempoInput.value !== '' && tiempoAUsar) {
+            const [hIS, mIS] = horaItineradaSalida.split(':').map(Number);
+            const [hRS, mRS] = horaRealSalida.split(':').map(Number);
 
-            const minReal = hR * 60 + mR;
-            const minItinerada = hI * 60 + mI;
-            let minSalida = hS * 60 + mS;
+            const minItineradaSalida = hIS * 60 + mIS;
+            const minRealSalida = hRS * 60 + mRS;
 
-            // Tránsito real (sin anclar), con cruce de medianoche calculado
-            // solo con horas reales (igual que el bloque informativo de arriba).
-            let transitoReal = minSalida - minReal;
-            if (transitoReal < 0) transitoReal += 24 * 60;
+            const salioTarde = minRealSalida > minItineradaSalida;
+            const excedeTransito = parseInt(tiempoInput.value, 10) > tiempoAUsar;
 
-            // Si llegó antes de la itinerada, ese adelanto no cuenta como
-            // parte del tránsito (no se premia la llegada temprana): se
-            // resta el adelanto sin dejar el resultado negativo (turnarounds
-            // muy rápidos donde la salida real es incluso antes de la itinerada).
-            const adelanto = Math.max(0, minItinerada - minReal);
-            const transitoEfectivo = Math.max(0, transitoReal - adelanto);
-
-            const cumple = transitoEfectivo <= tiempoAUsar ? 1 : 0;
-            const llegoAntes = minReal < minItinerada;
+            const cumple = (salioTarde && excedeTransito) ? 0 : 1;
 
             cumpleInput.value = cumple;
-            cumpleDisplay.innerHTML = cumple
-                ? '✓ SÍ' + (llegoAntes ? ' <small>(cumple porque llegó antes)</small>' : '')
-                : '✗ NO';
+            cumpleDisplay.innerHTML = cumple ? '✓ SÍ' : '✗ NO';
             cumpleDisplay.style.color = cumple ? '#198754' : '#dc3545';
 
             toggleDemoraFields();
@@ -843,7 +831,7 @@
     }
 
     // Escuchar cambios en horarios Y en tiempo personalizado
-    ['hora_real_llegada', 'hora_real_salida', 'hora_itinerada_llegada', 'tiempo_cumplimiento_custom'].forEach(id => {
+    ['hora_real_llegada', 'hora_real_salida', 'hora_itinerada_llegada', 'hora_itinerada_salida', 'tiempo_cumplimiento_custom'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', calculateTiempoAndCumple);
