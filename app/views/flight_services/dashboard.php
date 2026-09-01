@@ -518,14 +518,28 @@ function renderKpis(rows) {
     }
 }
 
+/* ── Conteo por código de demora, separando selecciones múltiples ──
+   `codigo_demora` puede traer varios códigos guardados como
+   "COD1 - COD2 - COD3" (selección múltiple en el formulario). Cada
+   código se cuenta por separado para que el gráfico no agrupe la
+   combinación completa como si fuera una categoría propia. */
+function contarPorCodigosDemora(rows) {
+    const mapa = new Map();
+    rows.forEach(r => {
+        const raw = (r.codigo_demora || '').trim();
+        const codigos = raw ? raw.split(' - ').map(c => c.trim()).filter(Boolean) : [];
+        if (codigos.length === 0) codigos.push('Sin código');
+        codigos.forEach(codigo => {
+            mapa.set(codigo, (mapa.get(codigo) || 0) + 1);
+        });
+    });
+    return mapa;
+}
+
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(r => r.demora_llegando > 0);
-    // Solo el código (sin descripción del catálogo); si no tiene código
-    // asignado se agrupa explícitamente como "Sin código" en vez del
-    // genérico "—" que usa contarPor() por defecto.
-    const conDemoraPorCodigo = conDemora.map(r => ({ ...r, codigo_demora: r.codigo_demora || 'Sin código' }));
-    renderBarList('chart_demoras', 'empty_demoras', contarPor(conDemoraPorCodigo, 'codigo_demora'));
+    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora));
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }

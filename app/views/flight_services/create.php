@@ -304,16 +304,23 @@
                     </div>
                     <div class="col-12">
                         <label for="codigo_demora_id" class="form-label">Código Demora</label>
-                        <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id" data-placeholder="Seleccione un código" style="width:100%">
-                            <option></option>
+                        <?php $oldCodigoDemoraIds = array_map('intval', (array) ($old['codigo_demora_id'] ?? [])); ?>
+                        <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id[]" multiple="multiple" data-placeholder="Seleccione uno o varios códigos" style="width:100%">
                             <?php foreach ($codigoDemoras as $cd): ?>
-                                <option value="<?= $cd['id'] ?>"
-                                    <?= ($old['codigo_demora_id'] ?? '') == $cd['id'] ? 'selected' : '' ?>
+                                <option value="<?= $cd['id'] ?>" data-codigo="<?= htmlspecialchars($cd['codigo']) ?>"
+                                    <?= in_array((int) $cd['id'], $oldCodigoDemoraIds, true) ? 'selected' : '' ?>
                                     title="<?= htmlspecialchars($cd['descripcion']) ?>">
                                     <?= htmlspecialchars($cd['codigo']) ?> - <?= htmlspecialchars($cd['descripcion']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="text-muted">Puede seleccionar uno o varios códigos.</small>
+                    </div>
+                    <div class="col-12" id="codigo_demora_preview_container" style="display:none;">
+                        <label class="form-label">Código(s) de Demora seleccionado(s)</label>
+                        <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
+                            <span id="codigo_demora_preview" class="codigo-demora-preview">--</span>
+                        </div>
                     </div>
                     <div class="col-12">
                         <label for="observacion_demora" class="form-label">Observación de la Demora</label>
@@ -910,17 +917,42 @@
     // El select2 de Código Demora se inicializa aparte (con ancho propio y
     // dropdown auto-ajustable) porque jQuery/select2 aún no están cargados
     // en este punto del <body>; se cargan en el footer del layout.
+    // En el select ("templateSelection") solo se muestra el código, sin la
+    // descripción del catálogo, para que las selecciones múltiples queden
+    // compactas.
+    function updateCodigoDemoraPreview() {
+        const select = document.getElementById('codigo_demora_id');
+        const container = document.getElementById('codigo_demora_preview_container');
+        const preview = document.getElementById('codigo_demora_preview');
+        if (!select || !preview || !container) return;
+        const codigos = Array.from(select.selectedOptions).map(function (opt) {
+            return opt.dataset.codigo || opt.textContent.trim();
+        });
+        if (codigos.length) {
+            preview.textContent = codigos.join(' - ');
+            container.style.display = '';
+        } else {
+            preview.textContent = '--';
+            container.style.display = 'none';
+        }
+    }
+
     window.addEventListener('load', function () {
         $('#codigo_demora_id').select2({
-            placeholder: 'Seleccione un código',
+            placeholder: 'Seleccione uno o varios códigos',
             allowClear: true,
             width: '100%',
             dropdownCssClass: 'codigo-demora-dropdown',
+            templateSelection: function (data) {
+                if (!data.id) return data.text;
+                return $(data.element).data('codigo') || data.text;
+            },
             language: {
                 noResults: function () { return 'Sin resultados'; },
                 searching: function () { return 'Buscando…'; }
             }
-        });
+        }).on('change', updateCodigoDemoraPreview);
+        updateCodigoDemoraPreview();
     });
 </script>
 
@@ -928,5 +960,27 @@
 .codigo-demora-dropdown .select2-results__option {
     white-space: normal;
     word-break: break-word;
+}
+.codigo-demora-preview {
+    letter-spacing: .3px;
+    font-weight: 600;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple {
+    min-height: 38px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice {
+    background-color: #1B4F8A;
+    border-color: #1B4F8A;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255,255,255,.75);
+    margin-right: 6px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #fff;
 }
 </style>

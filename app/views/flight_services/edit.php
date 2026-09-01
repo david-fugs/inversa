@@ -269,26 +269,64 @@
                 </div>
                 <div class="col-12">
                     <label for="codigo_demora_id" class="form-label">Código Demora</label>
-                    <?php $codigoDemoraLegacy = empty($service['codigo_demora_id']) && !empty($service['codigo_demora']); ?>
-                    <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id" data-placeholder="Seleccione un código" style="width:100%">
-                        <option></option>
-                        <?php if ($codigoDemoraLegacy): ?>
-                            <!-- value="0" (no un id real del catálogo) para que select2 sí muestre
-                                 esta etiqueta; con value="" select2 la trata como placeholder y no la pinta. -->
-                            <option value="0" selected><?= htmlspecialchars($service['codigo_demora']) ?> (código anterior, sin catálogo)</option>
-                        <?php endif; ?>
+                    <?php
+                        // Reconstruye la selección múltiple a partir del texto guardado
+                        // ("COD1 - COD2 - ..."). Si es una sola selección clásica ya
+                        // asociada al catálogo, se respeta el id guardado tal cual
+                        // (comportamiento histórico, sin depender de coincidencia de texto).
+                        $rawCodigoDemora    = (string) ($service['codigo_demora'] ?? '');
+                        $hasMultipleCodigos = strpos($rawCodigoDemora, ' - ') !== false;
+
+                        $codigoPorTexto = [];
+                        foreach ($codigoDemoras as $cd) {
+                            $codigoPorTexto[$cd['codigo']] = (int) $cd['id'];
+                        }
+
+                        $selectedCatalogIds   = [];
+                        $selectedLegacyTextos = [];
+
+                        if (!$hasMultipleCodigos && !empty($service['codigo_demora_id'])) {
+                            $selectedCatalogIds[] = (int) $service['codigo_demora_id'];
+                        } elseif ($rawCodigoDemora !== '') {
+                            foreach (array_filter(array_map('trim', explode(' - ', $rawCodigoDemora))) as $texto) {
+                                if (isset($codigoPorTexto[$texto])) {
+                                    $selectedCatalogIds[] = $codigoPorTexto[$texto];
+                                } else {
+                                    $selectedLegacyTextos[] = $texto;
+                                }
+                            }
+                        }
+                        $selectedCatalogIds = array_unique($selectedCatalogIds);
+                    ?>
+                    <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id[]" multiple="multiple" data-placeholder="Seleccione uno o varios códigos" style="width:100%">
+                        <?php foreach ($selectedLegacyTextos as $i => $texto): ?>
+                            <!-- value="legacy_N" (no un id real del catálogo) para poder mostrar
+                                 el texto histórico como selección ya hecha del select2. -->
+                            <option value="legacy_<?= $i ?>" data-codigo="<?= htmlspecialchars($texto) ?>" selected>
+                                <?= htmlspecialchars($texto) ?> (código anterior, sin catálogo)
+                            </option>
+                        <?php endforeach; ?>
                         <?php foreach ($codigoDemoras as $cd): ?>
-                            <option value="<?= $cd['id'] ?>"
-                                <?= ($service['codigo_demora_id'] ?? '') == $cd['id'] ? 'selected' : '' ?>
+                            <option value="<?= $cd['id'] ?>" data-codigo="<?= htmlspecialchars($cd['codigo']) ?>"
+                                <?= in_array((int) $cd['id'], $selectedCatalogIds, true) ? 'selected' : '' ?>
                                 title="<?= htmlspecialchars($cd['descripcion']) ?>">
                                 <?= htmlspecialchars($cd['codigo']) ?> - <?= htmlspecialchars($cd['descripcion']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <?php if ($codigoDemoraLegacy): ?>
-                        <input type="hidden" name="codigo_demora_texto_original" value="<?= htmlspecialchars($service['codigo_demora']) ?>">
-                        <small class="text-muted">Código anterior al catálogo. Puede dejarlo así o seleccionar uno de la lista para asociarlo.</small>
+                    <small class="text-muted">Puede seleccionar uno o varios códigos.</small>
+                    <?php foreach ($selectedLegacyTextos as $texto): ?>
+                        <input type="hidden" name="codigo_demora_texto_original[]" value="<?= htmlspecialchars($texto) ?>">
+                    <?php endforeach; ?>
+                    <?php if (!empty($selectedLegacyTextos)): ?>
+                        <small class="text-muted d-block">Incluye código(s) anterior(es) al catálogo. Puede dejarlos así o reemplazarlos por uno de la lista.</small>
                     <?php endif; ?>
+                </div>
+                <div class="col-12" id="codigo_demora_preview_container" style="display:none;">
+                    <label class="form-label">Código(s) de Demora seleccionado(s)</label>
+                    <div class="form-control d-flex align-items-center" style="background:var(--bg-body);">
+                        <span id="codigo_demora_preview" class="codigo-demora-preview">--</span>
+                    </div>
                 </div>
                 <div class="col-12">
                     <label for="observacion_demora" class="form-label">Observación de la Demora</label>
@@ -886,17 +924,42 @@ document.addEventListener('DOMContentLoaded', function() {
 // El select2 de Código Demora se inicializa aparte, en el evento "load",
 // para asegurar que jQuery/select2 ya estén cargados (van en el footer
 // del layout, después de este bloque).
+// En el select ("templateSelection") solo se muestra el código, sin la
+// descripción del catálogo, para que las selecciones múltiples queden
+// compactas.
+function updateCodigoDemoraPreview() {
+    const select = document.getElementById('codigo_demora_id');
+    const container = document.getElementById('codigo_demora_preview_container');
+    const preview = document.getElementById('codigo_demora_preview');
+    if (!select || !preview || !container) return;
+    const codigos = Array.from(select.selectedOptions).map(function (opt) {
+        return opt.dataset.codigo || opt.textContent.trim();
+    });
+    if (codigos.length) {
+        preview.textContent = codigos.join(' - ');
+        container.style.display = '';
+    } else {
+        preview.textContent = '--';
+        container.style.display = 'none';
+    }
+}
+
 window.addEventListener('load', function () {
     $('#codigo_demora_id').select2({
-        placeholder: 'Seleccione un código',
+        placeholder: 'Seleccione uno o varios códigos',
         allowClear: true,
         width: '100%',
         dropdownCssClass: 'codigo-demora-dropdown',
+        templateSelection: function (data) {
+            if (!data.id) return data.text;
+            return $(data.element).data('codigo') || data.text;
+        },
         language: {
             noResults: function () { return 'Sin resultados'; },
             searching: function () { return 'Buscando…'; }
         }
-    });
+    }).on('change', updateCodigoDemoraPreview);
+    updateCodigoDemoraPreview();
 });
 </script>
 
@@ -904,5 +967,27 @@ window.addEventListener('load', function () {
 .codigo-demora-dropdown .select2-results__option {
     white-space: normal;
     word-break: break-word;
+}
+.codigo-demora-preview {
+    letter-spacing: .3px;
+    font-weight: 600;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple {
+    min-height: 38px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice {
+    background-color: #1B4F8A;
+    border-color: #1B4F8A;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255,255,255,.75);
+    margin-right: 6px;
+}
+#codigo_demora_id + .select2-container .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #fff;
 }
 </style>

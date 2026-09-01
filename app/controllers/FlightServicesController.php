@@ -319,26 +319,55 @@ class FlightServicesController extends Controller {
 
     /**
      * Resuelve los campos `codigo_demora` (texto) y `codigo_demora_id`
-     * a partir de lo enviado en el formulario:
-     *  - Si se seleccionó un código del catálogo (`codigo_demora_id`),
-     *    se sincroniza el texto histórico con el código del catálogo.
-     *  - Si no se seleccionó ninguno pero el formulario traía un texto
-     *    histórico previo (`codigo_demora_texto_original`, ver
-     *    flight_services/edit.php: registros antiguos sin asociar al
-     *    catálogo, mostrados como la opción actual del select), se
-     *    conserva ese texto tal cual, sin id.
-     *  - Si no vino ninguno de los dos (registro nuevo sin selección),
-     *    quedan ambos en NULL.
+     * a partir de lo enviado en el formulario, que ahora permite elegir
+     * varios códigos a la vez:
+     *  - Los códigos del catálogo seleccionados (`codigo_demora_ids`) se
+     *    resuelven a su texto (`codigo`) y se unen con " - ".
+     *  - Los textos históricos previos (`codigo_demora_textos_legacy`,
+     *    ver flight_services/edit.php: registros antiguos sin asociar al
+     *    catálogo, mostrados como opciones ya seleccionadas del select)
+     *    se conservan tal cual y se añaden a la misma combinación.
+     *  - `codigo_demora_id` (columna FK simple) solo puede referenciar UN
+     *    registro del catálogo, así que se guarda únicamente cuando la
+     *    selección final es exactamente un código de catálogo sin texto
+     *    histórico; en cualquier otro caso (nada, o varios códigos) queda
+     *    en NULL y el detalle completo vive en el texto `codigo_demora`.
      */
     private function applyCodigoDemora(array &$data): void {
-        if (!empty($data['codigo_demora_id'])) {
-            $registro = $this->codigoDemoraModel->findById($data['codigo_demora_id']);
-            $data['codigo_demora'] = $registro ? $registro['codigo'] : null;
-        } else {
-            $data['codigo_demora']    = $data['codigo_demora_texto_original'] ?: null;
-            $data['codigo_demora_id'] = null;
+        $ids    = $data['codigo_demora_ids'] ?? [];
+        $legacy = $data['codigo_demora_textos_legacy'] ?? [];
+
+        $codigosCatalogo = [];
+        foreach ($ids as $id) {
+            $registro = $this->codigoDemoraModel->findById($id);
+            if ($registro) {
+                $codigosCatalogo[$id] = $registro['codigo'];
+            }
         }
-        unset($data['codigo_demora_texto_original']);
+
+        $codigosTexto = array_merge(array_values($codigosCatalogo), $legacy);
+
+        $data['codigo_demora_id'] = (count($ids) === 1 && empty($legacy) && !empty($codigosCatalogo))
+            ? array_key_first($codigosCatalogo)
+            : null;
+        $data['codigo_demora'] = !empty($codigosTexto) ? implode(' - ', $codigosTexto) : null;
+
+        unset($data['codigo_demora_ids'], $data['codigo_demora_textos_legacy']);
+    }
+
+    /** Leer un campo POST que puede venir como valor único o arreglo, devolviendo enteros positivos únicos */
+    private function collectIntArray(string $key): array {
+        $raw = $_POST[$key] ?? [];
+        if (!is_array($raw)) $raw = [$raw];
+        return array_values(array_unique(array_filter(array_map('intval', $raw))));
+    }
+
+    /** Leer un campo POST que puede venir como valor único o arreglo, devolviendo textos sanitizados no vacíos */
+    private function collectStringArray(string $key): array {
+        $raw = $_POST[$key] ?? [];
+        if (!is_array($raw)) $raw = [$raw];
+        $clean = array_map(fn($v) => trim(htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8')), $raw);
+        return array_values(array_filter($clean, fn($v) => $v !== ''));
     }
 
     /** Recolectar y sanitizar datos del formulario */
@@ -372,9 +401,9 @@ class FlightServicesController extends Controller {
             'hora_real_salida'       => $this->inputRaw('hora_real_salida', ''),
             'tiempo_transito'        => $this->inputRaw('tiempo_transito', ''),
             'cumple_tiempo'          => $this->inputRaw('cumple_tiempo', ''),
-            // Campos de demora cuando NO cumple tiempo
-            'codigo_demora_id'            => (int)$this->input('codigo_demora_id', 0) ?: null,
-            'codigo_demora_texto_original' => $this->input('codigo_demora_texto_original', null),
+            // Campos de demora cuando NO cumple tiempo (selección múltiple de códigos)
+            'codigo_demora_ids'            => $this->collectIntArray('codigo_demora_id'),
+            'codigo_demora_textos_legacy'  => $this->collectStringArray('codigo_demora_texto_original'),
             'observacion_demora'     => $this->input('observacion_demora', ''),
             // GPU
             'hora_conexion_gpu'          => $this->inputRaw('hora_conexion_gpu', ''),
