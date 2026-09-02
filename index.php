@@ -105,6 +105,9 @@ $router->get('/flight-services/view/{id}',    'FlightServicesController', 'detai
 $router->get('/flight-services/edit/{id}',    'FlightServicesController', 'editForm');
 $router->post('/flight-services/edit/{id}',   'FlightServicesController', 'update');
 $router->get('/flight-services/delete/{id}',  'FlightServicesController', 'delete');
+$router->post('/flight-services/upload-file/{id}', 'FlightServicesController', 'uploadFile');
+$router->get('/flight-services/delete-file/{id}',  'FlightServicesController', 'deleteFile');
+$router->get('/flight-services/file/{id}',         'FlightServicesController', 'downloadFile');
 
 // Despachar la petición
 $router->dispatch();

@@ -493,4 +493,24 @@ class FlightService extends Model
     {
         return $dia <= 15 ? 1 : 2;
     }
+
+    /** Guardar el archivo PDF adjunto (reemplaza el anterior si ya había uno) */
+    public function setArchivo(int $id, string $archivoPdf, string $archivoOriginal): bool
+    {
+        $stmt = $this->db->query(
+            "UPDATE flight_services SET archivo_pdf = ?, archivo_pdf_original = ? WHERE id = ?",
+            [$archivoPdf, $archivoOriginal, $id]
+        );
+        return $stmt->rowCount() > 0;
+    }
+
+    /** Quitar el archivo PDF adjunto (deja las columnas en NULL) */
+    public function clearArchivo(int $id): bool
+    {
+        $stmt = $this->db->query(
+            "UPDATE flight_services SET archivo_pdf = NULL, archivo_pdf_original = NULL WHERE id = ?",
+            [$id]
+        );
+        return $stmt->rowCount() > 0;
+    }
 }

@@ -19,6 +19,14 @@ define('APP_PATH', ROOT_PATH . '/app');
 define('CONFIG_PATH', ROOT_PATH . '/config');
 define('PUBLIC_PATH', ROOT_PATH . '/public');
 
+// Carpeta de archivos adjuntos (PDF de servicios de vuelo). Vive bajo
+// app/ a propósito: el .htaccess raíz ya bloquea el acceso web directo
+// a todo lo que empiece por app/config/database (`RewriteRule
+// ^(app|config|database)/ - [F,L]`), así que el archivo solo puede
+// descargarse a través de FlightServicesController::downloadFile(),
+// que valida sesión/permisos antes de servirlo.
+define('FLIGHT_SERVICES_UPLOADS_PATH', APP_PATH . '/storage/flight_services');
+
 // Configuración de sesión
 define('SESSION_LIFETIME', 3600); // 1 hora en segundos
 define('SESSION_NAME', 'inversa_session');

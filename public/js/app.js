@@ -228,9 +228,11 @@ function initTimeInputsRequireAmPm() {
 /* ── Cálculo de fracciones GPU según tarifa de la aerolínea ──
  * Regla de negocio (tarifas_gpu):
  *  - Si la aerolínea tiene "primeros_minutos" configurado, ese tramo
- *    completo cuenta como 1 fracción. Cada "fraccion_minutos"
- *    adicionales (o parte de ellos) suma 1 fracción más.
- *    Ej: primeros=60, fraccion=15 → 60 min=1, 61 min=2, 76 min=3
+ *    es un período sin cobro (0 fracciones): mientras el tiempo no
+ *    SUPERE esa cantidad de minutos (incluido llegar justo a ella),
+ *    no se cobra nada. Apenas se supera el umbral, cada
+ *    "fraccion_minutos" (o parte de ellos) de exceso suma 1 fracción.
+ *    Ej: primeros=70, fraccion=15 → 70 min=0, 71 min=1, 85 min=1, 86 min=2
  *  - Si la aerolínea NO tiene "primeros_minutos" (solo maneja
  *    fracción), las fracciones se cuentan directamente cada
  *    "fraccion_minutos" desde el minuto 0.
@@ -246,8 +248,8 @@ function calcularFraccionesGpuValor(tiempoMin, tarifa) {
         : 0;
 
     if (primeros > 0) {
-        if (tiempoMin <= primeros) return 1;
-        return 1 + Math.ceil((tiempoMin - primeros) / fraccion);
+        if (tiempoMin <= primeros) return 0;
+        return Math.ceil((tiempoMin - primeros) / fraccion);
     }
 
     return Math.ceil(tiempoMin / fraccion);
@@ -354,13 +356,13 @@ function recalcularFraccionesGpuAdicionales() {
 }
 
 /* ── Cálculo de fracciones ACU según tarifa de la aerolínea/base ──
- * Misma regla de negocio que GPU (ver calcularFraccionesGpuValor),
- * pero repartida en dos campos en vez de uno solo:
- *  - "Fracciones Hora ACU"    → 1 si hay tarifa "primeros minutos"
- *    configurada y el equipo estuvo conectado, 0 en otro caso.
- *  - "Fracciones [fracción] ACU" → cantidad de fracciones de
- *    "fraccion_minutos" adicionales (o desde el minuto 0 si la
- *    aerolínea/base no maneja tarifa inicial).
+ * Misma regla de negocio que GPU (ver calcularFraccionesGpuValor): el
+ * tramo de "primeros minutos" no genera ningún cobro, ni siquiera al
+ * llegar justo a él. Por eso "Fracciones Hora ACU" (el cobro fijo que
+ * antes se disparaba al alcanzar ese tramo) queda siempre en 0; solo
+ * "Fracciones [fracción] ACU" cobra, y únicamente por el tiempo que
+ * SUPERA el umbral (o desde el minuto 0 si la aerolínea/base no
+ * maneja tarifa inicial).
  */
 function calcularFraccionesAcuValores(tiempoMin, tarifa) {
     if (!tarifa || !tiempoMin || tiempoMin <= 0) return { horas: 0, fracciones: 0 };
@@ -374,7 +376,7 @@ function calcularFraccionesAcuValores(tiempoMin, tarifa) {
         const fracciones = (fraccion > 0 && tiempoMin > primeros)
             ? Math.ceil((tiempoMin - primeros) / fraccion)
             : 0;
-        return { horas: 1, fracciones: fracciones };
+        return { horas: 0, fracciones: fracciones };
     }
 
     return { horas: 0, fracciones: fraccion > 0 ? Math.ceil(tiempoMin / fraccion) : 0 };

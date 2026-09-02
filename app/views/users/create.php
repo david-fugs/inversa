@@ -139,7 +139,7 @@ function toggleBaseAsociada(sel) {
     const opt = sel.options[sel.selectedIndex];
     const nombre = opt ? opt.dataset.nombre : '';
     const wrap = document.getElementById('base_asociada_wrap');
-    if (wrap) wrap.style.display = nombre === 'Colaborador' ? 'block' : 'none';
+    if (wrap) wrap.style.display = (nombre === 'Colaborador' || nombre === 'Líder SVC') ? 'block' : 'none';
 }
 toggleBaseAsociada(document.getElementById('rol_id'));
 </script>

@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="col-12" id="base_asociada_wrap"
-                     style="display:<?= ($user['rol_nombre'] ?? '') === 'Colaborador' ? 'block' : 'none' ?>">
+                     style="display:<?= in_array($user['rol_nombre'] ?? '', ['Colaborador', 'Líder SVC'], true) ? 'block' : 'none' ?>">
                     <label for="base_asociada" class="form-label">
                         Base Asociada <span class="required-mark">*</span>
                     </label>
@@ -141,7 +141,7 @@ function toggleBaseAsociada(sel) {
     const opt = sel.options[sel.selectedIndex];
     const nombre = opt ? opt.dataset.nombre : '';
     const wrap = document.getElementById('base_asociada_wrap');
-    if (wrap) wrap.style.display = nombre === 'Colaborador' ? 'block' : 'none';
+    if (wrap) wrap.style.display = (nombre === 'Colaborador' || nombre === 'Líder SVC') ? 'block' : 'none';
 }
 toggleBaseAsociada(document.getElementById('rol_id'));
 </script>

@@ -5,6 +5,17 @@
 
 class FlightServicesController extends Controller {
 
+    /** Roles cuya vista de servicios de vuelo queda restringida a su
+     *  propia "Base Asociada" (Colaborador, Líder SVC). */
+    private const ROLES_ESCOPADOS_A_BASE = ['Colaborador', 'Líder SVC'];
+
+    /** Roles con permiso para subir/eliminar el PDF adjunto de un
+     *  servicio de vuelo (además de ver, nunca editar/eliminar el
+     *  registro): Administrador (acceso total) y Líder SVC. */
+    private const ROLES_GESTIONAN_ARCHIVO = ['Administrador', 'Líder SVC'];
+
+    private const ARCHIVO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+
     private FlightService $model;
     private Airline       $airlineModel;
     private AircraftType  $aircraftModel;
@@ -28,7 +39,7 @@ class FlightServicesController extends Controller {
         $rol  = Session::get('user_rol');
         $base = Session::get('user_base_asociada');
 
-        if ($rol === 'Colaborador' && $base) {
+        if (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base) {
             $services = $this->model->getAllWithJoinsByBase($base);
         } else {
             $services = $this->model->getAllWithJoins();
@@ -46,7 +57,7 @@ class FlightServicesController extends Controller {
         $rol  = Session::get('user_rol');
         $base = Session::get('user_base_asociada');
 
-        $services = ($rol === 'Colaborador' && $base)
+        $services = (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base)
             ? $this->model->getAllWithJoinsByBase($base)
             : $this->model->getAllWithJoins();
 
@@ -93,7 +104,7 @@ class FlightServicesController extends Controller {
         $rol  = Session::get('user_rol');
         $base = Session::get('user_base_asociada');
 
-        $services = ($rol === 'Colaborador' && $base)
+        $services = (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base)
             ? $this->model->getAllWithJoinsByBase($base)
             : $this->model->getAllWithJoins();
 
@@ -118,6 +129,7 @@ class FlightServicesController extends Controller {
                 'cumple_tiempo'   => $s['cumple_tiempo'] === null ? null : (bool)$s['cumple_tiempo'],
                 'tiempo_transito' => $s['tiempo_transito'] !== null ? (int)$s['tiempo_transito'] : null,
                 'pax_saliendo'    => (int)$s['pax_saliendo'],
+                'pax_cancelado'   => (int)$s['pax_cancelado'],
                 'demora_llegando' => $s['demora_llegando'] !== null ? (int)$s['demora_llegando'] : null,
                 'codigo_demora'   => $s['codigo_demora'] ?: null,
             ];
@@ -136,6 +148,10 @@ class FlightServicesController extends Controller {
 
     /** Formulario nuevo registro */
     public function createForm(): void {
+        if (Session::get('user_rol') === 'Líder SVC') {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para crear registros.');
+            return;
+        }
         $this->view('flight_services/create', [
             'pageTitle'   => 'Nuevo Servicio de Vuelo',
             'breadcrumbs' => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Nuevo' => null],
@@ -150,6 +166,10 @@ class FlightServicesController extends Controller {
 
     /** Guardar nuevo registro */
     public function store(): void {
+        if (Session::get('user_rol') === 'Líder SVC') {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para crear registros.');
+            return;
+        }
         // Log inicial para debugging
         error_log(date('Y-m-d H:i:s') . " | STORE START | POST recibido\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
         
@@ -218,7 +238,7 @@ class FlightServicesController extends Controller {
     /** Formulario editar */
     public function editForm(string $id): void {
         $rol = Session::get('user_rol');
-        if ($rol === 'Visualizador' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
+        if ($rol === 'Visualizador' || $rol === 'Líder SVC' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -247,7 +267,7 @@ class FlightServicesController extends Controller {
     /** Actualizar registro */
     public function update(string $id): void {
         $rol = Session::get('user_rol');
-        if ($rol === 'Visualizador' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
+        if ($rol === 'Visualizador' || $rol === 'Líder SVC' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -306,7 +326,7 @@ class FlightServicesController extends Controller {
     /** Eliminar */
     public function delete(string $id): void {
         $rol = Session::get('user_rol');
-        if ($rol === 'Colaborador' || $rol === 'Visualizador') {
+        if ($rol === 'Colaborador' || $rol === 'Visualizador' || $rol === 'Líder SVC') {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para eliminar registros.');
             return;
         }
@@ -315,6 +335,112 @@ class FlightServicesController extends Controller {
         } else {
             $this->redirectWith('flight-services', 'error', 'No se pudo eliminar el servicio.');
         }
+    }
+
+    /** Subir (o reemplazar) el PDF adjunto de un servicio de vuelo.
+     *  No requiere permiso de edición del registro: solo Administrador
+     *  y Líder SVC pueden gestionar este archivo. */
+    public function uploadFile(string $id): void {
+        $serviceId = (int)$id;
+        if (!in_array(Session::get('user_rol'), self::ROLES_GESTIONAN_ARCHIVO, true)) {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para gestionar el archivo adjunto.');
+            return;
+        }
+        $service = $this->model->findById($serviceId);
+        if (!$service) {
+            $this->redirectWith('flight-services', 'error', 'Servicio no encontrado.');
+            return;
+        }
+
+        $file = $_FILES['archivo_pdf'] ?? null;
+        if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
+            $this->redirectWith('flight-services/view/' . $serviceId, 'error', 'Seleccione un archivo PDF.');
+            return;
+        }
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $this->redirectWith('flight-services/view/' . $serviceId, 'error', 'Error al subir el archivo.');
+            return;
+        }
+        if ($file['size'] > self::ARCHIVO_MAX_BYTES) {
+            $this->redirectWith('flight-services/view/' . $serviceId, 'error', 'El archivo supera el tamaño máximo permitido (2 MB).');
+            return;
+        }
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $mime      = @finfo_file(finfo_open(FILEINFO_MIME_TYPE), $file['tmp_name']);
+        if ($extension !== 'pdf' || $mime !== 'application/pdf') {
+            $this->redirectWith('flight-services/view/' . $serviceId, 'error', 'Solo se permiten archivos PDF.');
+            return;
+        }
+
+        if (!is_dir(FLIGHT_SERVICES_UPLOADS_PATH)) {
+            mkdir(FLIGHT_SERVICES_UPLOADS_PATH, 0755, true);
+        }
+
+        $storedName = $serviceId . '_' . bin2hex(random_bytes(8)) . '.pdf';
+        $destino    = FLIGHT_SERVICES_UPLOADS_PATH . '/' . $storedName;
+
+        if (!move_uploaded_file($file['tmp_name'], $destino)) {
+            $this->redirectWith('flight-services/view/' . $serviceId, 'error', 'No se pudo guardar el archivo.');
+            return;
+        }
+
+        // Si ya había un archivo adjunto, se reemplaza: borrar el físico anterior.
+        if (!empty($service['archivo_pdf'])) {
+            $anterior = FLIGHT_SERVICES_UPLOADS_PATH . '/' . $service['archivo_pdf'];
+            if (is_file($anterior)) @unlink($anterior);
+        }
+
+        $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
+        $this->model->setArchivo($serviceId, $storedName, $nombreOriginal !== '' ? $nombreOriginal : 'archivo.pdf');
+
+        $this->redirectWith('flight-services/view/' . $serviceId, 'success', 'Archivo PDF subido correctamente.');
+    }
+
+    /** Eliminar el PDF adjunto de un servicio de vuelo */
+    public function deleteFile(string $id): void {
+        $serviceId = (int)$id;
+        if (!in_array(Session::get('user_rol'), self::ROLES_GESTIONAN_ARCHIVO, true)) {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para gestionar el archivo adjunto.');
+            return;
+        }
+        $service = $this->model->findById($serviceId);
+        if (!$service) {
+            $this->redirectWith('flight-services', 'error', 'Servicio no encontrado.');
+            return;
+        }
+
+        if (!empty($service['archivo_pdf'])) {
+            $ruta = FLIGHT_SERVICES_UPLOADS_PATH . '/' . $service['archivo_pdf'];
+            if (is_file($ruta)) @unlink($ruta);
+            $this->model->clearArchivo($serviceId);
+        }
+
+        $this->redirectWith('flight-services/view/' . $serviceId, 'success', 'Archivo PDF eliminado correctamente.');
+    }
+
+    /** Descargar/ver el PDF adjunto de un servicio de vuelo (cualquier
+     *  usuario autenticado que pueda ver el registro puede descargarlo;
+     *  el registro en sí no tiene restricción de visualización). */
+    public function downloadFile(string $id): void {
+        $service = $this->model->findById((int)$id);
+        if (!$service || empty($service['archivo_pdf'])) {
+            $this->redirectWith('flight-services', 'error', 'El servicio no tiene un archivo adjunto.');
+            return;
+        }
+
+        $ruta = FLIGHT_SERVICES_UPLOADS_PATH . '/' . $service['archivo_pdf'];
+        if (!is_file($ruta)) {
+            $this->redirectWith('flight-services/view/' . $service['id'], 'error', 'El archivo adjunto ya no está disponible.');
+            return;
+        }
+
+        $nombreDescarga = $service['archivo_pdf_original'] ?: 'archivo.pdf';
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . str_replace('"', '', $nombreDescarga) . '"');
+        header('Content-Length: ' . filesize($ruta));
+        header('X-Content-Type-Options: nosniff');
+        readfile($ruta);
+        exit;
     }
 
     /**
@@ -565,6 +691,7 @@ class FlightServicesController extends Controller {
                     'tiempo_gpu'                 => 'Tiempo GPU (min)',
                     'fracciones_adc_gpu'         => 'Fracciones ADC GPU',
                     'gpu_fracciones_resumen'     => 'GPU Adicionales',
+                    'total_fracciones_gpu'       => 'Total Fracciones',
                 ],
             ],
             [
@@ -648,6 +775,15 @@ class FlightServicesController extends Controller {
                     if (!empty($gf['observacion'])) $txt .= ' [' . $gf['observacion'] . ']';
                     return $txt;
                 }, $service['gpu_fracciones']));
+            case 'total_fracciones_gpu':
+                // Suma de "Fracciones ADC GPU" (GPU principal) más las
+                // fracciones de cada fila de "GPU Adicionales" (puede no
+                // haber ninguna).
+                $total = (float)($service['fracciones_adc_gpu'] ?? 0);
+                foreach ($service['gpu_fracciones'] as $gf) {
+                    $total += (float)($gf['fracciones_adc'] ?? 0);
+                }
+                return number_format($total, 2);
             case 'equipo_gse_inoperativo':
                 $gse = $service['equipo_gse_inoperativo'] ?? null;
                 return ($gse === null || $gse === '') ? '—' : $gse;

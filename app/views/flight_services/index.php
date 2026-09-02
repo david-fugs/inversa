@@ -1,7 +1,9 @@
 <?php
-$esColaborador  = Session::get('user_rol') === 'Colaborador';
-$esVisualizador = Session::get('user_rol') === 'Visualizador';
-$puedeEditar    = (bool)Session::get('user_puede_editar');
+$rolActual         = Session::get('user_rol');
+$esColaborador     = $rolActual === 'Colaborador';
+$esVisualizador    = $rolActual === 'Visualizador';
+$esSupervisorRampa = $rolActual === 'Líder SVC';
+$puedeEditar       = (bool)Session::get('user_puede_editar');
 
 $meses = FlightService::$meses;
 $basesUniques = [];
@@ -18,9 +20,11 @@ sort($basesUniques);
 sort($aerolineasUniques);
 ?>
 <div class="page-actions">
+    <?php if (!$esSupervisorRampa): ?>
     <a href="<?= BASE_URL ?>/flight-services/create" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Servicio
     </a>
+    <?php endif; ?>
     <a href="<?= BASE_URL ?>/flight-services/dashboard" class="btn btn-outline-primary">
         <i class="bi bi-bar-chart-line-fill"></i> Panel Analítico
     </a>
@@ -91,6 +95,7 @@ sort($aerolineasUniques);
                         <th>Tipo Atención</th>
                         <th>Tránsito</th>
                         <th>Cumple</th>
+                        <th class="text-center">Archivo</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -137,18 +142,25 @@ sort($aerolineasUniques);
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
+                                <?php if (!empty($s['archivo_pdf'])): ?>
+                                    <span class="cumple-si" title="Tiene archivo adjunto"><i class="bi bi-check-circle-fill"></i></span>
+                                <?php else: ?>
+                                    <span class="cumple-no" title="Sin archivo adjunto"><i class="bi bi-x-circle-fill"></i></span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">
                                     <a href="<?= BASE_URL ?>/flight-services/view/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle">
                                         <i class="bi bi-eye-fill"></i>
                                     </a>
-                                    <?php if (!$esVisualizador && (!$esColaborador || $puedeEditar)): ?>
+                                    <?php if (!$esVisualizador && !$esSupervisorRampa && (!$esColaborador || $puedeEditar)): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-outline-secondary btn-sm" title="Editar">
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
                                     <?php endif; ?>
-                                    <?php if (!$esVisualizador && !$esColaborador): ?>
+                                    <?php if (!$esVisualizador && !$esColaborador && !$esSupervisorRampa): ?>
                                     <a href="<?= BASE_URL ?>/flight-services/delete/<?= $s['id'] ?>"
                                        class="btn btn-icon btn-danger btn-sm"
                                        title="Eliminar"

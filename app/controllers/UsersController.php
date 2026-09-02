@@ -76,7 +76,7 @@ class UsersController extends Controller {
             return;
         }
 
-        if (!$this->isColaboradorRole((int)$data['rol_id'])) {
+        if (!$this->roleRequiresBaseAsociada((int)$data['rol_id'])) {
             $data['base_asociada'] = '';
         }
 
@@ -138,7 +138,7 @@ class UsersController extends Controller {
             return;
         }
 
-        if (!$this->isColaboradorRole((int)$data['rol_id'])) {
+        if (!$this->roleRequiresBaseAsociada((int)$data['rol_id'])) {
             $data['base_asociada'] = '';
         }
 
@@ -201,7 +201,7 @@ class UsersController extends Controller {
             $errors['rol_id'] = 'Seleccione un rol.';
         }
 
-        if ($this->isColaboradorRole((int)$data['rol_id'])) {
+        if ($this->roleRequiresBaseAsociada((int)$data['rol_id'])) {
             if (empty($data['base_asociada'])) {
                 $errors['base_asociada'] = 'Seleccione una base asociada.';
             } elseif (!$this->baseModel->valueExists($data['base_asociada'])) {
@@ -229,10 +229,14 @@ class UsersController extends Controller {
         return $errors;
     }
 
-    private function isColaboradorRole(int $rolId): bool {
+    /** Roles cuyos usuarios quedan restringidos a una sola base y por
+     *  eso necesitan "Base Asociada" (Colaborador, Líder SVC). */
+    private const ROLES_CON_BASE_ASOCIADA = ['Colaborador', 'Líder SVC'];
+
+    private function roleRequiresBaseAsociada(int $rolId): bool {
         foreach ($this->userModel->getRoles() as $rol) {
             if ((int)$rol['id'] === $rolId) {
-                return $rol['nombre'] === 'Colaborador';
+                return in_array($rol['nombre'], self::ROLES_CON_BASE_ASOCIADA, true);
             }
         }
         return false;

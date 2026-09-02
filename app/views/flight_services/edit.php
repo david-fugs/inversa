@@ -634,6 +634,25 @@
     </div>
 </div>
 
+<!-- ══ SECCIÓN 9B: Archivo Adjunto ════════════════════════ -->
+<div class="card">
+    <div class="card-header"><h5><i class="bi bi-file-earmark-pdf-fill"></i> Archivo Adjunto</h5></div>
+    <div class="card-body">
+        <?php if (!empty($service['archivo_pdf'])): ?>
+            <a href="<?= BASE_URL ?>/flight-services/file/<?= $service['id'] ?>" target="_blank"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+                <?= htmlspecialchars($service['archivo_pdf_original'] ?: 'Ver archivo PDF') ?>
+            </a>
+        <?php else: ?>
+            <p class="text-muted mb-0">Sin archivo adjunto.</p>
+        <?php endif; ?>
+        <small class="text-muted d-block mt-2">
+            El archivo PDF se sube y se elimina desde la pantalla de <a href="<?= BASE_URL ?>/flight-services/view/<?= $service['id'] ?>">Ver detalle</a>.
+        </small>
+    </div>
+</div>
+
 <div class="d-flex gap-2 pb-4">
     <button type="submit" class="btn btn-primary">
         <i class="bi bi-check-circle-fill"></i> Actualizar Servicio de Vuelo

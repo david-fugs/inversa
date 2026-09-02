@@ -1,18 +1,21 @@
 <?php
-$esColaborador  = Session::get('user_rol') === 'Colaborador';
-$esVisualizador = Session::get('user_rol') === 'Visualizador';
-$puedeEditar    = (bool)Session::get('user_puede_editar');
+$rolActual             = Session::get('user_rol');
+$esColaborador         = $rolActual === 'Colaborador';
+$esVisualizador        = $rolActual === 'Visualizador';
+$esSupervisorRampa     = $rolActual === 'Líder SVC';
+$puedeEditar           = (bool)Session::get('user_puede_editar');
+$puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], true);
 ?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services" class="btn btn-light">
         <i class="bi bi-arrow-left"></i> Volver al listado
     </a>
-    <?php if (!$esVisualizador && (!$esColaborador || $puedeEditar)): ?>
+    <?php if (!$esVisualizador && !$esSupervisorRampa && (!$esColaborador || $puedeEditar)): ?>
     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $service['id'] ?>" class="btn btn-outline-secondary">
         <i class="bi bi-pencil-fill"></i> Editar
     </a>
     <?php endif; ?>
-    <?php if (!$esVisualizador && !$esColaborador): ?>
+    <?php if (!$esVisualizador && !$esColaborador && !$esSupervisorRampa): ?>
     <a href="<?= BASE_URL ?>/flight-services/delete/<?= $service['id'] ?>"
        class="btn btn-danger"
        data-confirm="¿Está seguro de eliminar el servicio #<?= $service['id'] ?>?">
@@ -235,6 +238,49 @@ $puedeEditar    = (bool)Session::get('user_puede_editar');
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Archivo Adjunto (PDF) -->
+<div class="col-md-6">
+    <div class="card h-100">
+        <div class="card-header"><h5><i class="bi bi-file-earmark-pdf-fill"></i> Archivo Adjunto</h5></div>
+        <div class="card-body">
+            <?php if (!empty($service['archivo_pdf'])): ?>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <a href="<?= BASE_URL ?>/flight-services/file/<?= $service['id'] ?>" target="_blank"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                        <?= htmlspecialchars($service['archivo_pdf_original'] ?: 'Ver archivo PDF') ?>
+                    </a>
+                    <?php if ($puedeGestionarArchivo): ?>
+                    <a href="<?= BASE_URL ?>/flight-services/delete-file/<?= $service['id'] ?>"
+                       class="btn btn-icon btn-danger btn-sm" title="Eliminar archivo"
+                       data-confirm="¿Está seguro de eliminar el archivo PDF adjunto?">
+                        <i class="bi bi-trash-fill"></i>
+                    </a>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <p class="text-muted mb-<?= $puedeGestionarArchivo ? '3' : '0' ?>">Sin archivo adjunto.</p>
+            <?php endif; ?>
+
+            <?php if ($puedeGestionarArchivo): ?>
+            <form method="POST" action="<?= BASE_URL ?>/flight-services/upload-file/<?= $service['id'] ?>"
+                  enctype="multipart/form-data" class="<?= empty($service['archivo_pdf']) ? '' : 'mt-3' ?>">
+                <label class="form-label" style="font-size:13px;">
+                    <?= empty($service['archivo_pdf']) ? 'Subir archivo PDF' : 'Reemplazar archivo PDF' ?>
+                </label>
+                <div class="d-flex gap-2 flex-wrap align-items-start">
+                    <input type="file" name="archivo_pdf" accept="application/pdf" required class="form-control" style="max-width:320px;">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-upload"></i> Subir
+                    </button>
+                </div>
+                <small class="text-muted d-block mt-1">Solo PDF, máximo 2 MB.</small>
+            </form>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 
 <!-- Observaciones -->
 <?php if (!empty($service['equipo_gse_inoperativo']) || !empty($service['observaciones'])): ?>

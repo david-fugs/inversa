@@ -187,9 +187,16 @@
 
 <!-- ══ TABLA DINÁMICA (PIVOT) ══════════════════════════ -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header flex-wrap gap-2">
         <h5><i class="bi bi-table"></i> Tabla Dinámica — Base × Aerolínea</h5>
-        <span class="badge badge-primary" id="pivot_badge">0 servicios</span>
+        <div class="d-flex align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group" id="pivot_metric_selector">
+                <button type="button" class="btn btn-outline-primary active" data-metric="count">Cantidad de Servicios</button>
+                <button type="button" class="btn btn-outline-primary" data-metric="pax_saliendo">PAX Saliendo</button>
+                <button type="button" class="btn btn-outline-primary" data-metric="pax_cancelado">PAX Cancelado</button>
+            </div>
+            <span class="badge badge-primary" id="pivot_badge">0 servicios</span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-wrapper">
@@ -240,6 +247,12 @@
     font-size: 12.5px; font-weight: 700; color: var(--ink-primary); text-align: right;
     font-variant-numeric: tabular-nums;
 }
+.bar-list-extra { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.bar-list-toggle {
+    margin-top: 10px; align-self: flex-start; background: none; border: none; padding: 0;
+    color: var(--series-1); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.bar-list-toggle:hover, .bar-list-toggle:focus { text-decoration: underline; outline: none; }
 
 /* Stacked bar (Tipo de Atención) */
 .stacked-bar {
@@ -350,6 +363,23 @@ function filtrarDatos() {
     });
 }
 
+/* ── Tabla dinámica: métrica seleccionada ──────────────
+ * 'count' cuenta servicios (1 por fila); 'pax_saliendo' y
+ * 'pax_cancelado' suman ese campo por fila. */
+let pivotMetric = 'count';
+
+function pivotValueGetter(metric) {
+    if (metric === 'pax_saliendo') return (r) => r.pax_saliendo || 0;
+    if (metric === 'pax_cancelado') return (r) => r.pax_cancelado || 0;
+    return () => 1;
+}
+
+function pivotUnitLabel(metric, value) {
+    if (metric === 'pax_saliendo') return 'PAX Saliendo';
+    if (metric === 'pax_cancelado') return 'PAX Cancelado';
+    return 'servicio' + (value === 1 ? '' : 's');
+}
+
 /* ── Utilidades ──────────────────────────────────────── */
 function contarPor(rows, campo) {
     const mapa = new Map();
@@ -367,17 +397,32 @@ function seqStep(ratio) {
     return steps[idx];
 }
 
-/* ── Render: bar list genérico (sequential, magnitud) ── */
-function renderBarList(containerId, emptyId, mapa, maxItems) {
+/* ── Render: bar list genérico (sequential, magnitud) ──
+ * `opts` acepta un número (compat: límite de items, el resto se
+ * agrupa en una barra "Otras") o un objeto { maxItems, expandable }.
+ * Con expandable:true el resto NO se agrupa: queda oculto detrás de
+ * un botón "Ver X más" (útil cuando agrupar perdería información
+ * relevante, p.ej. códigos de demora individuales). */
+function renderBarList(containerId, emptyId, mapa, opts) {
+    if (typeof opts === 'number') opts = { maxItems: opts };
+    opts = opts || {};
+    const { maxItems, expandable } = opts;
+
     const container = document.getElementById(containerId);
     const emptyEl = document.getElementById(emptyId);
     container.textContent = '';
 
     let entries = Array.from(mapa.entries()).sort((a, b) => b[1] - a[1]);
+    let hidden = [];
     if (maxItems && entries.length > maxItems) {
-        const resto = entries.slice(maxItems).reduce((sum, [, v]) => sum + v, 0);
-        entries = entries.slice(0, maxItems);
-        if (resto > 0) entries.push(['Otras', resto]);
+        if (expandable) {
+            hidden = entries.slice(maxItems);
+            entries = entries.slice(0, maxItems);
+        } else {
+            const resto = entries.slice(maxItems).reduce((sum, [, v]) => sum + v, 0);
+            entries = entries.slice(0, maxItems);
+            if (resto > 0) entries.push(['Otras', resto]);
+        }
     }
 
     if (entries.length === 0) {
@@ -386,8 +431,9 @@ function renderBarList(containerId, emptyId, mapa, maxItems) {
     }
     emptyEl.hidden = true;
 
-    const max = entries[0][1];
-    entries.forEach(([label, value]) => {
+    const max = Math.max(entries[0][1], hidden.length ? hidden[0][1] : 0);
+
+    function buildRow(label, value) {
         const row = document.createElement('div');
         row.className = 'bar-row';
 
@@ -410,8 +456,29 @@ function renderBarList(containerId, emptyId, mapa, maxItems) {
         row.appendChild(nameEl);
         row.appendChild(track);
         row.appendChild(valueEl);
-        container.appendChild(row);
-    });
+        return row;
+    }
+
+    entries.forEach(([label, value]) => container.appendChild(buildRow(label, value)));
+
+    if (hidden.length > 0) {
+        const extraWrap = document.createElement('div');
+        extraWrap.className = 'bar-list-extra';
+        extraWrap.hidden = true;
+        hidden.forEach(([label, value]) => extraWrap.appendChild(buildRow(label, value)));
+        container.appendChild(extraWrap);
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'bar-list-toggle';
+        toggleBtn.textContent = `Ver ${hidden.length} más`;
+        toggleBtn.addEventListener('click', () => {
+            const willShow = extraWrap.hidden;
+            extraWrap.hidden = !willShow;
+            toggleBtn.textContent = willShow ? 'Ver menos' : `Ver ${hidden.length} más`;
+        });
+        container.appendChild(toggleBtn);
+    }
 }
 
 /* ── Render: barra apilada (categórica, parte-todo) ───── */
@@ -539,7 +606,7 @@ function contarPorCodigosDemora(rows) {
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(r => r.demora_llegando > 0);
-    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora));
+    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true });
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }
@@ -555,6 +622,8 @@ function renderPivot(rows) {
     tfoot.textContent = '';
 
     document.getElementById('pivot_badge').textContent = rows.length + ' servicios';
+
+    const getValue = pivotValueGetter(pivotMetric);
 
     if (rows.length === 0) {
         document.getElementById('pivot_table').style.display = 'none';
@@ -576,12 +645,12 @@ function renderPivot(rows) {
 
     const bases = Array.from(new Set(rows.map(r => r.base))).sort();
 
-    // Matriz de conteos
+    // Matriz de valores (cantidad de servicios, o suma de PAX según la métrica activa)
     const matriz = {};
     bases.forEach(b => { matriz[b] = {}; columnas.forEach(c => matriz[b][c] = 0); });
     rows.forEach(r => {
         const col = columnas.includes(r.aerolinea) ? r.aerolinea : 'Otras';
-        if (matriz[r.base] && matriz[r.base][col] !== undefined) matriz[r.base][col]++;
+        if (matriz[r.base] && matriz[r.base][col] !== undefined) matriz[r.base][col] += getValue(r);
     });
 
     let maxCell = 0;
@@ -620,7 +689,7 @@ function renderPivot(rows) {
                 td.style.background = `var(${seqStep(ratio)})`;
                 td.style.color = ratio >= 0.55 ? '#fff' : 'var(--ink-primary)';
                 td.textContent = value;
-                bindTooltip(td, `${b} · ${c}: ${value} servicio${value === 1 ? '' : 's'}`);
+                bindTooltip(td, `${b} · ${c}: ${value} ${pivotUnitLabel(pivotMetric, value)}`);
             } else {
                 td.textContent = '—';
                 td.style.color = 'var(--ink-muted)';
@@ -676,6 +745,16 @@ document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
     filterInputs.base.value = '';
     filterInputs.aerolinea.value = '';
     renderDashboard();
+});
+
+// Selector de métrica de la tabla dinámica (Cantidad / PAX Saliendo / PAX Cancelado)
+document.querySelectorAll('#pivot_metric_selector button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (btn.dataset.metric === pivotMetric) return;
+        pivotMetric = btn.dataset.metric;
+        document.querySelectorAll('#pivot_metric_selector button').forEach(b => b.classList.toggle('active', b === btn));
+        renderPivot(filtrarDatos());
+    });
 });
 
 renderDashboard();
