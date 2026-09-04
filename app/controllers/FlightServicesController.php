@@ -971,126 +971,71 @@ XML;
     /** Columnas numéricas (clave interna => encabezado) de la hoja "Resumen". */
     private function resumenColumnasMetricas(): array {
         return [
-            'pax_transitos'    => 'PAX Tránsitos',
-            'pax_cancelados'   => 'PAX Cancelados',
-            'planta_gpu'       => 'Planta GPU',
-            'despacho'         => 'Despacho',
-            'acu_hora'         => 'ACU Hora',
-            'acu_15min'        => 'ACU 15 min',
-            'sillas_r'         => 'Sillas R',
-            'ventilador'       => 'Ventilador',
-            'rampa_escalera'   => 'Rampa Escalera',
-            'cuenta_adicional' => 'Cuenta Adicionales',
+            'pax_transitos'           => 'PAX Tránsitos',
+            'pax_cancelados'          => 'PAX Cancelados',
+            'planta_gpu'              => 'Planta GPU',
+            'despacho'                => 'Despacho',
+            'acu_hora'                => 'ACU Hora',
+            'acu_15min'               => 'ACU 15 min',
+            'ventilador'              => 'Ventilador',
+            'sillas_ruedas'           => 'Sillas de Ruedas',
+            'rampa_escalera'          => 'Rampa Escalera',
+            'remolque_aeronave'       => 'Remolque Aeronave',
+            'remolque_equipajes'      => 'Remolque Equipajes',
+            'potable'                 => 'Potable',
+            'drenaje'                 => 'Drenaje',
+            'air_starter'             => 'Arranque de Motores "Air Starter"',
+            'pay_mower'               => 'Pay Mower',
+            'aseo_aeronaves'          => 'Aseo a las Aeronaves',
+            'equipos_carga_descargue' => 'Equipos Carga y Descargue de Mercancías',
+            'atencion_pasajeros'      => 'Atención a Pasajeros',
         ];
     }
 
     /** Suma las métricas de la hoja "Resumen" para un conjunto de servicios
-     *  (una fila hoja, o los servicios detrás de una fila de subtotal). */
+     *  (una fila hoja, o los servicios detrás de una fila de subtotal).
+     *  Incluye, con su valor tal cual (no solo si se usó o no), cada ítem
+     *  de la sección "Equipos y Servicios" del formulario. */
     private function resumenAgregarMetricas(array $rows): array {
         $agg = array_fill_keys(array_keys($this->resumenColumnasMetricas()), 0);
         foreach ($rows as $s) {
-            $agg['pax_transitos']  += (int)($s['pax_saliendo'] ?? 0);
-            $agg['pax_cancelados'] += (int)($s['pax_cancelado'] ?? 0);
-            $agg['planta_gpu']     += !empty($s['hora_conexion_gpu']) ? 1 : 0;
-            $agg['despacho']       += (int)($s['despacho'] ?? 0);
-            $agg['acu_hora']       += (float)($s['fracciones_hora_acu'] ?? 0);
-            $agg['acu_15min']      += (float)($s['fracciones_15min_acu'] ?? 0);
-            $agg['sillas_r']       += (int)($s['sillas_ruedas'] ?? 0);
-            $agg['ventilador']     += (int)($s['ventiladores'] ?? 0);
-            $agg['rampa_escalera'] += (int)($s['rampa_escalera'] ?? 0) === 1 ? 1 : 0;
-            $agg['cuenta_adicional'] += count($s['adicionales'] ?? []);
+            $agg['pax_transitos']           += (int)($s['pax_saliendo'] ?? 0);
+            $agg['pax_cancelados']          += (int)($s['pax_cancelado'] ?? 0);
+            $agg['planta_gpu']              += !empty($s['hora_conexion_gpu']) ? 1 : 0;
+            $agg['despacho']                += (int)($s['despacho'] ?? 0);
+            $agg['acu_hora']                += (float)($s['fracciones_hora_acu'] ?? 0);
+            $agg['acu_15min']               += (float)($s['fracciones_15min_acu'] ?? 0);
+            $agg['ventilador']              += (int)($s['ventiladores'] ?? 0);
+            $agg['sillas_ruedas']           += (int)($s['sillas_ruedas'] ?? 0);
+            $agg['rampa_escalera']          += (int)($s['rampa_escalera'] ?? 0) === 1 ? 1 : 0;
+            $agg['remolque_aeronave']       += (int)($s['remolque_aeronave'] ?? 0);
+            $agg['remolque_equipajes']      += (int)($s['remolque_equipajes'] ?? 0);
+            $agg['potable']                 += (int)($s['potable'] ?? 0);
+            $agg['drenaje']                 += (int)($s['drenaje'] ?? 0);
+            $agg['air_starter']             += (int)($s['air_starter'] ?? 0);
+            $agg['pay_mower']               += (int)($s['pay_mower'] ?? 0);
+            $agg['aseo_aeronaves']          += (int)($s['aseo_aeronaves'] ?? 0);
+            $agg['equipos_carga_descargue'] += (int)($s['equipos_carga_descargue'] ?? 0);
+            $agg['atencion_pasajeros']      += (int)($s['atencion_pasajeros'] ?? 0);
         }
         return $agg;
     }
 
-    /** Ordena las claves de un grupo (array asociativo clave => filas) según
-     *  el criterio del nivel: numérico (mes/quincena), el orden canónico de
-     *  FlightService::$tiposAtencion, o alfabético por defecto. */
-    private function resumenOrdenarClaves(array $grupos, ?string $orden): array {
-        if ($orden === 'numerico') {
-            ksort($grupos, SORT_NUMERIC);
-        } elseif ($orden === 'tipo_atencion') {
-            $prioridad = array_flip(FlightService::$tiposAtencion);
-            uksort($grupos, function ($a, $b) use ($prioridad) {
-                $pa = $prioridad[$a] ?? 999;
-                $pb = $prioridad[$b] ?? 999;
-                return $pa <=> $pb ?: strcmp((string)$a, (string)$b);
-            });
-        } else {
-            ksort($grupos, SORT_STRING | SORT_FLAG_CASE);
-        }
-        return $grupos;
-    }
-
-    /** Renderiza recursivamente un nivel de agrupación: agrupa $rows por el
-     *  campo del nivel $idx, procesa cada subgrupo (recursión al siguiente
-     *  nivel) y agrega, después de sus filas de detalle, una fila de
-     *  subtotal para ese grupo. Al llegar más allá del último nivel, agrega
-     *  una única fila de detalle con los valores agregados. Devuelve las
-     *  métricas totales de todo lo que renderizó, para que el nivel padre
-     *  las sume en su propio subtotal. */
-    private function resumenRenderNivel(array $rows, array $niveles, int $idx, array $ancestros, int $outlineLevel, callable $addRow): array {
-        $totalCols = count($niveles);
-
-        if ($idx >= $totalCols) {
-            $agg = $this->resumenAgregarMetricas($rows);
-            $addRow(array_merge($ancestros, array_values($agg)), self::XLSX_STYLE_DATA_EVEN, null, $outlineLevel);
-            return $agg;
-        }
-
-        $nivel = $niveles[$idx];
-        $grupos = [];
-        foreach ($rows as $s) {
-            $key = $s[$nivel['campo']] ?? null;
-            $key = ($key === null || $key === '') ? '(Sin especificar)' : $key;
-            $grupos[$key][] = $s;
-        }
-        $grupos = $this->resumenOrdenarClaves($grupos, $nivel['orden'] ?? null);
-
-        $totalNivel = array_fill_keys(array_keys($this->resumenColumnasMetricas()), 0);
-        foreach ($grupos as $key => $grupoRows) {
-            $etiqueta = isset($nivel['formato']) ? ($nivel['formato'])($key) : (string)$key;
-            $nuevosAncestros = $ancestros;
-            $nuevosAncestros[$idx] = $etiqueta;
-
-            $agg = $this->resumenRenderNivel($grupoRows, $niveles, $idx + 1, $nuevosAncestros, $outlineLevel + 1, $addRow);
-            foreach ($agg as $k => $v) $totalNivel[$k] += $v;
-
-            // El último nivel (Tipo de Atención) ya queda representado por
-            // su propia fila de detalle (la del caso base): agregar aquí un
-            // "Total <valor>" sería una fila duplicada, así que se omite
-            // solo para ese nivel más interno.
-            if ($idx < $totalCols - 1) {
-                $filaSubtotal = array_fill(0, $totalCols, '');
-                for ($j = 0; $j < $idx; $j++) $filaSubtotal[$j] = $ancestros[$j] ?? '';
-                $filaSubtotal[$idx] = 'Total ' . $etiqueta;
-                $addRow(array_merge($filaSubtotal, array_values($agg)), self::XLSX_STYLE_DATA_HIGHLIGHT, null, $outlineLevel);
-            }
-        }
-        return $totalNivel;
-    }
-
-    /** Construye la hoja "Resumen": una única tabla agrupada por
-     *  Base → Mes → Aerolínea → Quincena → Tipo Avión → Tipo de Atención,
-     *  con subtotales colapsables (agrupación de filas de Excel) en cada
-     *  nivel y un total general fijo al final. Incluye AutoFilter en el
-     *  encabezado para filtrar por columna (en vez de segmentaciones). */
+    /** Construye la hoja "Resumen": tabla plana, un renglón por servicio
+     *  (sin agrupar ni colapsar), ordenada por Base para que se lea de
+     *  corrido. Tiene flecha de filtro en Base, Mes, Aerolínea, Quincena,
+     *  Tipo Avión y Tipo de Atención (columnas A-F); las columnas de
+     *  métricas no llevan filtro. Al terminar cada Base se agrega una fila
+     *  "TOTAL <base>" visible (sin colapsar), y al final un TOTAL GENERAL
+     *  fuera del rango de filtro. */
     private function buildResumenSheetXml(array $services, string $subtitulo): array {
         $mergeCells = [];
         $sheetXml   = '';
         $rowNum     = 1;
         $maxCol     = 1;
-        $maxOutlineLevel = 0;
 
-        // Estado inicial al abrir el archivo: colapsado a los subtotales de
-        // Base (outlineLevel 1) — se muestran con su "+" para expandir a
-        // mano; todo lo más profundo (mes, aerolínea, quincena, avión,
-        // tipo de atención) empieza oculto.
-        $addRow = function (array $values, int $style, ?int $mergeSpan = null, int $outlineLevel = 0) use (&$rowNum, &$sheetXml, &$mergeCells, &$maxCol, &$maxOutlineLevel) {
-            $outlineAttr = $outlineLevel > 0 ? ' outlineLevel="' . min($outlineLevel, 7) . '"' : '';
-            $hiddenAttr    = $outlineLevel >= 2 ? ' hidden="1"' : '';
-            $collapsedAttr = $outlineLevel === 1 ? ' collapsed="1"' : '';
-            $sheetXml .= '<row r="' . $rowNum . '"' . $outlineAttr . $hiddenAttr . $collapsedAttr . '>';
+        $addRow = function (array $values, int $style, ?int $mergeSpan = null) use (&$rowNum, &$sheetXml, &$mergeCells, &$maxCol) {
+            $sheetXml .= '<row r="' . $rowNum . '">';
             $col = 1;
             foreach ($values as $val) {
                 $ref = $this->excelColLetter($col) . $rowNum;
@@ -1099,7 +1044,6 @@ XML;
             }
             $sheetXml .= '</row>';
             $maxCol = max($maxCol, $col - 1);
-            $maxOutlineLevel = max($maxOutlineLevel, $outlineLevel);
             if ($mergeSpan && $mergeSpan > 1) {
                 $mergeCells[] = $this->excelColLetter(1) . $rowNum . ':' . $this->excelColLetter($mergeSpan) . $rowNum;
             }
@@ -1116,27 +1060,67 @@ XML;
         $addRow(array_merge([$subtitulo], array_fill(0, $totalCols - 1, '')), self::XLSX_STYLE_SUBTITLE, $totalCols);
         $rowNum++; // fila en blanco
 
-        // ── Encabezado (con filtro de columna) ──
+        // ── Encabezado ──
         $headerRow = $rowNum;
         $addRow(array_merge($etiquetas, array_values($metricas)), self::XLSX_STYLE_COL_HEADER);
 
-        // ── Datos agrupados con subtotales colapsables ──
-        $totalGeneral = $this->resumenRenderNivel($services, $niveles, 0, array_fill(0, count($niveles), ''), 1, $addRow);
+        // ── Datos: un renglón por servicio, ordenado por Base y fecha ──
+        $ordenados = $services;
+        usort($ordenados, function ($a, $b) {
+            return [(string)($a['base'] ?? ''), (int)$a['anio'], (int)$a['mes'], (int)$a['dia']]
+                <=> [(string)($b['base'] ?? ''), (int)$b['anio'], (int)$b['mes'], (int)$b['dia']];
+        });
+
+        $totalGeneral = array_fill_keys(array_keys($metricas), 0);
+        $baseActual   = null;
+        $totalBase    = array_fill_keys(array_keys($metricas), 0);
+
+        $emitirTotalBase = function () use ($addRow, &$baseActual, &$totalBase, $niveles) {
+            if ($baseActual === null) return;
+            $filaSub = array_fill(0, count($niveles), '');
+            $filaSub[0] = $baseActual;
+            $filaSub[1] = 'TOTAL ' . $baseActual;
+            $addRow(array_merge($filaSub, array_values($totalBase)), self::XLSX_STYLE_DATA_HIGHLIGHT);
+        };
+
+        foreach ($ordenados as $i => $s) {
+            $baseServicio = $s['base'] ?: '(Sin especificar)';
+            if ($baseActual !== null && $baseServicio !== $baseActual) {
+                $emitirTotalBase();
+                $totalBase = array_fill_keys(array_keys($metricas), 0);
+            }
+            $baseActual = $baseServicio;
+
+            $fila = [];
+            foreach ($niveles as $nivel) {
+                $val = $s[$nivel['campo']] ?? null;
+                $val = ($val === null || $val === '') ? '(Sin especificar)' : $val;
+                $fila[] = isset($nivel['formato']) ? ($nivel['formato'])($val) : (string)$val;
+            }
+            $agg = $this->resumenAgregarMetricas([$s]);
+            foreach ($agg as $k => $v) {
+                $totalGeneral[$k] += $v;
+                $totalBase[$k]    += $v;
+            }
+            $style = $i % 2 === 0 ? self::XLSX_STYLE_DATA_EVEN : self::XLSX_STYLE_DATA_ODD;
+            $addRow(array_merge($fila, array_values($agg)), $style);
+        }
+        $emitirTotalBase();
         $lastDataRow = $rowNum - 1;
 
-        // ── Total general (siempre visible, fuera de la agrupación) ──
+        // ── Total general (fuera del rango de filtro, siempre visible) ──
         $filaTotalGeneral = array_fill(0, count($niveles), '');
         $filaTotalGeneral[0] = 'TOTAL GENERAL';
         $addRow(array_merge($filaTotalGeneral, array_values($totalGeneral)), self::XLSX_STYLE_DATA_HIGHLIGHT);
 
         return [
-            'xml'          => $sheetXml,
-            'maxCol'       => $maxCol,
-            'lastRow'      => $rowNum - 1,
-            'mergeCells'   => $mergeCells,
-            'headerRow'    => $headerRow,
-            'lastDataRow'  => $lastDataRow,
-            'maxOutlineLevel' => $maxOutlineLevel,
+            'xml'         => $sheetXml,
+            'maxCol'      => $maxCol,
+            'lastRow'     => $rowNum - 1,
+            'mergeCells'  => $mergeCells,
+            'headerRow'   => $headerRow,
+            'lastDataRow' => $lastDataRow,
+            'labelCols'   => count($niveles),
         ];
     }
 
@@ -1290,13 +1274,16 @@ XML;
         // ── Hoja 2: Resumen ──
         $resumenLastCol = $this->excelColLetter(max($resumen['maxCol'], 1));
         $resumenLastRow = max($resumen['lastRow'], 1);
-        $resumenAutoFilterRef = 'A' . $resumen['headerRow'] . ':' . $resumenLastCol . max($resumen['lastDataRow'], $resumen['headerRow']);
+        // El AutoFilter se limita a las columnas de etiqueta (Base, Mes,
+        // Aerolínea, Quincena, Tipo Avión, Tipo de Atención): cada una
+        // tiene su propia flecha, pero las columnas de métricas no.
+        $resumenColLabelFin = $this->excelColLetter($resumen['labelCols']);
+        $resumenAutoFilterRef = 'A' . $resumen['headerRow'] . ':' . $resumenColLabelFin . max($resumen['lastDataRow'], $resumen['headerRow']);
         $resumenWorksheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<sheetPr><outlinePr summaryBelow="1" summaryRight="0"/></sheetPr>'
             . '<dimension ref="A1:' . $resumenLastCol . $resumenLastRow . '"/>'
             . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' . $resumen['headerRow'] . '" topLeftCell="A' . ($resumen['headerRow'] + 1) . '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
-            . '<sheetFormatPr defaultColWidth="16" defaultRowHeight="15" outlineLevelRow="' . max($resumen['maxOutlineLevel'], 0) . '"/>'
+            . '<sheetFormatPr defaultColWidth="16" defaultRowHeight="15"/>'
             . '<sheetData>' . $resumen['xml'] . '</sheetData>'
             . '<autoFilter ref="' . $resumenAutoFilterRef . '"/>'
             . (!empty($resumen['mergeCells'])

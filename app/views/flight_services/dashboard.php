@@ -53,7 +53,7 @@
         <div class="stat-card">
             <div class="stat-icon primary"><i class="bi bi-clipboard2-pulse-fill"></i></div>
             <div class="stat-info">
-                <p>Total Servicios</p>
+                <p>Total Vuelos</p>
                 <h3 id="kpi_total">0</h3>
             </div>
         </div>
@@ -93,7 +93,7 @@
         <div class="stat-card">
             <div class="stat-icon warning"><i class="bi bi-exclamation-triangle-fill"></i></div>
             <div class="stat-info">
-                <p>Servicios con Demora</p>
+                <p>Vuelos con Demora</p>
                 <h3 id="kpi_demoras">0</h3>
             </div>
         </div>
@@ -113,7 +113,7 @@
 <div class="row g-3 mb-3">
     <div class="col-lg-6">
         <div class="card h-100">
-            <div class="card-header"><h5><i class="bi bi-geo-alt-fill"></i> Servicios por Base</h5></div>
+            <div class="card-header"><h5><i class="bi bi-geo-alt-fill"></i> Vuelos por Base</h5></div>
             <div class="card-body">
                 <div id="chart_base" class="bar-list"></div>
                 <p id="empty_base" class="viz-empty" hidden>Sin datos para los filtros seleccionados.</p>
@@ -122,7 +122,7 @@
     </div>
     <div class="col-lg-6">
         <div class="card h-100">
-            <div class="card-header"><h5><i class="bi bi-airplane-fill"></i> Servicios por Aerolínea</h5></div>
+            <div class="card-header"><h5><i class="bi bi-airplane-fill"></i> Vuelos por Aerolínea</h5></div>
             <div class="card-body">
                 <div id="chart_aerolinea" class="bar-list"></div>
                 <p id="empty_aerolinea" class="viz-empty" hidden>Sin datos para los filtros seleccionados.</p>
@@ -191,14 +191,14 @@
 <!-- ══ TABLA DINÁMICA (PIVOT) ══════════════════════════ -->
 <div class="card">
     <div class="card-header flex-wrap gap-2">
-        <h5><i class="bi bi-table"></i> Tabla Dinámica — Base × Aerolínea</h5>
+        <h5><i class="bi bi-table"></i> Tabla Dinámica — Base × Aerolínea (Vuelos)</h5>
         <div class="d-flex align-items-center gap-2">
             <div class="btn-group btn-group-sm" role="group" id="pivot_metric_selector">
-                <button type="button" class="btn btn-outline-primary active" data-metric="count">Cantidad de Servicios</button>
+                <button type="button" class="btn btn-outline-primary active" data-metric="count">Cantidad de Vuelos</button>
                 <button type="button" class="btn btn-outline-primary" data-metric="pax_saliendo">PAX Saliendo</button>
                 <button type="button" class="btn btn-outline-primary" data-metric="pax_cancelado">PAX Cancelado</button>
             </div>
-            <span class="badge badge-primary" id="pivot_badge">0 servicios</span>
+            <span class="badge badge-primary" id="pivot_badge">0 vuelos</span>
         </div>
     </div>
     <div class="card-body p-0">
