@@ -59,6 +59,7 @@ class UsersController extends Controller {
             'password_confirm'=> $this->inputRaw('password_confirm'),
             'rol_id'          => (int)$this->input('rol_id'),
             'base_asociada'   => $this->input('base_asociada', ''),
+            'puede_subir_pdf' => $this->input('puede_subir_pdf') ? 1 : 0,
         ];
 
         $errors = $this->validateUser($data);
@@ -119,6 +120,7 @@ class UsersController extends Controller {
             'usuario'          => $this->input('usuario'),
             'rol_id'           => (int)$this->input('rol_id'),
             'base_asociada'    => $this->input('base_asociada', ''),
+            'puede_subir_pdf'  => $this->input('puede_subir_pdf') ? 1 : 0,
             'password'         => $this->inputRaw('password'),
             'password_confirm' => $this->inputRaw('password_confirm'),
         ];

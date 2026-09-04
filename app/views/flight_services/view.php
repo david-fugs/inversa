@@ -4,7 +4,8 @@ $esColaborador         = $rolActual === 'Colaborador';
 $esVisualizador        = $rolActual === 'Visualizador';
 $esSupervisorRampa     = $rolActual === 'Líder SVC';
 $puedeEditar           = (bool)Session::get('user_puede_editar');
-$puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], true);
+$puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], true)
+    || ($esColaborador && (bool)Session::get('user_puede_subir_pdf'));
 ?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/flight-services" class="btn btn-light">
@@ -194,6 +195,11 @@ $puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], t
                     'remolque_equipajes' => 'Remolque Equipajes',
                     'potable' => 'Potable',
                     'drenaje' => 'Drenaje',
+                    'air_starter' => 'Arranque de Motores "Air Starter"',
+                    'pay_mower' => 'Pay Mower',
+                    'aseo_aeronaves' => 'Aseo a las Aeronaves',
+                    'equipos_carga_descargue' => 'Equipos Carga y Descargue de Mercancías',
+                    'atencion_pasajeros' => 'Atención a Pasajeros',
                 ];
                 foreach ($equipos as $key => $label):
                 ?>

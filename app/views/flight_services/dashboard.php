@@ -11,9 +11,12 @@
     </div>
     <div class="card-body">
         <div class="row g-3">
-            <div class="col-md-3">
-                <label for="filter_fecha" class="form-label">Fecha</label>
-                <input type="date" class="form-control" id="filter_fecha">
+            <div class="col-md-4">
+                <label class="form-label">Rango de Fecha</label>
+                <div class="d-flex gap-2">
+                    <input type="date" class="form-control" id="filter_fecha_inicio" placeholder="Fecha inicio">
+                    <input type="date" class="form-control" id="filter_fecha_fin" placeholder="Fecha fin">
+                </div>
             </div>
             <div class="col-md-3">
                 <label for="filter_base" class="form-label">Base</label>
@@ -33,7 +36,7 @@
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
+            <div class="col-md-2 d-flex align-items-end">
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btn_limpiar_filtros">
                     <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
                 </button>
@@ -310,7 +313,8 @@ const MESES_NOMBRE = {
 };
 
 const filterInputs = {
-    fecha: document.getElementById('filter_fecha'),
+    fechaInicio: document.getElementById('filter_fecha_inicio'),
+    fechaFin: document.getElementById('filter_fecha_fin'),
     base: document.getElementById('filter_base'),
     aerolinea: document.getElementById('filter_aerolinea'),
 };
@@ -347,16 +351,25 @@ function bindTooltip(el, text) {
 
 /* ── Filtrado ────────────────────────────────────────── */
 function filtrarDatos() {
-    let filtroFecha = null;
-    if (filterInputs.fecha.value) {
-        const [anio, mes, dia] = filterInputs.fecha.value.split('-').map(Number);
-        filtroFecha = { anio, mes, dia };
+    let startDate = null;
+    let endDate = null;
+    if (filterInputs.fechaInicio.value) {
+        const [y, m, d] = filterInputs.fechaInicio.value.split('-').map(Number);
+        startDate = new Date(y, m - 1, d);
+    }
+    if (filterInputs.fechaFin.value) {
+        const [y, m, d] = filterInputs.fechaFin.value.split('-').map(Number);
+        endDate = new Date(y, m - 1, d);
     }
     const filtroBase = filterInputs.base.value || null;
     const filtroAerolinea = filterInputs.aerolinea.value || null;
 
     return FLIGHT_DATA.filter(s => {
-        if (filtroFecha && (s.anio !== filtroFecha.anio || s.mes !== filtroFecha.mes || s.dia !== filtroFecha.dia)) return false;
+        if (startDate || endDate) {
+            const rowDate = new Date(s.anio, s.mes - 1, s.dia);
+            if (startDate && rowDate < startDate) return false;
+            if (endDate && rowDate > endDate) return false;
+        }
         if (filtroBase && s.base !== filtroBase) return false;
         if (filtroAerolinea && s.aerolinea !== filtroAerolinea) return false;
         return true;
@@ -736,12 +749,14 @@ function renderDashboard() {
     renderPivot(rows);
 }
 
-filterInputs.fecha.addEventListener('change', renderDashboard);
+filterInputs.fechaInicio.addEventListener('change', renderDashboard);
+filterInputs.fechaFin.addEventListener('change', renderDashboard);
 filterInputs.base.addEventListener('change', renderDashboard);
 filterInputs.aerolinea.addEventListener('change', renderDashboard);
 
 document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
-    filterInputs.fecha.value = '';
+    filterInputs.fechaInicio.value = '';
+    filterInputs.fechaFin.value = '';
     filterInputs.base.value = '';
     filterInputs.aerolinea.value = '';
     renderDashboard();

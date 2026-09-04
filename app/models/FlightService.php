@@ -82,6 +82,29 @@ class FlightService extends Model
     }
 
     /**
+     * Cantidad de registros de una base en un año/mes con ID menor al
+     * indicado (o todos, si $excludeId es 0). Se usa para determinar la
+     * posición (orden de creación) del registro dentro de su base/mes y
+     * así saber si cae en el rango 1-70 (sin cobro de fracciones ACU) o
+     * de ahí en adelante (con cobro).
+     */
+    public function countByBaseAnioMesBeforeId(string $base, int $anio, int $mes, int $excludeId = 0): int
+    {
+        if ($excludeId > 0) {
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) AS total FROM flight_services WHERE base = ? AND anio = ? AND mes = ? AND id < ?",
+                [$base, $anio, $mes, $excludeId]
+            );
+        } else {
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) AS total FROM flight_services WHERE base = ? AND anio = ? AND mes = ?",
+                [$base, $anio, $mes]
+            );
+        }
+        return (int)($row['total'] ?? 0);
+    }
+
+    /**
      * Obtener un servicio con todos sus datos relacionados
      */
     public function findFullById(int $id): array|false
@@ -213,10 +236,10 @@ class FlightService extends Model
                     fracciones_hora_ventiladores, fracciones_15min_ventiladores,
                     sillas_ruedas, ventiladores, rampa_escalera,
                     equipajes_transportados, remolque_aeronave, remolque_equipajes,
-                    potable, drenaje,
+                    potable, drenaje, air_starter, pay_mower, aseo_aeronaves, equipos_carga_descargue, atencion_pasajeros,
                     equipo_gse_inoperativo, afecto_operacion, rpn, observaciones, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['anio'],
@@ -274,6 +297,11 @@ class FlightService extends Model
                     $data['remolque_equipajes'],
                     $data['potable'],
                     $data['drenaje'],
+                    $data['air_starter'],
+                    $data['pay_mower'],
+                    $data['aseo_aeronaves'],
+                    $data['equipos_carga_descargue'],
+                    $data['atencion_pasajeros'],
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
                     $data['rpn'] ?: null,
@@ -327,7 +355,7 @@ class FlightService extends Model
                     fracciones_hora_ventiladores=?, fracciones_15min_ventiladores=?,
                     sillas_ruedas=?, ventiladores=?, rampa_escalera=?,
                     equipajes_transportados=?, remolque_aeronave=?, remolque_equipajes=?,
-                    potable=?, drenaje=?,
+                    potable=?, drenaje=?, air_starter=?, pay_mower=?, aseo_aeronaves=?, equipos_carga_descargue=?, atencion_pasajeros=?,
                     equipo_gse_inoperativo=?, afecto_operacion=?, rpn=?, observaciones=?
                  WHERE id=?",
                 [
@@ -386,6 +414,11 @@ class FlightService extends Model
                     $data['remolque_equipajes'],
                     $data['potable'],
                     $data['drenaje'],
+                    $data['air_starter'],
+                    $data['pay_mower'],
+                    $data['aseo_aeronaves'],
+                    $data['equipos_carga_descargue'],
+                    $data['atencion_pasajeros'],
                     $data['equipo_gse_inoperativo'] ?: null,
                     $data['afecto_operacion'],
                     $data['rpn'] ?: null,

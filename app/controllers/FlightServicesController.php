@@ -16,6 +16,18 @@ class FlightServicesController extends Controller {
 
     private const ARCHIVO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 
+    /** Determina si el usuario en sesión puede subir/eliminar el PDF
+     *  adjunto: siempre Administrador y Líder SVC, y además cualquier
+     *  Colaborador al que se le haya concedido el permiso individual
+     *  "puede_subir_pdf" desde Gestión de Usuarios. */
+    private function puedeGestionarArchivo(): bool {
+        $rol = Session::get('user_rol');
+        if (in_array($rol, self::ROLES_GESTIONAN_ARCHIVO, true)) {
+            return true;
+        }
+        return $rol === 'Colaborador' && (bool)Session::get('user_puede_subir_pdf');
+    }
+
     private FlightService $model;
     private Airline       $airlineModel;
     private AircraftType  $aircraftModel;
@@ -97,6 +109,30 @@ class FlightServicesController extends Controller {
         $gpuFraccionesPorServicio = $this->model->getGpuFraccionesForIds(array_column($services, 'id'));
 
         $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroInicio, $filtroFin, $filtroBase, $filtroAerolinea);
+    }
+
+    /** Posición (orden de creación) que ocuparía/ocupa un registro dentro
+     *  de su base/año/mes: 1 = primer registro del mes en esa base. Se usa
+     *  en el formulario de ACU: del 1 al 70 no se cobran fracciones (se
+     *  explica el porqué); del 71 en adelante sí se calculan con la
+     *  tarifa configurada. En edición se envía `exclude_id` (el propio
+     *  registro) para no contarlo dos veces. */
+    public function acuPosicionMes(): void {
+        $base = trim((string)($_GET['base'] ?? ''));
+        $anio = (int)($_GET['anio'] ?? 0);
+        $mes  = (int)($_GET['mes'] ?? 0);
+        $excludeId = (int)($_GET['exclude_id'] ?? 0);
+
+        if ($base === '' || $anio < 1 || $mes < 1) {
+            $this->json(['count_previos' => 0, 'posicion' => 1]);
+            return;
+        }
+
+        $countPrevios = $this->model->countByBaseAnioMesBeforeId($base, $anio, $mes, $excludeId);
+        $this->json([
+            'count_previos' => $countPrevios,
+            'posicion'      => $countPrevios + 1,
+        ]);
     }
 
     /** Panel analítico (tipo BI) con KPIs, gráficos y tabla dinámica, filtrable en el cliente */
@@ -342,7 +378,7 @@ class FlightServicesController extends Controller {
      *  y Líder SVC pueden gestionar este archivo. */
     public function uploadFile(string $id): void {
         $serviceId = (int)$id;
-        if (!in_array(Session::get('user_rol'), self::ROLES_GESTIONAN_ARCHIVO, true)) {
+        if (!$this->puedeGestionarArchivo()) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para gestionar el archivo adjunto.');
             return;
         }
@@ -399,7 +435,7 @@ class FlightServicesController extends Controller {
     /** Eliminar el PDF adjunto de un servicio de vuelo */
     public function deleteFile(string $id): void {
         $serviceId = (int)$id;
-        if (!in_array(Session::get('user_rol'), self::ROLES_GESTIONAN_ARCHIVO, true)) {
+        if (!$this->puedeGestionarArchivo()) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para gestionar el archivo adjunto.');
             return;
         }
@@ -560,6 +596,11 @@ class FlightServicesController extends Controller {
             'remolque_equipajes'     => (int)$this->input('remolque_equipajes', 0),
             'potable'                => (int)$this->input('potable', 0),
             'drenaje'                => (int)$this->input('drenaje', 0),
+            'air_starter'            => (int)$this->input('air_starter', 0),
+            'pay_mower'              => (int)$this->input('pay_mower', 0),
+            'aseo_aeronaves'         => (int)$this->input('aseo_aeronaves', 0),
+            'equipos_carga_descargue'=> (int)$this->input('equipos_carga_descargue', 0),
+            'atencion_pasajeros'     => (int)$this->input('atencion_pasajeros', 0),
             // Observaciones
             'equipo_gse_inoperativo' => implode(',', array_intersect(
                 array_map('trim', (array)($_POST['equipo_gse_inoperativo'] ?? [])),
@@ -720,12 +761,17 @@ class FlightServicesController extends Controller {
                 'title' => 'EQUIPOS Y SERVICIOS',
                 'color' => '#8E44AD',
                 'columns' => [
-                    'sillas_ruedas'      => 'Sillas de Ruedas',
-                    'rampa_escalera'     => 'Rampa Escalera',
-                    'remolque_aeronave'  => 'Remolque Aeronave',
-                    'remolque_equipajes' => 'Remolque Equipajes',
-                    'potable'            => 'Potable',
-                    'drenaje'            => 'Drenaje',
+                    'sillas_ruedas'            => 'Sillas de Ruedas',
+                    'rampa_escalera'           => 'Rampa Escalera',
+                    'remolque_aeronave'        => 'Remolque Aeronave',
+                    'remolque_equipajes'       => 'Remolque Equipajes',
+                    'potable'                  => 'Potable',
+                    'drenaje'                  => 'Drenaje',
+                    'air_starter'              => 'Arranque de Motores "Air Starter"',
+                    'pay_mower'                => 'Pay Mower',
+                    'aseo_aeronaves'           => 'Aseo a las Aeronaves',
+                    'equipos_carga_descargue'  => 'Equipos Carga y Descargue de Mercancías',
+                    'atencion_pasajeros'       => 'Atención a Pasajeros',
                 ],
             ],
             [
@@ -906,6 +952,194 @@ class FlightServicesController extends Controller {
 XML;
     }
 
+    /** Niveles de agrupación de la hoja "Resumen", en orden (el más externo
+     *  primero). Cada servicio termina agrupado por esta ruta completa:
+     *  Base → Mes → Aerolínea → Quincena → Tipo Avión → Tipo de Atención. */
+    private function resumenNivelesAgrupacion(): array {
+        return [
+            ['campo' => 'base', 'etiqueta' => 'Base'],
+            ['campo' => 'mes', 'etiqueta' => 'Mes', 'orden' => 'numerico',
+                'formato' => fn($v) => FlightService::$meses[(int)$v] ?? (string)$v],
+            ['campo' => 'airline_nombre', 'etiqueta' => 'Aerolínea'],
+            ['campo' => 'quincena', 'etiqueta' => 'Quincena', 'orden' => 'numerico',
+                'formato' => fn($v) => (int)$v === 1 ? '1ª Quincena' : '2ª Quincena'],
+            ['campo' => 'aircraft_tipo', 'etiqueta' => 'Tipo Avión'],
+            ['campo' => 'tipo_atencion', 'etiqueta' => 'Tipo de Atención', 'orden' => 'tipo_atencion'],
+        ];
+    }
+
+    /** Columnas numéricas (clave interna => encabezado) de la hoja "Resumen". */
+    private function resumenColumnasMetricas(): array {
+        return [
+            'pax_transitos'    => 'PAX Tránsitos',
+            'pax_cancelados'   => 'PAX Cancelados',
+            'planta_gpu'       => 'Planta GPU',
+            'despacho'         => 'Despacho',
+            'acu_hora'         => 'ACU Hora',
+            'acu_15min'        => 'ACU 15 min',
+            'sillas_r'         => 'Sillas R',
+            'ventilador'       => 'Ventilador',
+            'rampa_escalera'   => 'Rampa Escalera',
+            'cuenta_adicional' => 'Cuenta Adicionales',
+        ];
+    }
+
+    /** Suma las métricas de la hoja "Resumen" para un conjunto de servicios
+     *  (una fila hoja, o los servicios detrás de una fila de subtotal). */
+    private function resumenAgregarMetricas(array $rows): array {
+        $agg = array_fill_keys(array_keys($this->resumenColumnasMetricas()), 0);
+        foreach ($rows as $s) {
+            $agg['pax_transitos']  += (int)($s['pax_saliendo'] ?? 0);
+            $agg['pax_cancelados'] += (int)($s['pax_cancelado'] ?? 0);
+            $agg['planta_gpu']     += !empty($s['hora_conexion_gpu']) ? 1 : 0;
+            $agg['despacho']       += (int)($s['despacho'] ?? 0);
+            $agg['acu_hora']       += (float)($s['fracciones_hora_acu'] ?? 0);
+            $agg['acu_15min']      += (float)($s['fracciones_15min_acu'] ?? 0);
+            $agg['sillas_r']       += (int)($s['sillas_ruedas'] ?? 0);
+            $agg['ventilador']     += (int)($s['ventiladores'] ?? 0);
+            $agg['rampa_escalera'] += (int)($s['rampa_escalera'] ?? 0) === 1 ? 1 : 0;
+            $agg['cuenta_adicional'] += count($s['adicionales'] ?? []);
+        }
+        return $agg;
+    }
+
+    /** Ordena las claves de un grupo (array asociativo clave => filas) según
+     *  el criterio del nivel: numérico (mes/quincena), el orden canónico de
+     *  FlightService::$tiposAtencion, o alfabético por defecto. */
+    private function resumenOrdenarClaves(array $grupos, ?string $orden): array {
+        if ($orden === 'numerico') {
+            ksort($grupos, SORT_NUMERIC);
+        } elseif ($orden === 'tipo_atencion') {
+            $prioridad = array_flip(FlightService::$tiposAtencion);
+            uksort($grupos, function ($a, $b) use ($prioridad) {
+                $pa = $prioridad[$a] ?? 999;
+                $pb = $prioridad[$b] ?? 999;
+                return $pa <=> $pb ?: strcmp((string)$a, (string)$b);
+            });
+        } else {
+            ksort($grupos, SORT_STRING | SORT_FLAG_CASE);
+        }
+        return $grupos;
+    }
+
+    /** Renderiza recursivamente un nivel de agrupación: agrupa $rows por el
+     *  campo del nivel $idx, procesa cada subgrupo (recursión al siguiente
+     *  nivel) y agrega, después de sus filas de detalle, una fila de
+     *  subtotal para ese grupo. Al llegar más allá del último nivel, agrega
+     *  una única fila de detalle con los valores agregados. Devuelve las
+     *  métricas totales de todo lo que renderizó, para que el nivel padre
+     *  las sume en su propio subtotal. */
+    private function resumenRenderNivel(array $rows, array $niveles, int $idx, array $ancestros, int $outlineLevel, callable $addRow): array {
+        $totalCols = count($niveles);
+
+        if ($idx >= $totalCols) {
+            $agg = $this->resumenAgregarMetricas($rows);
+            $addRow(array_merge($ancestros, array_values($agg)), self::XLSX_STYLE_DATA_EVEN, null, $outlineLevel);
+            return $agg;
+        }
+
+        $nivel = $niveles[$idx];
+        $grupos = [];
+        foreach ($rows as $s) {
+            $key = $s[$nivel['campo']] ?? null;
+            $key = ($key === null || $key === '') ? '(Sin especificar)' : $key;
+            $grupos[$key][] = $s;
+        }
+        $grupos = $this->resumenOrdenarClaves($grupos, $nivel['orden'] ?? null);
+
+        $totalNivel = array_fill_keys(array_keys($this->resumenColumnasMetricas()), 0);
+        foreach ($grupos as $key => $grupoRows) {
+            $etiqueta = isset($nivel['formato']) ? ($nivel['formato'])($key) : (string)$key;
+            $nuevosAncestros = $ancestros;
+            $nuevosAncestros[$idx] = $etiqueta;
+
+            $agg = $this->resumenRenderNivel($grupoRows, $niveles, $idx + 1, $nuevosAncestros, $outlineLevel + 1, $addRow);
+            foreach ($agg as $k => $v) $totalNivel[$k] += $v;
+
+            // El último nivel (Tipo de Atención) ya queda representado por
+            // su propia fila de detalle (la del caso base): agregar aquí un
+            // "Total <valor>" sería una fila duplicada, así que se omite
+            // solo para ese nivel más interno.
+            if ($idx < $totalCols - 1) {
+                $filaSubtotal = array_fill(0, $totalCols, '');
+                for ($j = 0; $j < $idx; $j++) $filaSubtotal[$j] = $ancestros[$j] ?? '';
+                $filaSubtotal[$idx] = 'Total ' . $etiqueta;
+                $addRow(array_merge($filaSubtotal, array_values($agg)), self::XLSX_STYLE_DATA_HIGHLIGHT, null, $outlineLevel);
+            }
+        }
+        return $totalNivel;
+    }
+
+    /** Construye la hoja "Resumen": una única tabla agrupada por
+     *  Base → Mes → Aerolínea → Quincena → Tipo Avión → Tipo de Atención,
+     *  con subtotales colapsables (agrupación de filas de Excel) en cada
+     *  nivel y un total general fijo al final. Incluye AutoFilter en el
+     *  encabezado para filtrar por columna (en vez de segmentaciones). */
+    private function buildResumenSheetXml(array $services, string $subtitulo): array {
+        $mergeCells = [];
+        $sheetXml   = '';
+        $rowNum     = 1;
+        $maxCol     = 1;
+        $maxOutlineLevel = 0;
+
+        // Estado inicial al abrir el archivo: colapsado a los subtotales de
+        // Base (outlineLevel 1) — se muestran con su "+" para expandir a
+        // mano; todo lo más profundo (mes, aerolínea, quincena, avión,
+        // tipo de atención) empieza oculto.
+        $addRow = function (array $values, int $style, ?int $mergeSpan = null, int $outlineLevel = 0) use (&$rowNum, &$sheetXml, &$mergeCells, &$maxCol, &$maxOutlineLevel) {
+            $outlineAttr = $outlineLevel > 0 ? ' outlineLevel="' . min($outlineLevel, 7) . '"' : '';
+            $hiddenAttr    = $outlineLevel >= 2 ? ' hidden="1"' : '';
+            $collapsedAttr = $outlineLevel === 1 ? ' collapsed="1"' : '';
+            $sheetXml .= '<row r="' . $rowNum . '"' . $outlineAttr . $hiddenAttr . $collapsedAttr . '>';
+            $col = 1;
+            foreach ($values as $val) {
+                $ref = $this->excelColLetter($col) . $rowNum;
+                $sheetXml .= '<c r="' . $ref . '" t="inlineStr" s="' . $style . '"><is><t xml:space="preserve">' . $this->xmlText((string)$val) . '</t></is></c>';
+                $col++;
+            }
+            $sheetXml .= '</row>';
+            $maxCol = max($maxCol, $col - 1);
+            $maxOutlineLevel = max($maxOutlineLevel, $outlineLevel);
+            if ($mergeSpan && $mergeSpan > 1) {
+                $mergeCells[] = $this->excelColLetter(1) . $rowNum . ':' . $this->excelColLetter($mergeSpan) . $rowNum;
+            }
+            $rowNum++;
+        };
+
+        $niveles   = $this->resumenNivelesAgrupacion();
+        $etiquetas = array_column($niveles, 'etiqueta');
+        $metricas  = $this->resumenColumnasMetricas();
+        $totalCols = count($niveles) + count($metricas);
+
+        // ── Filas 1-2: título / subtítulo ──
+        $addRow(array_merge(['RESUMEN DE SERVICIOS PRESTADOS'], array_fill(0, $totalCols - 1, '')), self::XLSX_STYLE_TITLE, $totalCols);
+        $addRow(array_merge([$subtitulo], array_fill(0, $totalCols - 1, '')), self::XLSX_STYLE_SUBTITLE, $totalCols);
+        $rowNum++; // fila en blanco
+
+        // ── Encabezado (con filtro de columna) ──
+        $headerRow = $rowNum;
+        $addRow(array_merge($etiquetas, array_values($metricas)), self::XLSX_STYLE_COL_HEADER);
+
+        // ── Datos agrupados con subtotales colapsables ──
+        $totalGeneral = $this->resumenRenderNivel($services, $niveles, 0, array_fill(0, count($niveles), ''), 1, $addRow);
+        $lastDataRow = $rowNum - 1;
+
+        // ── Total general (siempre visible, fuera de la agrupación) ──
+        $filaTotalGeneral = array_fill(0, count($niveles), '');
+        $filaTotalGeneral[0] = 'TOTAL GENERAL';
+        $addRow(array_merge($filaTotalGeneral, array_values($totalGeneral)), self::XLSX_STYLE_DATA_HIGHLIGHT);
+
+        return [
+            'xml'          => $sheetXml,
+            'maxCol'       => $maxCol,
+            'lastRow'      => $rowNum - 1,
+            'mergeCells'   => $mergeCells,
+            'headerRow'    => $headerRow,
+            'lastDataRow'  => $lastDataRow,
+            'maxOutlineLevel' => $maxOutlineLevel,
+        ];
+    }
+
     /** Generar y enviar el reporte de servicios de vuelo como un archivo .xlsx real */
     private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroInicio = '', string $filtroFin = '', string $filtroBase = '', string $filtroAerolinea = ''): void {
         foreach ($services as &$s) {
@@ -928,6 +1162,8 @@ XML;
             elseif ($inicioText) $subtitulo .= ' — Desde ' . $inicioText;
             elseif ($finText) $subtitulo .= ' — Hasta ' . $finText;
         }
+
+        $resumen = $this->buildResumenSheetXml($services, $subtitulo);
 
         $lastCol   = $this->excelColLetter($totalCols);
         $dataStart = 5; // fila donde inician los datos (tras logo/título/subtítulo/grupos/encabezados)
@@ -1051,15 +1287,38 @@ XML;
             . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>'
             . '</Relationships>';
 
+        // ── Hoja 2: Resumen ──
+        $resumenLastCol = $this->excelColLetter(max($resumen['maxCol'], 1));
+        $resumenLastRow = max($resumen['lastRow'], 1);
+        $resumenAutoFilterRef = 'A' . $resumen['headerRow'] . ':' . $resumenLastCol . max($resumen['lastDataRow'], $resumen['headerRow']);
+        $resumenWorksheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheetPr><outlinePr summaryBelow="1" summaryRight="0"/></sheetPr>'
+            . '<dimension ref="A1:' . $resumenLastCol . $resumenLastRow . '"/>'
+            . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' . $resumen['headerRow'] . '" topLeftCell="A' . ($resumen['headerRow'] + 1) . '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultColWidth="16" defaultRowHeight="15" outlineLevelRow="' . max($resumen['maxOutlineLevel'], 0) . '"/>'
+            . '<sheetData>' . $resumen['xml'] . '</sheetData>'
+            . '<autoFilter ref="' . $resumenAutoFilterRef . '"/>'
+            . (!empty($resumen['mergeCells'])
+                ? '<mergeCells count="' . count($resumen['mergeCells']) . '">'
+                    . implode('', array_map(fn($r) => '<mergeCell ref="' . $r . '"/>', $resumen['mergeCells']))
+                    . '</mergeCells>'
+                : '')
+            . '</worksheet>';
+
         $workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<sheets><sheet name="Servicios de Vuelo" sheetId="1" r:id="rId1"/></sheets>'
+            . '<sheets>'
+            . '<sheet name="Servicios de Vuelo" sheetId="1" r:id="rId1"/>'
+            . '<sheet name="Resumen" sheetId="2" r:id="rId3"/>'
+            . '</sheets>'
             . '</workbook>';
 
         $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
             . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
             . '</Relationships>';
 
         $rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -1074,6 +1333,7 @@ XML;
             . '<Default Extension="png" ContentType="image/png"/>'
             . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
             . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
             . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
             . '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
             . '</Types>';
@@ -1088,6 +1348,7 @@ XML;
         $zip->addFromString('xl/styles.xml', $this->buildXlsxStylesXml());
         $zip->addFromString('xl/worksheets/sheet1.xml', $worksheetXml);
         $zip->addFromString('xl/worksheets/_rels/sheet1.xml.rels', $sheetRels);
+        $zip->addFromString('xl/worksheets/sheet2.xml', $resumenWorksheetXml);
         $zip->addFromString('xl/drawings/drawing1.xml', $drawingXml);
         $zip->addFromString('xl/drawings/_rels/drawing1.xml.rels', $drawingRels);
         $zip->addFromString('xl/media/image1.png', file_get_contents($logoPath));

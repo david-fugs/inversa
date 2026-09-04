@@ -91,6 +91,17 @@
                     <?php endif; ?>
                 </div>
 
+                <div class="col-12" id="puede_subir_pdf_wrap"
+                     style="display:<?= ($user['rol_nombre'] ?? '') === 'Colaborador' ? 'block' : 'none' ?>">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="puede_subir_pdf" name="puede_subir_pdf" value="1"
+                            <?= !empty($user['puede_subir_pdf']) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="puede_subir_pdf">
+                            Puede subir archivo PDF en Servicios de Vuelo
+                        </label>
+                    </div>
+                </div>
+
                 <div class="col-12">
                     <div class="alert alert-info" style="font-size:13px;">
                         <i class="bi bi-info-circle-fill"></i>
@@ -142,6 +153,8 @@ function toggleBaseAsociada(sel) {
     const nombre = opt ? opt.dataset.nombre : '';
     const wrap = document.getElementById('base_asociada_wrap');
     if (wrap) wrap.style.display = (nombre === 'Colaborador' || nombre === 'Líder SVC') ? 'block' : 'none';
+    const pdfWrap = document.getElementById('puede_subir_pdf_wrap');
+    if (pdfWrap) pdfWrap.style.display = (nombre === 'Colaborador') ? 'block' : 'none';
 }
 toggleBaseAsociada(document.getElementById('rol_id'));
 </script>

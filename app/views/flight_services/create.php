@@ -384,6 +384,9 @@
                 <i class="bi bi-exclamation-triangle"></i>
                 No hay tarifa de Aire Acondicionado (ACU) configurada para esta aerolínea/base en <a href="<?= BASE_URL ?>/tarifas-cobros" target="_blank">Tarifas / Cobros</a>. Las fracciones se calcularán en 0.
             </div>
+            <div id="acu-posicion-info" class="alert alert-info mb-3" style="display:none;font-size:13px;">
+                <i class="bi bi-info-circle-fill"></i> <span id="acu-posicion-texto"></span>
+            </div>
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <label class="form-label">ACU</label>
@@ -534,6 +537,36 @@
                     <label for="drenaje" class="form-label">Drenaje</label>
                     <input type="number" class="form-control" id="drenaje" name="drenaje"
                         value="<?= (int)($old['drenaje'] ?? 0) ?>" min="0">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="air_starter" class="form-label">Arranque de Motores "Air Starter"</label>
+                    <input type="number" class="form-control" id="air_starter" name="air_starter"
+                        value="<?= (int)($old['air_starter'] ?? 0) ?>" min="0">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="pay_mower" class="form-label">Pay Mower</label>
+                    <input type="number" class="form-control" id="pay_mower" name="pay_mower"
+                        value="<?= (int)($old['pay_mower'] ?? 0) ?>" min="0">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="aseo_aeronaves" class="form-label">Aseo a las Aeronaves</label>
+                    <input type="number" class="form-control" id="aseo_aeronaves" name="aseo_aeronaves"
+                        value="<?= (int)($old['aseo_aeronaves'] ?? 0) ?>" min="0">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="equipos_carga_descargue" class="form-label">Equipos para Carga y Descargue de Mercancías</label>
+                    <input type="number" class="form-control" id="equipos_carga_descargue" name="equipos_carga_descargue"
+                        value="<?= (int)($old['equipos_carga_descargue'] ?? 0) ?>" min="0">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="atencion_pasajeros" class="form-label">Atención a Pasajeros</label>
+                    <input type="number" class="form-control" id="atencion_pasajeros" name="atencion_pasajeros"
+                        value="<?= (int)($old['atencion_pasajeros'] ?? 0) ?>" min="0">
                 </div>
 
             </div>
@@ -889,7 +922,7 @@
         const tipoAtencion = document.getElementById('tipo_atencion');
         const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
 
-        const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'afecto_operacion', 'rpn'];
+        const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'air_starter', 'pay_mower', 'aseo_aeronaves', 'equipos_carga_descargue', 'atencion_pasajeros', 'afecto_operacion', 'rpn'];
 
         fieldsToDisable.forEach(function(fieldId) {
             const field = document.getElementById(fieldId);

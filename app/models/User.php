@@ -66,8 +66,8 @@ class User extends Model {
      */
     public function create(array $data): int {
         $this->db->query(
-            "INSERT INTO users (nombre_completo, cedula, usuario, password, rol_id, base_asociada, puede_editar)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO users (nombre_completo, cedula, usuario, password, rol_id, base_asociada, puede_editar, puede_subir_pdf)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $data['nombre_completo'],
                 $data['cedula'],
@@ -76,6 +76,7 @@ class User extends Model {
                 $data['rol_id'],
                 $data['base_asociada'] ?: null,
                 0,
+                !empty($data['puede_subir_pdf']) ? 1 : 0,
             ]
         );
         return (int)$this->db->lastInsertId();
@@ -86,7 +87,7 @@ class User extends Model {
      */
     public function update(int $id, array $data): bool {
         $stmt = $this->db->query(
-            "UPDATE users SET nombre_completo = ?, cedula = ?, usuario = ?, rol_id = ?, base_asociada = ?
+            "UPDATE users SET nombre_completo = ?, cedula = ?, usuario = ?, rol_id = ?, base_asociada = ?, puede_subir_pdf = ?
              WHERE id = ?",
             [
                 $data['nombre_completo'],
@@ -94,6 +95,7 @@ class User extends Model {
                 $data['usuario'],
                 $data['rol_id'],
                 $data['base_asociada'] ?: null,
+                !empty($data['puede_subir_pdf']) ? 1 : 0,
                 $id,
             ]
         );

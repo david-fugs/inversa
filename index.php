@@ -99,6 +99,7 @@ $router->get('/base-destinos/delete/{id}',  'BaseDestinosController', 'delete');
 $router->get('/flight-services',              'FlightServicesController', 'index');
 $router->get('/flight-services/export',       'FlightServicesController', 'export');
 $router->get('/flight-services/dashboard',    'FlightServicesController', 'dashboard');
+$router->get('/flight-services/acu-posicion-mes', 'FlightServicesController', 'acuPosicionMes');
 $router->get('/flight-services/create',       'FlightServicesController', 'createForm');
 $router->post('/flight-services/create',      'FlightServicesController', 'store');
 $router->get('/flight-services/view/{id}',    'FlightServicesController', 'detail');

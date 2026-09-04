@@ -364,7 +364,13 @@ function recalcularFraccionesGpuAdicionales() {
  * SUPERA el umbral (o desde el minuto 0 si la aerolínea/base no
  * maneja tarifa inicial).
  */
-function calcularFraccionesAcuValores(tiempoMin, tarifa) {
+function calcularFraccionesAcuValores(tiempoMin, tarifa, posicion) {
+    // Del registro 1 al 70 de la base en el mes no se cobra ninguna
+    // fracción de ACU (está incluido); de ahí en adelante sí se aplica
+    // la tarifa configurada normalmente.
+    if (posicion !== null && posicion !== undefined && posicion <= 70) {
+        return { horas: 0, fracciones: 0 };
+    }
     if (!tarifa || !tiempoMin || tiempoMin <= 0) return { horas: 0, fracciones: 0 };
 
     const fraccion = parseInt(tarifa.fraccion_minutos, 10) || 0;
@@ -386,6 +392,11 @@ function calcularFraccionesAcuValores(tiempoMin, tarifa) {
 // ACU principal y las filas adicionales (agregar otra fracción ACU).
 let acuTarifaActual = null;
 
+// Posición (orden de creación) del registro dentro de su base/año/mes:
+// 1 = primer registro del mes en esa base. 1-70 no cobran fracciones
+// ACU; de 71 en adelante sí. Compartida entre ACU principal y adicionales.
+let acuPosicionActual = null;
+
 /* ── Cálculo ACU ──────────────────────────────────────── */
 function initAcuCalculation() {
     const conexion       = document.getElementById('hora_conexion_acu');
@@ -396,6 +407,11 @@ function initAcuCalculation() {
     const baseSelect     = document.getElementById('base');
     const fraccionLabel  = document.getElementById('acu_fraccion_minutos_valor');
     const warningEl      = document.getElementById('acu-tarifa-warning');
+    const posicionInfoEl = document.getElementById('acu-posicion-info');
+    const posicionTextoEl = document.getElementById('acu-posicion-texto');
+    const anioInput      = document.getElementById('anio');
+    const mesSelect      = document.getElementById('mes');
+    const formEl         = document.getElementById('flightServiceForm');
 
     if (!conexion || !desconexion) return;
 
@@ -412,6 +428,22 @@ function initAcuCalculation() {
                 : (!acuTarifaActual || acuTarifaActual.fraccion_minutos === null || acuTarifaActual.fraccion_minutos === undefined);
             warningEl.style.display = sinTarifa ? '' : 'none';
         }
+        if (posicionInfoEl && posicionTextoEl) {
+            if (acuPosicionActual !== null) {
+                if (acuPosicionActual <= 70) {
+                    posicionTextoEl.textContent = 'Este es el registro N.° ' + acuPosicionActual + ' de esta base en el mes. '
+                        + 'Del 1 al 70 no se cobran fracciones de ACU (están incluidas), por eso quedan en 0. '
+                        + 'A partir del registro 71 sí se calculan según la tarifa configurada.';
+                    posicionInfoEl.style.display = '';
+                } else {
+                    posicionTextoEl.textContent = 'Este es el registro N.° ' + acuPosicionActual + ' de esta base en el mes '
+                        + '(superó los 70 incluidos), por eso las fracciones de ACU sí se calculan con la tarifa configurada.';
+                    posicionInfoEl.style.display = '';
+                }
+            } else {
+                posicionInfoEl.style.display = 'none';
+            }
+        }
     }
 
     function recalcularFracciones() {
@@ -422,7 +454,9 @@ function initAcuCalculation() {
         // Igual que GPU: las fracciones se calculan a partir del tiempo
         // conectado y la tarifa, sin depender del switch "ACU" (Sí/No) —
         // ese switch es solo informativo, no debe anular el cálculo.
-        const valores = calcularFraccionesAcuValores(diff, acuTarifaActual);
+        // Salvo que la posición del registro en el mes (1-70) las deje
+        // siempre en 0 (ver calcularFraccionesAcuValores).
+        const valores = calcularFraccionesAcuValores(diff, acuTarifaActual, acuPosicionActual);
         if (fracHora) fracHora.value = valores.horas.toFixed(2);
         if (frac15)   frac15.value   = valores.fracciones.toFixed(2);
 
@@ -434,6 +468,29 @@ function initAcuCalculation() {
         if (!baseSelect || !baseSelect.value) return null;
         const opt = baseSelect.options[baseSelect.selectedIndex];
         return opt && opt.dataset.id ? opt.dataset.id : null;
+    }
+
+    function cargarPosicionAcuMes() {
+        const base = baseSelect ? baseSelect.value : '';
+        const anio = anioInput ? anioInput.value : '';
+        const mes  = mesSelect ? mesSelect.value : '';
+        if (!base || !anio || !mes) {
+            acuPosicionActual = null;
+            recalcularFracciones();
+            return;
+        }
+        const excludeId = formEl ? (formEl.dataset.serviceId || '0') : '0';
+        const params = new URLSearchParams({ base: base, anio: anio, mes: mes, exclude_id: excludeId });
+        fetch(BASE_URL + '/flight-services/acu-posicion-mes?' + params.toString())
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                acuPosicionActual = data && typeof data.posicion === 'number' ? data.posicion : null;
+                recalcularFracciones();
+            })
+            .catch(function () {
+                acuPosicionActual = null;
+                recalcularFracciones();
+            });
     }
 
     function cargarTarifaAcuAerolinea(airlineId) {
@@ -488,8 +545,16 @@ function initAcuCalculation() {
             if (airlineSelect && airlineSelect.value) {
                 cargarTarifaAcuAerolinea(airlineSelect.value);
             }
+            cargarPosicionAcuMes();
         });
     }
+
+    // La posición del registro en el mes también depende del año y el mes.
+    if (anioInput) anioInput.addEventListener('change', cargarPosicionAcuMes);
+    if (mesSelect) mesSelect.addEventListener('change', cargarPosicionAcuMes);
+
+    // Cargar posición inicial (creación con valores por defecto, o edición).
+    cargarPosicionAcuMes();
 }
 
 // Recalcula, con la misma tarifa de la aerolínea/base, las fracciones
@@ -502,7 +567,7 @@ function recalcularFraccionesAcuAdicionales() {
         const fracHoraInp = row.querySelector('input[name$="[fracciones_hora]"]');
         const frac15Inp   = row.querySelector('input[name$="[fracciones_15min]"]');
         const tiempoMin   = parseInt(tiempoInp ? tiempoInp.value : '0', 10) || 0;
-        const valores = calcularFraccionesAcuValores(tiempoMin, acuTarifaActual);
+        const valores = calcularFraccionesAcuValores(tiempoMin, acuTarifaActual, acuPosicionActual);
         if (fracHoraInp) fracHoraInp.value = valores.horas.toFixed(2);
         if (frac15Inp)   frac15Inp.value   = valores.fracciones.toFixed(2);
     });
