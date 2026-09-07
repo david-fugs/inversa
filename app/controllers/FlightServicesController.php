@@ -989,6 +989,29 @@ XML;
             'aseo_aeronaves'          => 'Aseo a las Aeronaves',
             'equipos_carga_descargue' => 'Equipos Carga y Descargue de Mercancías',
             'atencion_pasajeros'      => 'Atención a Pasajeros',
+            'adic_traslado_carga'     => 'Traslado de carga',
+            'adic_arrancador_asu'     => 'Arrancador ASU',
+            'adic_hora_hombre'        => 'Hora hombre',
+            'adic_pernocta'           => 'Pernocta',
+            'adic_conveyor'           => 'Cinta transportadora / Conveyor',
+            'adic_escalera'           => 'Escalera',
+            'adic_drenado'            => 'Drenado',
+            'adic_remolque'           => 'Remolque',
+        ];
+    }
+
+    /** Mapa "nombre del servicio adicional" => clave interna de la columna
+     *  del Resumen (ver resumenColumnasMetricas()). */
+    private function resumenAdicionalKeyMap(): array {
+        return [
+            'Traslado de carga'                    => 'adic_traslado_carga',
+            'Arrancador ASU'                        => 'adic_arrancador_asu',
+            'Hora hombre'                            => 'adic_hora_hombre',
+            'Pernocta'                                => 'adic_pernocta',
+            'Cinta transportadora / Conveyor'        => 'adic_conveyor',
+            'Escalera'                                => 'adic_escalera',
+            'Drenado'                                 => 'adic_drenado',
+            'Remolque'                                 => 'adic_remolque',
         ];
     }
 
@@ -1017,6 +1040,14 @@ XML;
             $agg['aseo_aeronaves']          += (int)($s['aseo_aeronaves'] ?? 0);
             $agg['equipos_carga_descargue'] += (int)($s['equipos_carga_descargue'] ?? 0);
             $agg['atencion_pasajeros']      += (int)($s['atencion_pasajeros'] ?? 0);
+
+            $adicionalKeyMap = $this->resumenAdicionalKeyMap();
+            foreach ((array)($s['adicionales'] ?? []) as $adicional) {
+                $key = $adicionalKeyMap[$adicional['servicio'] ?? ''] ?? null;
+                if ($key !== null) {
+                    $agg[$key] += (int)($adicional['cantidad'] ?? 0);
+                }
+            }
         }
         return $agg;
     }

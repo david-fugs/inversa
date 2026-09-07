@@ -922,35 +922,6 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleRpnField();
     }
 
-    // Deshabilitar secciones cuando tipo_atencion = "Cancelado"
-    function toggleCanceladoSecciones() {
-        const tipoAtencion = document.getElementById('tipo_atencion');
-        const isCancelado = tipoAtencion && tipoAtencion.value === 'Cancelado';
-
-        const fieldsToDisable = ['hora_conexion_gpu', 'hora_desconexion_gpu', 'tiempo_gpu', 'acu', 'hora_conexion_acu', 'hora_desconexion_acu', 'tiempo_acu', 'ventiladores_activo', 'hora_conexion_ventiladores', 'hora_desconexion_ventiladores', 'tiempo_ventiladores', 'sillas_ruedas', 'rampa_escalera', 'remolque_aeronave', 'remolque_equipajes', 'potable', 'drenaje', 'air_starter', 'pay_mower', 'aseo_aeronaves', 'equipos_carga_descargue', 'atencion_pasajeros', 'afecto_operacion', 'rpn'];
-
-        fieldsToDisable.forEach(function(fieldId) {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                if (isCancelado) {
-                    field.disabled = true;
-                    field.removeAttribute('required');
-                } else {
-                    field.disabled = false;
-                }
-            }
-        });
-
-        document.querySelectorAll('.gse-check').forEach(function(cb) {
-            cb.disabled = isCancelado;
-        });
-    }
-
-    const tipoAtencionSelect = document.getElementById('tipo_atencion');
-    if (tipoAtencionSelect) {
-        tipoAtencionSelect.addEventListener('change', toggleCanceladoSecciones);
-        toggleCanceladoSecciones();
-    }
 });
 
 // El select2 de Código Demora se inicializa aparte, en el evento "load",
