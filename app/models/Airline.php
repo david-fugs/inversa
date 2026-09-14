@@ -28,6 +28,14 @@ class Airline extends Model {
         return $stmt->rowCount() > 0;
     }
 
+    /** Buscar por nombre exacto, sin distinguir mayúsculas/minúsculas */
+    public function findByNombre(string $nombre): array|false {
+        return $this->db->fetchOne(
+            "SELECT * FROM airlines WHERE LOWER(nombre) = LOWER(?)",
+            [trim($nombre)]
+        );
+    }
+
     public function nombreExists(string $nombre, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
             "SELECT id FROM airlines WHERE nombre = ? AND id != ?",

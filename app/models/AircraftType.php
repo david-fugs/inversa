@@ -47,6 +47,33 @@ class AircraftType extends Model {
         return (int)($row['total'] ?? 0) > 0;
     }
 
+    /**
+     * Buscar por aerolínea + nombre de tipo, tolerante a variaciones de
+     * formato: el catálogo puede agrupar varios modelos en un mismo
+     * registro separados por "/" o "," (ej. "A320s / A319s"), así que se
+     * compara cada "token" normalizado (sin espacios ni guiones, en
+     * mayúsculas) contra el texto buscado, también normalizado.
+     * Ej.: catálogo "A320s / A319s" → tokens "A320S","A319S"; búsqueda
+     * "A-320S" → normalizado "A320S" → coincide con el primer token.
+     */
+    public function findByAirlineAndTipo(int $airlineId, string $tipo): array|false {
+        $buscado = $this->normalizarToken($tipo);
+        if ($buscado === '') return false;
+
+        foreach ($this->getByAirline($airlineId) as $row) {
+            foreach (preg_split('/[\/,]/', $row['tipo']) as $token) {
+                if ($this->normalizarToken($token) === $buscado) {
+                    return $row;
+                }
+            }
+        }
+        return false;
+    }
+
+    private function normalizarToken(string $texto): string {
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $texto));
+    }
+
     public function findByIdWithAirline(int $id): array|false {
         return $this->db->fetchOne(
             "SELECT at.*, a.nombre AS airline_nombre

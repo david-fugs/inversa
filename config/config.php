@@ -27,6 +27,13 @@ define('PUBLIC_PATH', ROOT_PATH . '/public');
 // que valida sesión/permisos antes de servirlo.
 define('FLIGHT_SERVICES_UPLOADS_PATH', APP_PATH . '/storage/flight_services');
 
+// Comprobantes PDF de pagos a proveedores (mismo criterio: fuera de
+// public/, bloqueado por el .htaccess, solo servido por PagosController).
+define('PAGOS_COMPROBANTES_PATH', APP_PATH . '/storage/pagos_comprobantes');
+// Carpeta temporal para los PDF combinados de un lote (se generan al
+// vuelo en cada descarga y se borran después, no se persisten).
+define('PAGOS_TEMP_PATH', APP_PATH . '/storage/pagos_temp');
+
 // Configuración de sesión
 define('SESSION_LIFETIME', 3600); // 1 hora en segundos
 define('SESSION_NAME', 'inversa_session');

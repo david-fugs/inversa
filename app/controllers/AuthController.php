@@ -5,6 +5,12 @@
 
 class AuthController extends Controller {
 
+    /** Roles que pertenecen al módulo de Pagos a Proveedores: si un
+     *  usuario con uno de estos roles llega a este login (el de Ground
+     *  Handling) por error, se le redirige a su propio módulo en vez de
+     *  dejarlo en un menú que no reconoce su rol. */
+    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos'];
+
     private User $userModel;
 
     public function __construct() {
@@ -17,7 +23,7 @@ class AuthController extends Controller {
      */
     public function index(): void {
         if (Session::isLoggedIn()) {
-            $this->redirect('flight-services');
+            $this->redirectSegunRol();
         } else {
             $this->redirect('auth/login');
         }
@@ -27,7 +33,10 @@ class AuthController extends Controller {
      * Mostrar formulario de login
      */
     public function loginForm(): void {
-        Session::requireGuest();
+        if (Session::isLoggedIn()) {
+            $this->redirectSegunRol();
+            return;
+        }
         $this->view('auth/login', [], 'auth');
     }
 
@@ -35,7 +44,10 @@ class AuthController extends Controller {
      * Procesar login
      */
     public function login(): void {
-        Session::requireGuest();
+        if (Session::isLoggedIn()) {
+            $this->redirectSegunRol();
+            return;
+        }
 
         $usuario  = $this->inputRaw('usuario', '');
         $password = $this->inputRaw('password', '');
@@ -79,6 +91,17 @@ class AuthController extends Controller {
             'rol'            => $user['rol_nombre'],
         ]);
 
+        $this->redirectSegunRol();
+    }
+
+    /** Envía al usuario recién autenticado a su módulo correspondiente:
+     *  Pagos a Proveedores si su rol pertenece a ese módulo, o Ground
+     *  Handling en cualquier otro caso. */
+    private function redirectSegunRol(): void {
+        if (in_array(Session::get('user_rol'), self::ROLES_PAGOS, true)) {
+            $this->redirect('pagos');
+            return;
+        }
         $this->redirect('flight-services');
     }
 

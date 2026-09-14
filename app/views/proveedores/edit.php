@@ -1,0 +1,95 @@
+<div class="page-actions">
+    <a href="<?= BASE_URL ?>/proveedores" class="btn btn-light">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="card" style="max-width:640px;">
+    <div class="card-header">
+        <h5><i class="bi bi-pencil-square"></i> Editar Proveedor</h5>
+        <span class="badge badge-primary"># <?= $proveedor['id'] ?></span>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="<?= BASE_URL ?>/proveedores/edit/<?= $proveedor['id'] ?>" novalidate>
+
+            <div class="mb-3">
+                <label for="numero_identificacion" class="form-label">
+                    Número de Identificación <span class="required-mark">*</span>
+                </label>
+                <input type="text" class="form-control <?= isset($errors['numero_identificacion']) ? 'is-invalid' : '' ?>"
+                    id="numero_identificacion" name="numero_identificacion"
+                    value="<?= htmlspecialchars($proveedor['numero_identificacion']) ?>"
+                    autofocus>
+                <?php if (isset($errors['numero_identificacion'])): ?>
+                    <div class="invalid-feedback"><?= $errors['numero_identificacion'] ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="nombre" class="form-label">
+                    Nombre del Proveedor <span class="required-mark">*</span>
+                </label>
+                <input type="text" class="form-control <?= isset($errors['nombre']) ? 'is-invalid' : '' ?>"
+                    id="nombre" name="nombre"
+                    value="<?= htmlspecialchars($proveedor['nombre']) ?>">
+                <?php if (isset($errors['nombre'])): ?>
+                    <div class="invalid-feedback"><?= $errors['nombre'] ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="banco_id" class="form-label">
+                    Banco <span class="required-mark">*</span>
+                </label>
+                <select class="form-select select2 <?= isset($errors['banco_id']) ? 'is-invalid' : '' ?>" id="banco_id" name="banco_id">
+                    <option value="">-- Seleccione un banco --</option>
+                    <?php foreach ($bancos as $b): ?>
+                        <option value="<?= $b['id'] ?>" <?= (int)$proveedor['banco_id'] === (int)$b['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($b['codigo'] . ' - ' . $b['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (isset($errors['banco_id'])): ?>
+                    <div class="invalid-feedback d-block"><?= $errors['banco_id'] ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="tipo_producto_id" class="form-label">
+                    Tipo de Producto <span class="required-mark">*</span>
+                </label>
+                <select class="form-select select2 <?= isset($errors['tipo_producto_id']) ? 'is-invalid' : '' ?>" id="tipo_producto_id" name="tipo_producto_id">
+                    <option value="">-- Seleccione un tipo de producto --</option>
+                    <?php foreach ($tiposProducto as $tp): ?>
+                        <option value="<?= $tp['id'] ?>" <?= (int)$proveedor['tipo_producto_id'] === (int)$tp['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($tp['codigo'] . ' - ' . $tp['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (isset($errors['tipo_producto_id'])): ?>
+                    <div class="invalid-feedback d-block"><?= $errors['tipo_producto_id'] ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="numero_producto" class="form-label">
+                    Número de Producto o Servicio <span class="required-mark">*</span>
+                </label>
+                <input type="text" class="form-control <?= isset($errors['numero_producto']) ? 'is-invalid' : '' ?>"
+                    id="numero_producto" name="numero_producto"
+                    value="<?= htmlspecialchars($proveedor['numero_producto']) ?>">
+                <?php if (isset($errors['numero_producto'])): ?>
+                    <div class="invalid-feedback"><?= $errors['numero_producto'] ?></div>
+                <?php endif; ?>
+            </div>
+
+            <hr class="divider">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> Actualizar
+                </button>
+                <a href="<?= BASE_URL ?>/proveedores" class="btn btn-light">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

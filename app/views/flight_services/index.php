@@ -28,6 +28,11 @@ sort($aerolineasUniques);
     <a href="<?= BASE_URL ?>/flight-services/dashboard" class="btn btn-outline-primary">
         <i class="bi bi-bar-chart-line-fill"></i> Panel Analítico
     </a>
+    <?php if ($rolActual === 'Administrador'): ?>
+    <a href="<?= BASE_URL ?>/flight-services/import" class="btn btn-outline-secondary">
+        <i class="bi bi-file-earmark-arrow-up-fill"></i> Importar Excel
+    </a>
+    <?php endif; ?>
     <a href="#" id="btn_exportar_excel" class="btn btn-success">
         <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
     </a>

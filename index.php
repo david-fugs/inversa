@@ -8,6 +8,11 @@
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/database.php';
 
+// Autoload de Composer (solo usado por PdfMerger, para unir PDFs del módulo de Pagos)
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
 // Autoload de clases del core y controladores
 spl_autoload_register(function (string $className): void {
     $paths = [
@@ -109,6 +114,54 @@ $router->get('/flight-services/delete/{id}',  'FlightServicesController', 'delet
 $router->post('/flight-services/upload-file/{id}', 'FlightServicesController', 'uploadFile');
 $router->get('/flight-services/delete-file/{id}',  'FlightServicesController', 'deleteFile');
 $router->get('/flight-services/file/{id}',         'FlightServicesController', 'downloadFile');
+
+// ─── Importación masiva de Servicios de Vuelo desde Excel ────────────
+$router->get('/flight-services/import',              'FlightServiceImportController', 'form');
+$router->post('/flight-services/import',             'FlightServiceImportController', 'upload');
+$router->get('/flight-services/import/{id}/errors',  'FlightServiceImportController', 'errors');
+
+// ─── Autenticación módulo de Pagos a Proveedores ─────────────────────
+$router->get('/pagos/login',   'PagosAuthController', 'loginForm');
+$router->post('/pagos/login',  'PagosAuthController', 'login');
+$router->get('/pagos/logout',  'PagosAuthController', 'logout');
+
+// ─── Pagos: Bancos ────────────────────────────────────────────────────
+$router->get('/bancos',              'BancosController', 'index');
+$router->get('/bancos/create',       'BancosController', 'createForm');
+$router->post('/bancos/create',      'BancosController', 'store');
+$router->get('/bancos/edit/{id}',    'BancosController', 'editForm');
+$router->post('/bancos/edit/{id}',   'BancosController', 'update');
+$router->get('/bancos/delete/{id}',  'BancosController', 'delete');
+
+// ─── Pagos: Tipos de Producto ─────────────────────────────────────────
+$router->get('/tipos-producto',              'TiposProductoController', 'index');
+$router->get('/tipos-producto/create',       'TiposProductoController', 'createForm');
+$router->post('/tipos-producto/create',      'TiposProductoController', 'store');
+$router->get('/tipos-producto/edit/{id}',    'TiposProductoController', 'editForm');
+$router->post('/tipos-producto/edit/{id}',   'TiposProductoController', 'update');
+$router->get('/tipos-producto/delete/{id}',  'TiposProductoController', 'delete');
+
+// ─── Pagos: Proveedores ────────────────────────────────────────────────
+$router->get('/proveedores',              'ProveedoresController', 'index');
+$router->get('/proveedores/create',       'ProveedoresController', 'createForm');
+$router->post('/proveedores/create',      'ProveedoresController', 'store');
+$router->get('/proveedores/edit/{id}',    'ProveedoresController', 'editForm');
+$router->post('/proveedores/edit/{id}',   'ProveedoresController', 'update');
+$router->get('/proveedores/delete/{id}',  'ProveedoresController', 'delete');
+$router->get('/proveedores/info/{id}',    'ProveedoresController', 'infoJson');
+
+// ─── Pagos: Lotes de pago ───────────────────────────────────────────────
+$router->get('/pagos',                        'PagosController', 'index');
+$router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm');
+$router->post('/pagos/lotes/verificar',       'PagosController', 'verificarConsecutivo');
+$router->get('/pagos/lotes/{id}/cerrar',      'PagosController', 'cerrarLote');
+$router->get('/pagos/lotes/{id}/combinado',   'PagosController', 'descargarCombinado');
+$router->get('/pagos/lotes/{id}',             'PagosController', 'detalle');
+$router->post('/pagos/lotes/{id}/pagos',      'PagosController', 'agregarPago');
+$router->get('/pagos/pagos/delete/{id}',      'PagosController', 'eliminarPago');
+$router->get('/pagos/pagos/edit/{id}',        'PagosController', 'editarPagoForm');
+$router->post('/pagos/pagos/edit/{id}',       'PagosController', 'actualizarPago');
+$router->get('/pagos/pagos/{id}/file',        'PagosController', 'descargarComprobante');
 
 // Despachar la petición
 $router->dispatch();

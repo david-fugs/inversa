@@ -48,6 +48,14 @@ class Base extends Model {
         }
     }
 
+    /** Buscar por nombre exacto, sin distinguir mayúsculas/minúsculas */
+    public function findByNombre(string $nombre): array|false {
+        return $this->db->fetchOne(
+            "SELECT * FROM bases WHERE LOWER(nombre) = LOWER(?)",
+            [trim($nombre)]
+        );
+    }
+
     public function nombreExists(string $nombre, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
             "SELECT id FROM bases WHERE nombre = ? AND id != ?",
