@@ -46,21 +46,21 @@ class FlightServicesController extends Controller {
         $this->codigoDemoraModel = new CodigoDemora();
     }
 
-    /** Listado principal */
+    /** Listado principal. Los registros se cargan por AJAX (ver método
+     *  data()) con paginación/orden/filtro resueltos en la base de datos;
+     *  aquí solo se necesitan las bases y aerolíneas para los filtros. */
     public function index(): void {
         $rol  = Session::get('user_rol');
         $base = Session::get('user_base_asociada');
+        $baseScope = (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base) ? $base : null;
 
-        if (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base) {
-            $services = $this->model->getAllWithJoinsByBase($base);
-        } else {
-            $services = $this->model->getAllWithJoins();
-        }
+        $opciones = $this->model->getDistinctBasesYAerolineas($baseScope);
 
         $this->view('flight_services/index', [
-            'pageTitle'   => 'Servicios de Vuelo',
-            'breadcrumbs' => ['Servicios de Vuelo' => null],
-            'services'    => $services,
+            'pageTitle'         => 'Servicios de Vuelo',
+            'breadcrumbs'       => ['Servicios de Vuelo' => null],
+            'basesUniques'      => $opciones['bases'],
+            'aerolineasUniques' => $opciones['aerolineas'],
         ]);
     }
 
@@ -111,27 +111,41 @@ class FlightServicesController extends Controller {
         $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroInicio, $filtroFin, $filtroBase, $filtroAerolinea);
     }
 
-    /** Posición (orden de creación) que ocuparía/ocupa un registro dentro
-     *  de su base/año/mes: 1 = primer registro del mes en esa base. Se usa
-     *  en el formulario de ACU: del 1 al 70 no se cobran fracciones (se
-     *  explica el porqué); del 71 en adelante sí se calculan con la
-     *  tarifa configurada. En edición se envía `exclude_id` (el propio
-     *  registro) para no contarlo dos veces. */
-    public function acuPosicionMes(): void {
-        $base = trim((string)($_GET['base'] ?? ''));
-        $anio = (int)($_GET['anio'] ?? 0);
-        $mes  = (int)($_GET['mes'] ?? 0);
-        $excludeId = (int)($_GET['exclude_id'] ?? 0);
+    /** Fuente de datos server-side para el listado (DataTables): pagina,
+     *  ordena y filtra en la base de datos en lugar de cargar todos los
+     *  registros en el navegador (el listado completo podía llegar a ser
+     *  muy lento con muchos registros). */
+    public function data(): void {
+        $rol  = Session::get('user_rol');
+        $base = Session::get('user_base_asociada');
+        $baseScope = (in_array($rol, self::ROLES_ESCOPADOS_A_BASE, true) && $base) ? $base : null;
 
-        if ($base === '' || $anio < 1 || $mes < 1) {
-            $this->json(['count_previos' => 0, 'posicion' => 1]);
-            return;
-        }
+        $draw   = (int)($_GET['draw'] ?? 1);
+        $start  = max(0, (int)($_GET['start'] ?? 0));
+        $length = (int)($_GET['length'] ?? 15);
+        if ($length <= 0) $length = 15;
+        $length = min($length, 100);
 
-        $countPrevios = $this->model->countByBaseAnioMesBeforeId($base, $anio, $mes, $excludeId);
+        $columnas = ['id', 'fecha', 'base', 'airline_nombre', 'vuelo_llegando', 'matricula', 'aircraft_tipo', 'tipo_atencion', 'tiempo_transito', 'cumple_tiempo', null, null];
+        $orderCol = (int)($_GET['order'][0]['column'] ?? 1);
+        $orderDir = strtolower((string)($_GET['order'][0]['dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
+        $orderBy  = $columnas[$orderCol] ?? 'fecha';
+
+        $filtros = [
+            'fecha_inicio' => trim((string)($_GET['fecha_inicio'] ?? '')),
+            'fecha_fin'    => trim((string)($_GET['fecha_fin'] ?? '')),
+            'base'         => trim((string)($_GET['base'] ?? '')),
+            'aerolinea'    => trim((string)($_GET['aerolinea'] ?? '')),
+            'buscar'       => trim((string)($_GET['search']['value'] ?? '')),
+        ];
+
+        $resultado = $this->model->getPaginated($filtros, $orderBy, $orderDir, $start, $length, $baseScope);
+
         $this->json([
-            'count_previos' => $countPrevios,
-            'posicion'      => $countPrevios + 1,
+            'draw'            => $draw,
+            'recordsTotal'    => $resultado['total'],
+            'recordsFiltered' => $resultado['filtered'],
+            'data'            => $resultado['rows'],
         ]);
     }
 
@@ -960,6 +974,7 @@ XML;
             ['campo' => 'base', 'etiqueta' => 'Base'],
             ['campo' => 'mes', 'etiqueta' => 'Mes', 'orden' => 'numerico',
                 'formato' => fn($v) => FlightService::$meses[(int)$v] ?? (string)$v],
+            ['campo' => 'dia', 'etiqueta' => 'Día', 'orden' => 'numerico'],
             ['campo' => 'airline_nombre', 'etiqueta' => 'Aerolínea'],
             ['campo' => 'quincena', 'etiqueta' => 'Quincena', 'orden' => 'numerico',
                 'formato' => fn($v) => (int)$v === 1 ? '1ª Quincena' : '2ª Quincena'],
@@ -1028,7 +1043,7 @@ XML;
             $agg['despacho']                += (int)($s['despacho'] ?? 0);
             $agg['acu_hora']                += (float)($s['fracciones_hora_acu'] ?? 0);
             $agg['acu_15min']               += (float)($s['fracciones_15min_acu'] ?? 0);
-            $agg['ventilador']              += (int)($s['ventiladores'] ?? 0);
+            $agg['ventilador']              += (int)($s['ventiladores_activo'] ?? 0);
             $agg['sillas_ruedas']           += (int)($s['sillas_ruedas'] ?? 0);
             $agg['rampa_escalera']          += (int)($s['rampa_escalera'] ?? 0) === 1 ? 1 : 0;
             $agg['remolque_aeronave']       += (int)($s['remolque_aeronave'] ?? 0);
@@ -1095,6 +1110,62 @@ XML;
         $headerRow = $rowNum;
         $addRow(array_merge($etiquetas, array_values($metricas)), self::XLSX_STYLE_COL_HEADER);
 
+        // Columna de cada métrica, para armar fórmulas SUBTOTAL sobre ella.
+        $labelCols  = count($niveles);
+        $metricCols = [];
+        foreach (array_keys($metricas) as $j => $k) {
+            $metricCols[$k] = $this->excelColLetter($labelCols + 1 + $j);
+        }
+
+        // Fila de datos: las columnas de etiqueta van como texto y las de
+        // métricas como celdas numéricas reales (no texto), para que las
+        // fórmulas SUBTOTAL() de las filas de total puedan sumarlas — un
+        // SUBTOTAL/SUM ignora las celdas de texto.
+        $addDataRow = function (array $labelValues, array $metricValues, int $style) use (&$rowNum, &$sheetXml, &$maxCol, $metricCols) {
+            $sheetXml .= '<row r="' . $rowNum . '">';
+            $col = 1;
+            foreach ($labelValues as $val) {
+                $ref = $this->excelColLetter($col) . $rowNum;
+                $sheetXml .= '<c r="' . $ref . '" t="inlineStr" s="' . $style . '"><is><t xml:space="preserve">' . $this->xmlText((string)$val) . '</t></is></c>';
+                $col++;
+            }
+            foreach ($metricCols as $key => $letter) {
+                $ref = $this->excelColLetter($col) . $rowNum;
+                $sheetXml .= '<c r="' . $ref . '" s="' . $style . '"><v>' . (float)($metricValues[$key] ?? 0) . '</v></c>';
+                $col++;
+            }
+            $sheetXml .= '</row>';
+            $maxCol = max($maxCol, $col - 1);
+            $rowNum++;
+        };
+
+        // Fila de totales con fórmulas SUBTOTAL (código 109 = SUMA,
+        // ignorando tanto las filas ocultas por el autofiltro como los
+        // resultados de otros SUBTOTAL anidados dentro del rango). Así,
+        // al filtrar en Excel por Base, Mes, Día, Aerolínea, Quincena,
+        // Tipo Avión o Tipo de Atención, el total se recalcula solo con
+        // lo que quede visible. Se guarda además el valor ya calculado
+        // en PHP (sin filtros) como caché por si algún visor no recalcula
+        // fórmulas al abrir el archivo.
+        $addTotalRow = function (array $labelValues, int $startRow, int $endRow, array $cached, int $style) use (&$rowNum, &$sheetXml, &$maxCol, $metricCols) {
+            $sheetXml .= '<row r="' . $rowNum . '">';
+            $col = 1;
+            foreach ($labelValues as $val) {
+                $ref = $this->excelColLetter($col) . $rowNum;
+                $sheetXml .= '<c r="' . $ref . '" t="inlineStr" s="' . $style . '"><is><t xml:space="preserve">' . $this->xmlText((string)$val) . '</t></is></c>';
+                $col++;
+            }
+            foreach ($metricCols as $key => $letter) {
+                $ref     = $this->excelColLetter($col) . $rowNum;
+                $formula = 'SUBTOTAL(109,' . $letter . $startRow . ':' . $letter . $endRow . ')';
+                $sheetXml .= '<c r="' . $ref . '" s="' . $style . '"><f>' . $this->xmlText($formula) . '</f><v>' . (float)($cached[$key] ?? 0) . '</v></c>';
+                $col++;
+            }
+            $sheetXml .= '</row>';
+            $maxCol = max($maxCol, $col - 1);
+            $rowNum++;
+        };
+
         // ── Datos: un renglón por servicio, ordenado por Base y fecha ──
         $ordenados = $services;
         usort($ordenados, function ($a, $b) {
@@ -1104,14 +1175,15 @@ XML;
 
         $totalGeneral = array_fill_keys(array_keys($metricas), 0);
         $baseActual   = null;
+        $baseStartRow = null;
         $totalBase    = array_fill_keys(array_keys($metricas), 0);
 
-        $emitirTotalBase = function () use ($addRow, &$baseActual, &$totalBase, $niveles) {
+        $emitirTotalBase = function () use ($addTotalRow, &$baseActual, &$baseStartRow, &$rowNum, &$totalBase, $niveles) {
             if ($baseActual === null) return;
             $filaSub = array_fill(0, count($niveles), '');
             $filaSub[0] = $baseActual;
             $filaSub[1] = 'TOTAL ' . $baseActual;
-            $addRow(array_merge($filaSub, array_values($totalBase)), self::XLSX_STYLE_DATA_HIGHLIGHT);
+            $addTotalRow($filaSub, $baseStartRow, $rowNum - 1, $totalBase, self::XLSX_STYLE_DATA_HIGHLIGHT);
         };
 
         foreach ($ordenados as $i => $s) {
@@ -1119,6 +1191,9 @@ XML;
             if ($baseActual !== null && $baseServicio !== $baseActual) {
                 $emitirTotalBase();
                 $totalBase = array_fill_keys(array_keys($metricas), 0);
+            }
+            if ($baseServicio !== $baseActual) {
+                $baseStartRow = $rowNum;
             }
             $baseActual = $baseServicio;
 
@@ -1134,15 +1209,18 @@ XML;
                 $totalBase[$k]    += $v;
             }
             $style = $i % 2 === 0 ? self::XLSX_STYLE_DATA_EVEN : self::XLSX_STYLE_DATA_ODD;
-            $addRow(array_merge($fila, array_values($agg)), $style);
+            $addDataRow($fila, $agg, $style);
         }
         $emitirTotalBase();
         $lastDataRow = $rowNum - 1;
 
         // ── Total general (fuera del rango de filtro, siempre visible) ──
+        // El rango cubre desde la primera fila de datos hasta la última
+        // (incluyendo las filas "TOTAL <base>"): SUBTOTAL ignora esas
+        // filas anidadas automáticamente, así que no se duplica nada.
         $filaTotalGeneral = array_fill(0, count($niveles), '');
         $filaTotalGeneral[0] = 'TOTAL GENERAL';
-        $addRow(array_merge($filaTotalGeneral, array_values($totalGeneral)), self::XLSX_STYLE_DATA_HIGHLIGHT);
+        $addTotalRow($filaTotalGeneral, $headerRow + 1, $lastDataRow, $totalGeneral, self::XLSX_STYLE_DATA_HIGHLIGHT);
 
         return [
             'xml'         => $sheetXml,
@@ -1330,6 +1408,7 @@ XML;
             . '<sheet name="Servicios de Vuelo" sheetId="1" r:id="rId1"/>'
             . '<sheet name="Resumen" sheetId="2" r:id="rId3"/>'
             . '</sheets>'
+            . '<calcPr calcId="0" fullCalcOnLoad="1"/>'
             . '</workbook>';
 
         $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

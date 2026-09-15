@@ -81,27 +81,129 @@ class FlightService extends Model
         );
     }
 
-    /**
-     * Cantidad de registros de una base en un año/mes con ID menor al
-     * indicado (o todos, si $excludeId es 0). Se usa para determinar la
-     * posición (orden de creación) del registro dentro de su base/mes y
-     * así saber si cae en el rango 1-70 (sin cobro de fracciones ACU) o
-     * de ahí en adelante (con cobro).
-     */
-    public function countByBaseAnioMesBeforeId(string $base, int $anio, int $mes, int $excludeId = 0): int
+    /** Bases y aerolíneas (nombre) con al menos un servicio registrado,
+     *  para poblar los filtros del listado sin tener que cargar todos
+     *  los registros. */
+    public function getDistinctBasesYAerolineas(?string $baseScope): array
     {
-        if ($excludeId > 0) {
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS total FROM flight_services WHERE base = ? AND anio = ? AND mes = ? AND id < ?",
-                [$base, $anio, $mes, $excludeId]
-            );
-        } else {
-            $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS total FROM flight_services WHERE base = ? AND anio = ? AND mes = ?",
-                [$base, $anio, $mes]
-            );
+        if ($baseScope !== null) {
+            return [
+                'bases'      => [$baseScope],
+                'aerolineas' => array_column($this->db->fetchAll(
+                    "SELECT DISTINCT COALESCE(a.nombre, fs.airline_custom_nombre) AS nombre
+                     FROM flight_services fs
+                     LEFT JOIN airlines a ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+                     WHERE fs.base = ?
+                     ORDER BY nombre",
+                    [$baseScope]
+                ), 'nombre'),
+            ];
         }
-        return (int)($row['total'] ?? 0);
+
+        $bases = array_column($this->db->fetchAll(
+            "SELECT DISTINCT base FROM flight_services ORDER BY base"
+        ), 'base');
+
+        $aerolineas = array_column($this->db->fetchAll(
+            "SELECT DISTINCT COALESCE(a.nombre, fs.airline_custom_nombre) AS nombre
+             FROM flight_services fs
+             LEFT JOIN airlines a ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             ORDER BY nombre"
+        ), 'nombre');
+
+        return ['bases' => $bases, 'aerolineas' => $aerolineas];
+    }
+
+    /** Columnas por las que se puede ordenar el listado server-side,
+     *  mapeadas al índice de columna que envía DataTables. */
+    private const ORDENABLES = [
+        'id'              => 'fs.id',
+        'fecha'           => 'fs.anio {dir}, fs.mes {dir}, fs.dia {dir}, fs.id {dir}',
+        'base'            => 'fs.base',
+        'airline_nombre'  => 'airline_nombre',
+        'vuelo_llegando'  => 'fs.vuelo_llegando',
+        'matricula'       => 'fs.matricula',
+        'aircraft_tipo'   => 'aircraft_tipo',
+        'tipo_atencion'   => 'fs.tipo_atencion',
+        'tiempo_transito' => 'fs.tiempo_transito',
+        'cumple_tiempo'   => 'fs.cumple_tiempo',
+    ];
+
+    /**
+     * Listado paginado/ordenado/filtrado en la base de datos, para el
+     * origen de datos server-side de DataTables (evita cargar todos los
+     * registros en el navegador para luego ordenarlos/paginarlos ahí).
+     */
+    public function getPaginated(array $filtros, string $orderBy, string $orderDir, int $start, int $length, ?string $baseScope): array
+    {
+        $where  = [];
+        $params = [];
+
+        if ($baseScope !== null) {
+            $where[] = 'fs.base = ?';
+            $params[] = $baseScope;
+        }
+        if ($filtros['base'] !== '') {
+            $where[] = 'fs.base = ?';
+            $params[] = $filtros['base'];
+        }
+        if ($filtros['aerolinea'] !== '') {
+            $where[] = 'COALESCE(a.nombre, fs.airline_custom_nombre) = ?';
+            $params[] = $filtros['aerolinea'];
+        }
+        if ($filtros['fecha_inicio'] !== '') {
+            $where[] = "STR_TO_DATE(CONCAT(fs.anio, '-', fs.mes, '-', fs.dia), '%Y-%m-%d') >= ?";
+            $params[] = $filtros['fecha_inicio'];
+        }
+        if ($filtros['fecha_fin'] !== '') {
+            $where[] = "STR_TO_DATE(CONCAT(fs.anio, '-', fs.mes, '-', fs.dia), '%Y-%m-%d') <= ?";
+            $params[] = $filtros['fecha_fin'];
+        }
+        if ($filtros['buscar'] !== '') {
+            $where[] = '(fs.matricula LIKE ? OR fs.vuelo_llegando LIKE ? OR fs.vuelo_saliendo LIKE ?
+                          OR fs.base LIKE ? OR fs.tipo_atencion LIKE ?
+                          OR COALESCE(a.nombre, fs.airline_custom_nombre) LIKE ?
+                          OR COALESCE(at.tipo, fs.aircraft_type_custom) LIKE ?)';
+            $like = '%' . $filtros['buscar'] . '%';
+            array_push($params, $like, $like, $like, $like, $like, $like, $like);
+        }
+
+        $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+        $joins = "LEFT JOIN airlines       a  ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+                  LEFT JOIN aircraft_types at ON fs.aircraft_type_id = at.id";
+
+        $totalWhere = $baseScope !== null ? 'WHERE fs.base = ?' : '';
+        $totalParams = $baseScope !== null ? [$baseScope] : [];
+        $total = (int)($this->db->fetchOne(
+            "SELECT COUNT(*) AS total FROM flight_services fs {$totalWhere}",
+            $totalParams
+        )['total'] ?? 0);
+
+        $filtered = (int)($this->db->fetchOne(
+            "SELECT COUNT(*) AS total FROM flight_services fs {$joins} {$whereSql}",
+            $params
+        )['total'] ?? 0);
+
+        $orderExpr = self::ORDENABLES[$orderBy] ?? self::ORDENABLES['fecha'];
+        $dir = $orderDir === 'asc' ? 'ASC' : 'DESC';
+        $orderExpr = str_replace('{dir}', $dir, $orderExpr);
+        if (strpos($orderExpr, '{dir}') === false && strpos($orderExpr, ' ASC') === false && strpos($orderExpr, ' DESC') === false) {
+            $orderExpr .= ' ' . $dir;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT fs.id, fs.dia, fs.mes, fs.anio, fs.quincena, fs.base, fs.vuelo_llegando, fs.vuelo_saliendo,
+                    fs.matricula, fs.tipo_atencion, fs.tiempo_transito, fs.cumple_tiempo, fs.archivo_pdf,
+                    COALESCE(a.nombre, fs.airline_custom_nombre) AS airline_nombre,
+                    COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo
+             FROM flight_services fs {$joins} {$whereSql}
+             ORDER BY {$orderExpr}
+             LIMIT {$length} OFFSET {$start}",
+            $params
+        );
+
+        return ['total' => $total, 'filtered' => $filtered, 'rows' => $rows];
     }
 
     /**

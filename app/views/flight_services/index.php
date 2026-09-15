@@ -6,18 +6,6 @@ $esSupervisorRampa = $rolActual === 'Líder SVC';
 $puedeEditar       = (bool)Session::get('user_puede_editar');
 
 $meses = FlightService::$meses;
-$basesUniques = [];
-$aerolineasUniques = [];
-foreach ($services as $s) {
-    if (!in_array($s['base'], $basesUniques)) {
-        $basesUniques[] = $s['base'];
-    }
-    if (!in_array($s['airline_nombre'], $aerolineasUniques)) {
-        $aerolineasUniques[] = $s['airline_nombre'];
-    }
-}
-sort($basesUniques);
-sort($aerolineasUniques);
 ?>
 <div class="page-actions">
     <?php if (!$esSupervisorRampa): ?>
@@ -83,11 +71,11 @@ sort($aerolineasUniques);
 <div class="card">
     <div class="card-header">
         <h5><i class="bi bi-clipboard2-pulse-fill"></i> Servicios de Vuelo</h5>
-        <span class="badge badge-primary" id="badge_registros"><?= count($services) ?> registros</span>
+        <span class="badge badge-primary" id="badge_registros">&hellip;</span>
     </div>
     <div class="card-body p-0">
         <div class="table-wrapper">
-            <table class="table data-table" id="tableServices" style="width:100%">
+            <table class="table" id="tableServices" style="width:100%">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -104,96 +92,31 @@ sort($aerolineasUniques);
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <?php foreach ($services as $s): ?>
-                        <tr>
-                            <td><strong>#<?= $s['id'] ?></strong></td>
-                            <td>
-                                <?php
-                                    $meses = FlightService::$meses;
-                                    echo sprintf('%02d/%s/%s', $s['dia'], $meses[$s['mes']] ?? $s['mes'], $s['anio']);
-                                ?>
-                                <small class="d-block text-muted"><?= $s['quincena'] == 1 ? '1ª Quincena' : '2ª Quincena' ?></small>
-                            </td>
-                            <td><span class="badge badge-primary"><?= htmlspecialchars($s['base']) ?></span></td>
-                            <td><?= htmlspecialchars($s['airline_nombre']) ?></td>
-                            <td>
-                                <div>
-                                    <small class="text-muted">↓</small> <strong><?= htmlspecialchars($s['vuelo_llegando']) ?></strong>
-                                </div>
-                                <div>
-                                    <small class="text-muted">↑</small> <?= htmlspecialchars($s['vuelo_saliendo']) ?>
-                                </div>
-                            </td>
-                            <td><code><?= htmlspecialchars($s['matricula']) ?></code></td>
-                            <td><?= htmlspecialchars($s['aircraft_tipo']) ?></td>
-                            <td>
-                                <span class="badge badge-info"><?= htmlspecialchars($s['tipo_atencion']) ?></span>
-                            </td>
-                            <td>
-                                <?php if ($s['tiempo_transito'] !== null): ?>
-                                    <span class="time-display"><?= $s['tiempo_transito'] ?> min</span>
-                                <?php else: ?>
-                                    <span class="text-muted">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if ($s['cumple_tiempo'] === null): ?>
-                                    <span class="text-muted">—</span>
-                                <?php elseif ($s['cumple_tiempo']): ?>
-                                    <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>
-                                <?php else: ?>
-                                    <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="text-center">
-                                <?php if (!empty($s['archivo_pdf'])): ?>
-                                    <span class="cumple-si" title="Tiene archivo adjunto"><i class="bi bi-check-circle-fill"></i></span>
-                                <?php else: ?>
-                                    <span class="cumple-no" title="Sin archivo adjunto"><i class="bi bi-x-circle-fill"></i></span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="text-center">
-                                <div class="d-flex gap-1 justify-content-center">
-                                    <a href="<?= BASE_URL ?>/flight-services/view/<?= $s['id'] ?>"
-                                       class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle">
-                                        <i class="bi bi-eye-fill"></i>
-                                    </a>
-                                    <?php if (!$esVisualizador && !$esSupervisorRampa && (!$esColaborador || $puedeEditar)): ?>
-                                    <a href="<?= BASE_URL ?>/flight-services/edit/<?= $s['id'] ?>"
-                                       class="btn btn-icon btn-outline-secondary btn-sm" title="Editar">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </a>
-                                    <?php endif; ?>
-                                    <?php if (!$esVisualizador && !$esColaborador && !$esSupervisorRampa): ?>
-                                    <a href="<?= BASE_URL ?>/flight-services/delete/<?= $s['id'] ?>"
-                                       class="btn btn-icon btn-danger btn-sm"
-                                       title="Eliminar"
-                                       data-confirm="¿Está seguro de eliminar el servicio #<?= $s['id'] ?>?">
-                                        <i class="bi bi-trash-fill"></i>
-                                    </a>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 </div>
 
 <script>
-// Este bloque se renderiza en el <body>, antes de que se carguen jQuery,
-// DataTables y app.js (que van al final del layout). Se espera al evento
-// "load" para que app.js ya haya inicializado la tabla como DataTable.
+// Esta tabla NO usa el auto-init genérico de `.data-table` (ver app.js):
+// carga los registros por AJAX con paginación/orden/filtro resueltos en el
+// servidor, en vez de traer todos los registros al navegador y ordenarlos
+// ahí (con muchos registros eso hacía la carga muy lenta).
+// Este bloque se renderiza en el <body>, antes de que se carguen jQuery y
+// DataTables (que van al final del layout); por eso se espera "load".
 window.addEventListener('load', function () {
-    // Sistema de filtros — integrado con la API de DataTables para que
-    // funcione correctamente junto con la paginación (no basta con ocultar
-    // filas por CSS: DataTables solo mantiene en el DOM las filas de la
-    // página actual, por lo que ocultar filas "a mano" ignora las que están
-    // en otras páginas).
-    const table = $('#tableServices').DataTable();
+    const esVisualizador    = <?= json_encode($esVisualizador) ?>;
+    const esColaborador     = <?= json_encode($esColaborador) ?>;
+    const esSupervisorRampa = <?= json_encode($esSupervisorRampa) ?>;
+    const puedeEditar       = <?= json_encode($puedeEditar) ?>;
+    const puedeEditarFila   = !esVisualizador && !esSupervisorRampa && (!esColaborador || puedeEditar);
+    const puedeEliminarFila = !esVisualizador && !esColaborador && !esSupervisorRampa;
+    const meses = <?= json_encode(FlightService::$meses, JSON_UNESCAPED_UNICODE) ?>;
+
+    function esc(v) {
+        return $('<div>').text(v === null || v === undefined ? '' : String(v)).html();
+    }
 
     const filterInputs = {
         fechaInicio: document.getElementById('filter_fecha_inicio'),
@@ -203,55 +126,92 @@ window.addEventListener('load', function () {
     };
 
     const badgeRegistros = document.getElementById('badge_registros');
-    const mesesNombre = {
-        'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4, 'Mayo': 5, 'Junio': 6,
-        'Julio': 7, 'Agosto': 8, 'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
-    };
 
-    $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
-        if (settings.nTable.id !== 'tableServices') return true;
-
-        // Filtrado por rango de fecha (inclusive)
-        if (filterInputs.fechaInicio.value || filterInputs.fechaFin.value) {
-            const [diaStr, mesStr, anioStr] = $(table.cell(dataIndex, 1).node()).clone().find('small').remove().end().text().trim().split('/');
-            const rowDia = parseInt(diaStr, 10);
-            const rowMes = mesesNombre[mesStr] || null;
-            const rowAnio = parseInt(anioStr, 10);
-            if (!rowMes) return true; // fall back if parsing falla
-            const rowDate = new Date(rowAnio, rowMes - 1, rowDia);
-
-            if (filterInputs.fechaInicio.value) {
-                const [sY, sM, sD] = filterInputs.fechaInicio.value.split('-').map(Number);
-                const startDate = new Date(sY, sM - 1, sD);
-                if (rowDate < startDate) return false;
+    const table = $('#tableServices').DataTable({
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json',
+            emptyTable: 'No hay registros disponibles',
+            processing: 'Cargando...'
+        },
+        responsive: true,
+        dom: '<"row align-items-center mb-3"<"col-sm-6"l><"col-sm-6 text-end"f>>rtip',
+        pageLength: 15,
+        processing: true,
+        serverSide: true,
+        order: [[1, 'desc']],
+        ajax: {
+            url: BASE_URL + '/flight-services/data',
+            data: function (d) {
+                d.fecha_inicio = filterInputs.fechaInicio.value;
+                d.fecha_fin    = filterInputs.fechaFin.value;
+                d.base         = filterInputs.base.value;
+                d.aerolinea    = filterInputs.aerolinea.value;
             }
-            if (filterInputs.fechaFin.value) {
-                const [eY, eM, eD] = filterInputs.fechaFin.value.split('-').map(Number);
-                const endDate = new Date(eY, eM - 1, eD);
-                if (rowDate > endDate) return false;
+        },
+        columns: [
+            { data: 'id', orderable: true, render: (d) => '<strong>#' + esc(d) + '</strong>' },
+            {
+                data: null, orderable: true,
+                render: (d, type, row) => sprintf02(row.dia) + '/' + (meses[row.mes] || row.mes) + '/' + row.anio
+                    + '<small class="d-block text-muted">' + (row.quincena == 1 ? '1ª Quincena' : '2ª Quincena') + '</small>'
+            },
+            { data: 'base', orderable: true, render: (d) => '<span class="badge badge-primary">' + esc(d) + '</span>' },
+            { data: 'airline_nombre', orderable: true, render: (d) => esc(d) },
+            {
+                data: null, orderable: true,
+                render: (d, type, row) => '<div><small class="text-muted">↓</small> <strong>' + esc(row.vuelo_llegando) + '</strong></div>'
+                    + '<div><small class="text-muted">↑</small> ' + esc(row.vuelo_saliendo) + '</div>'
+            },
+            { data: 'matricula', orderable: true, render: (d) => '<code>' + esc(d) + '</code>' },
+            { data: 'aircraft_tipo', orderable: true, render: (d) => esc(d) },
+            { data: 'tipo_atencion', orderable: true, render: (d) => '<span class="badge badge-info">' + esc(d) + '</span>' },
+            {
+                data: 'tiempo_transito', orderable: true,
+                render: (d) => d !== null ? '<span class="time-display">' + esc(d) + ' min</span>' : '<span class="text-muted">—</span>'
+            },
+            {
+                data: 'cumple_tiempo', orderable: true,
+                render: (d) => d === null
+                    ? '<span class="text-muted">—</span>'
+                    : (Number(d) ? '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>' : '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>')
+            },
+            {
+                data: 'archivo_pdf', orderable: false, className: 'text-center',
+                render: (d) => d
+                    ? '<span class="cumple-si" title="Tiene archivo adjunto"><i class="bi bi-check-circle-fill"></i></span>'
+                    : '<span class="cumple-no" title="Sin archivo adjunto"><i class="bi bi-x-circle-fill"></i></span>'
+            },
+            {
+                data: 'id', orderable: false, className: 'text-center',
+                render: (id) => {
+                    let html = '<div class="d-flex gap-1 justify-content-center">';
+                    html += '<a href="' + BASE_URL + '/flight-services/view/' + id + '" class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle"><i class="bi bi-eye-fill"></i></a>';
+                    if (puedeEditarFila) {
+                        html += '<a href="' + BASE_URL + '/flight-services/edit/' + id + '" class="btn btn-icon btn-outline-secondary btn-sm" title="Editar"><i class="bi bi-pencil-fill"></i></a>';
+                    }
+                    if (puedeEliminarFila) {
+                        html += '<a href="' + BASE_URL + '/flight-services/delete/' + id + '" class="btn btn-icon btn-danger btn-sm" title="Eliminar" data-confirm="¿Está seguro de eliminar el servicio #' + id + '?"><i class="bi bi-trash-fill"></i></a>';
+                    }
+                    html += '</div>';
+                    return html;
+                }
             }
-        }
+        ]
+    });
 
-        if (filterInputs.base.value) {
-            const rowBase = $(table.cell(dataIndex, 2).node()).text().trim();
-            if (!rowBase.includes(filterInputs.base.value)) return false;
-        }
+    function sprintf02(n) {
+        n = parseInt(n, 10) || 0;
+        return n < 10 ? '0' + n : String(n);
+    }
 
-        if (filterInputs.aerolinea.value) {
-            const rowAerolinea = $(table.cell(dataIndex, 3).node()).text().trim();
-            if (rowAerolinea !== filterInputs.aerolinea.value) return false;
-        }
-
-        return true;
+    table.on('xhr', function () {
+        const json = table.ajax.json();
+        if (json) badgeRegistros.textContent = json.recordsFiltered + ' registros';
     });
 
     function aplicarFiltros() {
-        table.draw();
+        table.ajax.reload();
     }
-
-    table.on('draw', function () {
-        badgeRegistros.textContent = table.rows({ search: 'applied' }).count() + ' registros';
-    });
 
     // Event listeners para los filtros
     filterInputs.fechaInicio.addEventListener('change', aplicarFiltros);
