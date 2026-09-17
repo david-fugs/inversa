@@ -119,6 +119,7 @@ $router->get('/flight-services/file/{id}',         'FlightServicesController', '
 $router->get('/flight-services/import',              'FlightServiceImportController', 'form');
 $router->post('/flight-services/import',             'FlightServiceImportController', 'upload');
 $router->get('/flight-services/import/{id}/errors',  'FlightServiceImportController', 'errors');
+$router->get('/flight-services/import/{id}/delete',  'FlightServiceImportController', 'deleteImport');
 
 // ─── Autenticación módulo de Pagos a Proveedores ─────────────────────
 $router->get('/pagos/login',   'PagosAuthController', 'loginForm');

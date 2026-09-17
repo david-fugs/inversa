@@ -43,11 +43,12 @@
                         <th class="text-center">Exitosas</th>
                         <th class="text-center">Con Error</th>
                         <th class="text-center">Detalle</th>
+                        <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($imports)): ?>
-                        <tr><td colspan="8" class="text-center text-muted py-4">Aún no se ha realizado ninguna importación.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-4">Aún no se ha realizado ninguna importación.</td></tr>
                     <?php else: ?>
                         <?php foreach ($imports as $imp): ?>
                             <tr>
@@ -72,6 +73,11 @@
                                     <?php else: ?>
                                         <span class="text-muted">—</span>
                                     <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <a href="<?= BASE_URL ?>/flight-services/import/<?= $imp['id'] ?>/delete" class="btn btn-icon btn-danger btn-sm" title="Eliminar importación y sus registros" data-confirm="¿Eliminar la importación &quot;<?= htmlspecialchars($imp['nombre_archivo']) ?>&quot; y los <?= (int)$imp['filas_exitosas'] ?> registro(s) de servicios de vuelo que creó? Esta acción no se puede deshacer.">
+                                        <i class="bi bi-trash-fill"></i>
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

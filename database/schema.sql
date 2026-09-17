@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `aircraft_types` (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `flight_services` (
     `id`                      INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+    `import_id`               INT UNSIGNED      NULL COMMENT 'Importación de Excel que creó el registro (si aplica)',
     -- Información General
     `anio`                    YEAR              NOT NULL,
     `mes`                     TINYINT UNSIGNED  NOT NULL COMMENT '1-12',

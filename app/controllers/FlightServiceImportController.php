@@ -110,20 +110,23 @@ class FlightServiceImportController extends Controller {
 
         $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
 
+        $importId = $this->importModel->create([
+            'nombre_archivo' => $nombreOriginal,
+            'total_filas'    => 0,
+            'filas_exitosas' => 0,
+            'filas_error'    => 0,
+            'user_id'        => (int)Session::get('user_id'),
+        ]);
+
         try {
-            [$totalFilas, $exitosas, $erroresPorFila] = $this->runImport($file['tmp_name']);
+            [$totalFilas, $exitosas, $erroresPorFila] = $this->runImport($file['tmp_name'], $importId);
         } catch (\Throwable $e) {
+            $this->importModel->delete($importId);
             $this->redirectWith('flight-services/import', 'error', 'No se pudo procesar el archivo: ' . $e->getMessage());
             return;
         }
 
-        $importId = $this->importModel->create([
-            'nombre_archivo' => $nombreOriginal,
-            'total_filas'    => $totalFilas,
-            'filas_exitosas' => $exitosas,
-            'filas_error'    => count($erroresPorFila),
-            'user_id'        => (int)Session::get('user_id'),
-        ]);
+        $this->importModel->updateStats($importId, $totalFilas, $exitosas, count($erroresPorFila));
 
         foreach ($erroresPorFila as $err) {
             $this->importModel->addError($importId, $err['fila'], $err['mensaje'], $err['datos']);
@@ -155,12 +158,23 @@ class FlightServiceImportController extends Controller {
         ]);
     }
 
+    /** Elimina una importación y todos los servicios de vuelo que creó */
+    public function deleteImport(string $id): void {
+        $import = $this->importModel->findByIdWithUser((int)$id);
+        if (!$import) {
+            $this->redirectWith('flight-services/import', 'error', 'Importación no encontrada.');
+            return;
+        }
+        $this->importModel->delete((int)$id);
+        $this->redirectWith('flight-services/import', 'success', 'Importación "' . $import['nombre_archivo'] . '" y sus ' . (int)$import['filas_exitosas'] . ' registro(s) fueron eliminados.');
+    }
+
     // ─────────────────────────────────────────────────────────────
     //  Lógica de importación
     // ─────────────────────────────────────────────────────────────
 
     /** @return array{0:int,1:int,2:array} [total filas leídas, filas exitosas, errores] */
-    private function runImport(string $filePath): array {
+    private function runImport(string $filePath, int $importId): array {
         $reader = new XlsxReader($filePath);
 
         $total    = 0;
@@ -179,7 +193,7 @@ class FlightServiceImportController extends Controller {
 
             $total++;
             try {
-                $data = $this->buildServiceData($row);
+                $data = $this->buildServiceData($row, $importId);
                 $this->model->create($data['data'], [], [], [], $data['adicionales']);
                 $exitosas++;
             } catch (\Throwable $e) {
@@ -195,7 +209,7 @@ class FlightServiceImportController extends Controller {
     }
 
     /** Construye el $data que espera FlightService::create(), o lanza \RuntimeException con el motivo */
-    private function buildServiceData(array $row): array {
+    private function buildServiceData(array $row, int $importId): array {
         $anio = (int)$this->cellNumber($row['A'] ?? null);
         $mes  = $this->mapMes($this->cellText($row['B'] ?? null));
         $dia  = (int)$this->cellNumber($row['D'] ?? null);
@@ -272,6 +286,7 @@ class FlightServiceImportController extends Controller {
         }
 
         $data = [
+            'import_id' => $importId,
             'anio' => $anio,
             'mes' => $mes,
             'quincena' => FlightService::calcularQuincena($dia),

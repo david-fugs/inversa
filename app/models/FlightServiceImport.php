@@ -36,6 +36,13 @@ class FlightServiceImport extends Model {
         return (int)$this->db->lastInsertId();
     }
 
+    public function updateStats(int $id, int $totalFilas, int $filasExitosas, int $filasError): void {
+        $this->db->query(
+            "UPDATE flight_service_imports SET total_filas = ?, filas_exitosas = ?, filas_error = ? WHERE id = ?",
+            [$totalFilas, $filasExitosas, $filasError, $id]
+        );
+    }
+
     public function addError(int $importId, int $fila, string $mensaje, array $datosFila): void {
         $this->db->query(
             "INSERT INTO flight_service_import_errors (import_id, fila, mensaje, datos_fila) VALUES (?, ?, ?, ?)",
