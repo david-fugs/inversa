@@ -990,6 +990,7 @@ XML;
             'pax_cancelados'          => 'PAX Cancelados',
             'planta_gpu'              => 'Planta GPU',
             'despacho'                => 'Despacho',
+            'acu'                     => 'ACU',
             'acu_hora'                => 'ACU Hora',
             'acu_15min'               => 'ACU 15 min',
             'ventilador'              => 'Ventilador',
@@ -1041,6 +1042,7 @@ XML;
             $agg['pax_cancelados']          += (int)($s['pax_cancelado'] ?? 0);
             $agg['planta_gpu']              += !empty($s['hora_conexion_gpu']) ? 1 : 0;
             $agg['despacho']                += (int)($s['despacho'] ?? 0);
+            $agg['acu']                     += (int)($s['acu'] ?? 0);
             $agg['acu_hora']                += (float)($s['fracciones_hora_acu'] ?? 0);
             $agg['acu_15min']               += (float)($s['fracciones_15min_acu'] ?? 0);
             $agg['ventilador']              += (int)($s['ventiladores_activo'] ?? 0);
