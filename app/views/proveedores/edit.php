@@ -12,17 +12,32 @@
     <div class="card-body">
         <form method="POST" action="<?= BASE_URL ?>/proveedores/edit/<?= $proveedor['id'] ?>" novalidate>
 
-            <div class="mb-3">
-                <label for="numero_identificacion" class="form-label">
-                    Número de Identificación <span class="required-mark">*</span>
-                </label>
-                <input type="text" class="form-control <?= isset($errors['numero_identificacion']) ? 'is-invalid' : '' ?>"
-                    id="numero_identificacion" name="numero_identificacion"
-                    value="<?= htmlspecialchars($proveedor['numero_identificacion']) ?>"
-                    autofocus>
-                <?php if (isset($errors['numero_identificacion'])): ?>
-                    <div class="invalid-feedback"><?= $errors['numero_identificacion'] ?></div>
-                <?php endif; ?>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="tipo_identificacion" class="form-label">
+                        Tipo de Identificación <span class="required-mark">*</span>
+                    </label>
+                    <input type="text" class="form-control <?= isset($errors['tipo_identificacion']) ? 'is-invalid' : '' ?>"
+                        id="tipo_identificacion" name="tipo_identificacion"
+                        value="<?= htmlspecialchars($proveedor['tipo_identificacion']) ?>"
+                        placeholder="Ej: 01, CC, NIT"
+                        maxlength="10"
+                        autofocus>
+                    <?php if (isset($errors['tipo_identificacion'])): ?>
+                        <div class="invalid-feedback"><?= $errors['tipo_identificacion'] ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="col-md-8 mb-3">
+                    <label for="numero_identificacion" class="form-label">
+                        Número de Identificación <span class="required-mark">*</span>
+                    </label>
+                    <input type="text" class="form-control <?= isset($errors['numero_identificacion']) ? 'is-invalid' : '' ?>"
+                        id="numero_identificacion" name="numero_identificacion"
+                        value="<?= htmlspecialchars($proveedor['numero_identificacion']) ?>">
+                    <?php if (isset($errors['numero_identificacion'])): ?>
+                        <div class="invalid-feedback"><?= $errors['numero_identificacion'] ?></div>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <div class="mb-3">

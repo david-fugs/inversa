@@ -29,6 +29,19 @@
                 <?php endif; ?>
             </div>
 
+            <div class="mb-3">
+                <label for="tipo_identificacion" class="form-label">
+                    Tipo de Identificación <span class="required-mark">*</span>
+                </label>
+                <input type="text" class="form-control <?= isset($errors['tipo_identificacion']) ? 'is-invalid' : '' ?>"
+                    id="tipo_identificacion" name="tipo_identificacion"
+                    value="<?= htmlspecialchars($pago['tipo_identificacion']) ?>"
+                    placeholder="Ej: 01, CC, NIT" maxlength="10">
+                <?php if (isset($errors['tipo_identificacion'])): ?>
+                    <div class="invalid-feedback"><?= $errors['tipo_identificacion'] ?></div>
+                <?php endif; ?>
+            </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="banco_id" class="form-label">Banco <span class="required-mark">*</span></label>
@@ -127,27 +140,41 @@
 
 <script>
 /* Precarga banco / tipo de producto / número de producto si el usuario
-   cambia el proveedor (mismo comportamiento que al agregar un pago). */
-(function () {
+   cambia el proveedor (mismo comportamiento que al agregar un pago).
+   El <select> de proveedor se inicializa como Select2 en app.js (cargado
+   después de este bloque): dispara el "change" vía jQuery, que no lo
+   propaga como evento nativo en un <select>, así que
+   addEventListener('change', ...) no se entera. Se espera a
+   DOMContentLoaded (jQuery ya cargado) y se engancha con jQuery cuando
+   está disponible, con addEventListener como respaldo. */
+document.addEventListener('DOMContentLoaded', function () {
     var proveedorSelect = document.getElementById('proveedor_id');
     if (!proveedorSelect) return;
 
+    var tipoIdentInput      = document.getElementById('tipo_identificacion');
     var bancoSelect         = document.getElementById('banco_id');
     var tipoProductoSelect  = document.getElementById('tipo_producto_id');
     var numeroProductoInput = document.getElementById('numero_producto');
 
-    proveedorSelect.addEventListener('change', function () {
-        if (!this.value) return;
-        fetch(BASE_URL + '/proveedores/info/' + this.value)
+    function onProveedorChange() {
+        if (!proveedorSelect.value) return;
+        fetch(BASE_URL + '/proveedores/info/' + proveedorSelect.value)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (!data) return;
+                if (tipoIdentInput) tipoIdentInput.value = data.tipo_identificacion;
                 if (bancoSelect) bancoSelect.value = data.banco_id;
                 if (tipoProductoSelect) tipoProductoSelect.value = data.tipo_producto_id;
                 if (numeroProductoInput) numeroProductoInput.value = data.numero_producto;
             });
-    });
-})();
+    }
+
+    if (window.jQuery) {
+        window.jQuery(proveedorSelect).on('change', onProveedorChange);
+    } else {
+        proveedorSelect.addEventListener('change', onProveedorChange);
+    }
+});
 
 /* Valor del pago: el "$" y los puntos de miles son solo ayuda visual;
    el campo oculto "valor" es el que se envía, siempre como número plano. */

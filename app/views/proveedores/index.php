@@ -15,6 +15,7 @@
                 <thead>
                     <tr>
                         <th>#</th>
+                        <th>Tipo Ident.</th>
                         <th>Identificación</th>
                         <th>Nombre</th>
                         <th>Banco</th>
@@ -27,6 +28,7 @@
                     <?php foreach ($proveedores as $p): ?>
                         <tr>
                             <td><?= $p['id'] ?></td>
+                            <td><?= htmlspecialchars($p['tipo_identificacion']) ?></td>
                             <td><?= htmlspecialchars($p['numero_identificacion']) ?></td>
                             <td><strong><?= htmlspecialchars($p['nombre']) ?></strong></td>
                             <td><?= htmlspecialchars($p['banco_nombre']) ?></td>

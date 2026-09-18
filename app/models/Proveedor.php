@@ -29,9 +29,10 @@ class Proveedor extends Model {
 
     public function create(array $data): int {
         $this->db->query(
-            "INSERT INTO proveedores (numero_identificacion, nombre, banco_id, tipo_producto_id, numero_producto)
-             VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO proveedores (tipo_identificacion, numero_identificacion, nombre, banco_id, tipo_producto_id, numero_producto)
+             VALUES (?, ?, ?, ?, ?, ?)",
             [
+                $data['tipo_identificacion'],
                 $data['numero_identificacion'],
                 $data['nombre'],
                 $data['banco_id'],
@@ -44,9 +45,10 @@ class Proveedor extends Model {
 
     public function update(int $id, array $data): bool {
         $stmt = $this->db->query(
-            "UPDATE proveedores SET numero_identificacion = ?, nombre = ?, banco_id = ?, tipo_producto_id = ?, numero_producto = ?
+            "UPDATE proveedores SET tipo_identificacion = ?, numero_identificacion = ?, nombre = ?, banco_id = ?, tipo_producto_id = ?, numero_producto = ?
              WHERE id = ?",
             [
+                $data['tipo_identificacion'],
                 $data['numero_identificacion'],
                 $data['nombre'],
                 $data['banco_id'],

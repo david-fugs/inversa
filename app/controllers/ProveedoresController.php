@@ -127,6 +127,9 @@ class ProveedoresController extends Controller {
             return;
         }
         $this->json([
+            'tipo_identificacion'   => $proveedor['tipo_identificacion'],
+            'numero_identificacion' => $proveedor['numero_identificacion'],
+            'nombre'                => $proveedor['nombre'],
             'banco_id'              => (int)$proveedor['banco_id'],
             'banco_nombre'          => $proveedor['banco_nombre'],
             'tipo_producto_id'      => (int)$proveedor['tipo_producto_id'],
@@ -137,6 +140,7 @@ class ProveedoresController extends Controller {
 
     private function readFormData(): array {
         return [
+            'tipo_identificacion'   => $this->input('tipo_identificacion', ''),
             'numero_identificacion' => $this->input('numero_identificacion', ''),
             'nombre'                => $this->input('nombre', ''),
             'banco_id'              => (int)$this->input('banco_id', 0),
@@ -147,6 +151,10 @@ class ProveedoresController extends Controller {
 
     private function validate(array $data, int $excludeId = 0): array {
         $errors = [];
+
+        if (empty($data['tipo_identificacion'])) {
+            $errors['tipo_identificacion'] = 'El tipo de identificación es obligatorio.';
+        }
 
         if (empty($data['numero_identificacion'])) {
             $errors['numero_identificacion'] = 'El número de identificación es obligatorio.';

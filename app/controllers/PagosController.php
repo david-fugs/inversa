@@ -114,12 +114,13 @@ class PagosController extends Controller {
         }
 
         $data = [
-            'proveedor_id'     => (int)$this->input('proveedor_id', 0),
-            'banco_id'         => (int)$this->input('banco_id', 0),
-            'tipo_producto_id' => (int)$this->input('tipo_producto_id', 0),
-            'numero_producto'  => $this->input('numero_producto', ''),
-            'fecha_pago'       => $this->input('fecha_pago', ''),
-            'valor'            => $this->input('valor', ''),
+            'proveedor_id'        => (int)$this->input('proveedor_id', 0),
+            'tipo_identificacion' => $this->input('tipo_identificacion', ''),
+            'banco_id'            => (int)$this->input('banco_id', 0),
+            'tipo_producto_id'    => (int)$this->input('tipo_producto_id', 0),
+            'numero_producto'     => $this->input('numero_producto', ''),
+            'fecha_pago'          => $this->input('fecha_pago', ''),
+            'valor'               => $this->input('valor', ''),
         ];
 
         $errors = $this->validarPago($data);
@@ -241,12 +242,13 @@ class PagosController extends Controller {
         }
 
         $data = [
-            'proveedor_id'     => (int)$this->input('proveedor_id', 0),
-            'banco_id'         => (int)$this->input('banco_id', 0),
-            'tipo_producto_id' => (int)$this->input('tipo_producto_id', 0),
-            'numero_producto'  => $this->input('numero_producto', ''),
-            'fecha_pago'       => $this->input('fecha_pago', ''),
-            'valor'            => $this->input('valor', ''),
+            'proveedor_id'        => (int)$this->input('proveedor_id', 0),
+            'tipo_identificacion' => $this->input('tipo_identificacion', ''),
+            'banco_id'            => (int)$this->input('banco_id', 0),
+            'tipo_producto_id'    => (int)$this->input('tipo_producto_id', 0),
+            'numero_producto'     => $this->input('numero_producto', ''),
+            'fecha_pago'          => $this->input('fecha_pago', ''),
+            'valor'               => $this->input('valor', ''),
         ];
 
         $errors = $this->validarPago($data);
@@ -365,6 +367,80 @@ class PagosController extends Controller {
         exit;
     }
 
+    public function exportarExcel(string $id): void {
+        $loteId = (int)$id;
+        $lote   = $this->loteModel->findById($loteId);
+        if (!$lote) {
+            $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
+            return;
+        }
+
+        $pagos = $this->pagoModel->getByLote($loteId);
+        if (empty($pagos)) {
+            $this->redirectWith('pagos/lotes/' . $loteId, 'error', 'El lote no tiene pagos para exportar.');
+            return;
+        }
+
+        $headers = [
+            'Tipo de Identificación',
+            'Número de Identificación',
+            'Nombre',
+            'Nombre',
+            'Código del Banco',
+            'Tipo de Producto o Servicio',
+            'Número del Producto o Servicio',
+            'Valor del Pago o de la Recarga',
+        ];
+
+        $rows = [];
+        foreach ($pagos as $p) {
+            [$nombre1, $nombre2] = $this->dividirNombre($p['proveedor_nombre']);
+            $rows[] = [
+                $p['tipo_identificacion'],
+                $p['numero_identificacion'],
+                $nombre1,
+                $nombre2,
+                $p['banco_codigo'],
+                $p['tipo_producto_codigo'],
+                $p['numero_producto'],
+                (float)$p['valor'],
+            ];
+        }
+
+        if (!is_dir(PAGOS_TEMP_PATH)) {
+            mkdir(PAGOS_TEMP_PATH, 0755, true);
+        }
+        $tmpFile = PAGOS_TEMP_PATH . '/lote_' . $loteId . '_' . bin2hex(random_bytes(6)) . '.xlsx';
+
+        XlsxWriter::write($tmpFile, 'Pagos', $headers, $rows);
+
+        $nombreDescarga = 'lote_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $lote['consecutivo']) . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $nombreDescarga . '"');
+        header('Content-Length: ' . filesize($tmpFile));
+        header('X-Content-Type-Options: nosniff');
+        readfile($tmpFile);
+        @unlink($tmpFile);
+        exit;
+    }
+
+    /**
+     * Divide el nombre completo del proveedor en dos mitades (por
+     * palabras) para llenar las dos columnas "Nombre" de la plantilla
+     * bancaria, tal como lo exige el formato de exportación.
+     */
+    private function dividirNombre(string $nombreCompleto): array {
+        $palabras = preg_split('/\s+/', trim($nombreCompleto), -1, PREG_SPLIT_NO_EMPTY);
+        if (empty($palabras)) {
+            return ['', ''];
+        }
+        $corte = (int)ceil(count($palabras) / 2);
+        return [
+            implode(' ', array_slice($palabras, 0, $corte)),
+            implode(' ', array_slice($palabras, $corte)),
+        ];
+    }
+
     public function cerrarLote(string $id): void {
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);
@@ -388,6 +464,9 @@ class PagosController extends Controller {
 
         if (empty($data['proveedor_id']) || !$this->proveedorModel->findById($data['proveedor_id'])) {
             $errors['proveedor_id'] = 'Seleccione un proveedor válido.';
+        }
+        if (empty($data['tipo_identificacion'])) {
+            $errors['tipo_identificacion'] = 'El tipo de identificación es obligatorio.';
         }
         if (empty($data['banco_id']) || !$this->bancoModel->findById($data['banco_id'])) {
             $errors['banco_id'] = 'Seleccione un banco válido.';

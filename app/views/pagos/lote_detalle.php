@@ -8,6 +8,9 @@
         <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/combinado" class="btn btn-outline-primary">
             <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF Combinado
         </a>
+        <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/exportar" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel
+        </a>
     <?php endif; ?>
     <?php if ($lote['estado'] === 'abierto'): ?>
         <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/cerrar" class="btn btn-success"
@@ -128,6 +131,19 @@
                 <?php endif; ?>
             </div>
 
+            <div class="mb-3">
+                <label for="tipo_identificacion" class="form-label">
+                    Tipo de Identificación <span class="required-mark">*</span>
+                </label>
+                <input type="text" class="form-control <?= isset($errors['tipo_identificacion']) ? 'is-invalid' : '' ?>"
+                    id="tipo_identificacion" name="tipo_identificacion"
+                    value="<?= htmlspecialchars($old['tipo_identificacion'] ?? '') ?>"
+                    placeholder="Ej: 01, CC, NIT" maxlength="10">
+                <?php if (isset($errors['tipo_identificacion'])): ?>
+                    <div class="invalid-feedback"><?= $errors['tipo_identificacion'] ?></div>
+                <?php endif; ?>
+            </div>
+
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="banco_id" class="form-label">Banco <span class="required-mark">*</span></label>
@@ -224,12 +240,20 @@
    seleccionado (los campos quedan editables). Los <select> de banco y
    tipo de producto se llenan aquí porque dependen del catálogo completo,
    que no se recorre en PHP para este formulario (solo se usa vía AJAX). */
-(function () {
+// El <select> de proveedor se inicializa como Select2 en app.js (que se
+// carga después de este bloque). Select2 dispara el "change" a través de
+// jQuery, y jQuery no lo propaga como evento nativo del DOM en un
+// <select> (no tiene método change() nativo), así que
+// addEventListener('change', ...) nunca se entera. Por eso se espera a
+// DOMContentLoaded (para que jQuery ya esté cargado) y se engancha con
+// jQuery cuando está disponible, con addEventListener como respaldo.
+document.addEventListener('DOMContentLoaded', function () {
     var proveedorSelect = document.getElementById('proveedor_id');
     if (!proveedorSelect) return;
 
-    var bancoSelect        = document.getElementById('banco_id');
-    var tipoProductoSelect = document.getElementById('tipo_producto_id');
+    var tipoIdentInput      = document.getElementById('tipo_identificacion');
+    var bancoSelect         = document.getElementById('banco_id');
+    var tipoProductoSelect  = document.getElementById('tipo_producto_id');
     var numeroProductoInput = document.getElementById('numero_producto');
 
     function precargar(proveedorId) {
@@ -238,6 +262,7 @@
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (!data) return;
+                if (tipoIdentInput) tipoIdentInput.value = data.tipo_identificacion;
                 if (bancoSelect) bancoSelect.value = data.banco_id;
                 if (tipoProductoSelect) tipoProductoSelect.value = data.tipo_producto_id;
                 if (numeroProductoInput) numeroProductoInput.value = data.numero_producto;
@@ -247,10 +272,15 @@
     // Solo precargar automáticamente al cambiar de proveedor (no al
     // recargar la página tras un error de validación, para no pisar los
     // valores que el usuario ya había editado manualmente).
-    proveedorSelect.addEventListener('change', function () {
-        precargar(this.value);
-    });
-})();
+    function onProveedorChange() {
+        precargar(proveedorSelect.value);
+    }
+    if (window.jQuery) {
+        window.jQuery(proveedorSelect).on('change', onProveedorChange);
+    } else {
+        proveedorSelect.addEventListener('change', onProveedorChange);
+    }
+});
 
 /* Valor del pago: el usuario ve el "$" y los puntos de miles solo como
    ayuda visual; lo que realmente se envía al servidor (campo oculto

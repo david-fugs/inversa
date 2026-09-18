@@ -23,12 +23,13 @@ class Pago extends Model {
 
             $this->db->query(
                 "INSERT INTO pagos
-                    (lote_pago_id, proveedor_id, banco_id, tipo_producto_id, numero_producto,
+                    (lote_pago_id, proveedor_id, tipo_identificacion, banco_id, tipo_producto_id, numero_producto,
                      fecha_pago, valor, comprobante_pdf, comprobante_pdf_original, orden, user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     $data['lote_pago_id'],
                     $data['proveedor_id'],
+                    $data['tipo_identificacion'],
                     $data['banco_id'],
                     $data['tipo_producto_id'],
                     $data['numero_producto'],
@@ -52,11 +53,12 @@ class Pago extends Model {
     /** Actualiza los datos editables de un pago (no toca lote/orden). */
     public function update(int $id, array $data): bool {
         $stmt = $this->db->query(
-            "UPDATE pagos SET proveedor_id = ?, banco_id = ?, tipo_producto_id = ?, numero_producto = ?,
+            "UPDATE pagos SET proveedor_id = ?, tipo_identificacion = ?, banco_id = ?, tipo_producto_id = ?, numero_producto = ?,
                 fecha_pago = ?, valor = ?
              WHERE id = ?",
             [
                 $data['proveedor_id'],
+                $data['tipo_identificacion'],
                 $data['banco_id'],
                 $data['tipo_producto_id'],
                 $data['numero_producto'],
@@ -71,7 +73,8 @@ class Pago extends Model {
     public function getByLote(int $loteId): array {
         return $this->db->fetchAll(
             "SELECT pg.*, pv.nombre AS proveedor_nombre, pv.numero_identificacion,
-                    b.nombre AS banco_nombre, tp.nombre AS tipo_producto_nombre
+                    b.nombre AS banco_nombre, b.codigo AS banco_codigo,
+                    tp.nombre AS tipo_producto_nombre, tp.codigo AS tipo_producto_codigo
              FROM pagos pg
              JOIN proveedores pv ON pg.proveedor_id = pv.id
              JOIN bancos b ON pg.banco_id = b.id

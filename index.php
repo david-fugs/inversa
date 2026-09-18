@@ -157,6 +157,7 @@ $router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm'
 $router->post('/pagos/lotes/verificar',       'PagosController', 'verificarConsecutivo');
 $router->get('/pagos/lotes/{id}/cerrar',      'PagosController', 'cerrarLote');
 $router->get('/pagos/lotes/{id}/combinado',   'PagosController', 'descargarCombinado');
+$router->get('/pagos/lotes/{id}/exportar',    'PagosController', 'exportarExcel');
 $router->get('/pagos/lotes/{id}',             'PagosController', 'detalle');
 $router->post('/pagos/lotes/{id}/pagos',      'PagosController', 'agregarPago');
 $router->get('/pagos/pagos/delete/{id}',      'PagosController', 'eliminarPago');
