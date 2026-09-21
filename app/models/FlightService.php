@@ -160,12 +160,13 @@ class FlightService extends Model
             $params[] = $filtros['fecha_fin'];
         }
         if ($filtros['buscar'] !== '') {
-            $where[] = '(fs.matricula LIKE ? OR fs.vuelo_llegando LIKE ? OR fs.vuelo_saliendo LIKE ?
+            $where[] = '(fs.id = ? OR fs.matricula LIKE ? OR fs.vuelo_llegando LIKE ? OR fs.vuelo_saliendo LIKE ?
                           OR fs.base LIKE ? OR fs.tipo_atencion LIKE ?
                           OR COALESCE(a.nombre, fs.airline_custom_nombre) LIKE ?
                           OR COALESCE(at.tipo, fs.aircraft_type_custom) LIKE ?)';
             $like = '%' . $filtros['buscar'] . '%';
-            array_push($params, $like, $like, $like, $like, $like, $like, $like);
+            $idExacto = ctype_digit($filtros['buscar']) ? (int)$filtros['buscar'] : -1;
+            array_push($params, $idExacto, $like, $like, $like, $like, $like, $like, $like);
         }
 
         $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
