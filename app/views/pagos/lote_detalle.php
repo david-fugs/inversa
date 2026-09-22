@@ -71,10 +71,12 @@
                             <td><?= date('d/m/Y', strtotime($p['fecha_pago'])) ?></td>
                             <td>$<?= number_format((float)$p['valor'], 2) ?></td>
                             <td>
-                                <a href="<?= BASE_URL ?>/pagos/pagos/<?= $p['id'] ?>/file" target="_blank"
-                                   class="btn btn-icon btn-outline-primary btn-sm" title="Ver comprobante">
-                                    <i class="bi bi-file-earmark-pdf-fill"></i>
-                                </a>
+                                <?php foreach ($p['comprobantes'] as $c): ?>
+                                    <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
+                                       class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
+                                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                                    </a>
+                                <?php endforeach; ?>
                             </td>
                             <?php if ($lote['estado'] === 'abierto'): ?>
                             <td class="text-center">
@@ -214,14 +216,14 @@
 
             <div class="mb-3">
                 <label for="comprobante_pdf" class="form-label">
-                    Comprobante PDF <span class="required-mark">*</span>
+                    Comprobante(s) PDF <span class="required-mark">*</span>
                 </label>
-                <input type="file" accept="application/pdf" class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
-                    id="comprobante_pdf" name="comprobante_pdf">
+                <input type="file" accept="application/pdf" multiple class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
+                    id="comprobante_pdf" name="comprobante_pdf[]">
                 <?php if (isset($errors['comprobante_pdf'])): ?>
                     <div class="invalid-feedback"><?= $errors['comprobante_pdf'] ?></div>
                 <?php endif; ?>
-                <small class="text-muted">Tamaño máximo 2 MB.</small>
+                <small class="text-muted">Puede seleccionar varios archivos PDF. Tamaño máximo 2 MB por archivo.</small>
             </div>
 
             <hr class="divider">

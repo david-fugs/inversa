@@ -71,7 +71,7 @@ class Pago extends Model {
     }
 
     public function getByLote(int $loteId): array {
-        return $this->db->fetchAll(
+        $pagos = $this->db->fetchAll(
             "SELECT pg.*, pv.nombre AS proveedor_nombre, pv.numero_identificacion,
                     b.nombre AS banco_nombre, b.codigo AS banco_codigo,
                     tp.nombre AS tipo_producto_nombre, tp.codigo AS tipo_producto_codigo
@@ -83,10 +83,26 @@ class Pago extends Model {
              ORDER BY pg.orden ASC",
             [$loteId]
         );
+
+        if (empty($pagos)) {
+            return $pagos;
+        }
+
+        $comprobantes = (new PagoComprobante())->getByLote($loteId);
+        $porPago = [];
+        foreach ($comprobantes as $c) {
+            $porPago[(int)$c['pago_id']][] = $c;
+        }
+        foreach ($pagos as &$p) {
+            $p['comprobantes'] = $porPago[(int)$p['id']] ?? [];
+        }
+        unset($p);
+
+        return $pagos;
     }
 
     public function findById(int $id): array|false {
-        return $this->db->fetchOne(
+        $pago = $this->db->fetchOne(
             "SELECT pg.*, pv.nombre AS proveedor_nombre, pv.numero_identificacion,
                     b.nombre AS banco_nombre, tp.nombre AS tipo_producto_nombre
              FROM pagos pg
@@ -96,13 +112,11 @@ class Pago extends Model {
              WHERE pg.id = ?",
             [$id]
         );
-    }
 
-    public function setArchivo(int $id, string $storedName, string $originalName): bool {
-        $stmt = $this->db->query(
-            "UPDATE pagos SET comprobante_pdf = ?, comprobante_pdf_original = ? WHERE id = ?",
-            [$storedName, $originalName, $id]
-        );
-        return $stmt->rowCount() > 0;
+        if ($pago) {
+            $pago['comprobantes'] = (new PagoComprobante())->getByPago($id);
+        }
+
+        return $pago;
     }
 }

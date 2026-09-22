@@ -11,6 +11,7 @@ class PagosController extends Controller {
 
     private LotePago  $loteModel;
     private Pago      $pagoModel;
+    private PagoComprobante $comprobanteModel;
     private Proveedor $proveedorModel;
     private Banco     $bancoModel;
     private TipoProducto $tipoProductoModel;
@@ -20,9 +21,54 @@ class PagosController extends Controller {
         Session::requireAuth();
         $this->loteModel        = new LotePago();
         $this->pagoModel        = new Pago();
+        $this->comprobanteModel = new PagoComprobante();
         $this->proveedorModel   = new Proveedor();
         $this->bancoModel       = new Banco();
         $this->tipoProductoModel = new TipoProducto();
+    }
+
+    /**
+     * Normaliza $_FILES['comprobante_pdf'] (que PHP entrega en "forma de
+     * columnas" cuando el input es name="comprobante_pdf[]") a una lista
+     * de archivos individuales, ignorando los slots vacíos.
+     */
+    private function archivosSubidos(): array {
+        $campo = $_FILES['comprobante_pdf'] ?? null;
+        if (!$campo || !isset($campo['name'])) {
+            return [];
+        }
+
+        $archivos = [];
+        foreach ((array)$campo['name'] as $i => $name) {
+            $error = $campo['error'][$i] ?? UPLOAD_ERR_NO_FILE;
+            if ($error === UPLOAD_ERR_NO_FILE || $name === '') {
+                continue;
+            }
+            $archivos[] = [
+                'name'     => $name,
+                'type'     => $campo['type'][$i] ?? '',
+                'tmp_name' => $campo['tmp_name'][$i] ?? '',
+                'error'    => $error,
+                'size'     => $campo['size'][$i] ?? 0,
+            ];
+        }
+        return $archivos;
+    }
+
+    /** Valida un solo archivo subido; retorna un mensaje de error o null si es válido. */
+    private function validarArchivoPdf(array $file): ?string {
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return 'Error al subir el archivo "' . $file['name'] . '".';
+        }
+        if ($file['size'] > self::ARCHIVO_MAX_BYTES) {
+            return 'El archivo "' . $file['name'] . '" supera el tamaño máximo permitido (2 MB).';
+        }
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $mime      = @finfo_file(finfo_open(FILEINFO_MIME_TYPE), $file['tmp_name']);
+        if ($extension !== 'pdf' || $mime !== 'application/pdf') {
+            return 'El archivo "' . $file['name'] . '" no es un PDF válido.';
+        }
+        return null;
     }
 
     public function index(): void {
@@ -125,18 +171,16 @@ class PagosController extends Controller {
 
         $errors = $this->validarPago($data);
 
-        $file = $_FILES['comprobante_pdf'] ?? null;
-        if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-            $errors['comprobante_pdf'] = 'Seleccione el comprobante PDF del pago.';
-        } elseif ($file['error'] !== UPLOAD_ERR_OK) {
-            $errors['comprobante_pdf'] = 'Error al subir el archivo.';
-        } elseif ($file['size'] > self::ARCHIVO_MAX_BYTES) {
-            $errors['comprobante_pdf'] = 'El archivo supera el tamaño máximo permitido (2 MB).';
+        $archivos = $this->archivosSubidos();
+        if (empty($archivos)) {
+            $errors['comprobante_pdf'] = 'Seleccione al menos un comprobante PDF del pago.';
         } else {
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $mime      = @finfo_file(finfo_open(FILEINFO_MIME_TYPE), $file['tmp_name']);
-            if ($extension !== 'pdf' || $mime !== 'application/pdf') {
-                $errors['comprobante_pdf'] = 'Solo se permiten archivos PDF.';
+            foreach ($archivos as $file) {
+                $mensaje = $this->validarArchivoPdf($file);
+                if ($mensaje !== null) {
+                    $errors['comprobante_pdf'] = $mensaje;
+                    break;
+                }
             }
         }
 
@@ -159,22 +203,29 @@ class PagosController extends Controller {
             mkdir(PAGOS_COMPROBANTES_PATH, 0755, true);
         }
 
-        $storedName = $loteId . '_' . bin2hex(random_bytes(8)) . '.pdf';
-        $destino    = PAGOS_COMPROBANTES_PATH . '/' . $storedName;
-
-        if (!move_uploaded_file($file['tmp_name'], $destino)) {
-            $this->redirectWith('pagos/lotes/' . $loteId, 'error', 'No se pudo guardar el comprobante PDF.');
-            return;
+        $guardados = [];
+        foreach ($archivos as $file) {
+            $storedName = $loteId . '_' . bin2hex(random_bytes(8)) . '.pdf';
+            $destino    = PAGOS_COMPROBANTES_PATH . '/' . $storedName;
+            if (!move_uploaded_file($file['tmp_name'], $destino)) {
+                $this->redirectWith('pagos/lotes/' . $loteId, 'error', 'No se pudo guardar el comprobante "' . $file['name'] . '".');
+                return;
+            }
+            $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
+            $guardados[] = [
+                'stored'   => $storedName,
+                'original' => $nombreOriginal !== '' ? $nombreOriginal : 'comprobante.pdf',
+            ];
         }
 
-        $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
+        $data['lote_pago_id'] = $loteId;
+        $data['user_id']      = (int)Session::get('user_id');
 
-        $data['lote_pago_id']              = $loteId;
-        $data['comprobante_pdf']           = $storedName;
-        $data['comprobante_pdf_original']  = $nombreOriginal !== '' ? $nombreOriginal : 'comprobante.pdf';
-        $data['user_id']                   = (int)Session::get('user_id');
+        $pagoId = $this->pagoModel->create($data);
 
-        $this->pagoModel->create($data);
+        foreach ($guardados as $orden => $g) {
+            $this->comprobanteModel->create($pagoId, $g['stored'], $g['original'], $orden);
+        }
 
         $this->redirectWith('pagos/lotes/' . $loteId, 'success', 'Pago agregado correctamente.');
     }
@@ -193,8 +244,8 @@ class PagosController extends Controller {
             return;
         }
 
-        if (!empty($pago['comprobante_pdf'])) {
-            $ruta = PAGOS_COMPROBANTES_PATH . '/' . $pago['comprobante_pdf'];
+        foreach ($pago['comprobantes'] as $c) {
+            $ruta = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
             if (is_file($ruta)) @unlink($ruta);
         }
         $this->pagoModel->delete($pagoId);
@@ -253,20 +304,17 @@ class PagosController extends Controller {
 
         $errors = $this->validarPago($data);
 
-        // El comprobante PDF es opcional al editar: si no se sube uno
-        // nuevo, se conserva el existente.
-        $file = $_FILES['comprobante_pdf'] ?? null;
-        $reemplazarArchivo = $file && $file['error'] !== UPLOAD_ERR_NO_FILE;
-        if ($reemplazarArchivo) {
-            if ($file['error'] !== UPLOAD_ERR_OK) {
-                $errors['comprobante_pdf'] = 'Error al subir el archivo.';
-            } elseif ($file['size'] > self::ARCHIVO_MAX_BYTES) {
-                $errors['comprobante_pdf'] = 'El archivo supera el tamaño máximo permitido (2 MB).';
-            } else {
-                $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $mime      = @finfo_file(finfo_open(FILEINFO_MIME_TYPE), $file['tmp_name']);
-                if ($extension !== 'pdf' || $mime !== 'application/pdf') {
-                    $errors['comprobante_pdf'] = 'Solo se permiten archivos PDF.';
+        // Los comprobantes PDF son opcionales al editar: si no se sube
+        // ninguno, se conservan los existentes. Si se sube al menos uno,
+        // se reemplaza el conjunto completo de comprobantes del pago.
+        $archivos = $this->archivosSubidos();
+        $reemplazarArchivos = !empty($archivos);
+        if ($reemplazarArchivos) {
+            foreach ($archivos as $file) {
+                $mensaje = $this->validarArchivoPdf($file);
+                if ($mensaje !== null) {
+                    $errors['comprobante_pdf'] = $mensaje;
+                    break;
                 }
             }
         }
@@ -287,20 +335,34 @@ class PagosController extends Controller {
 
         $this->pagoModel->update($pagoId, $data);
 
-        if ($reemplazarArchivo) {
+        if ($reemplazarArchivos) {
             if (!is_dir(PAGOS_COMPROBANTES_PATH)) {
                 mkdir(PAGOS_COMPROBANTES_PATH, 0755, true);
             }
-            $storedName = $pagoId . '_' . bin2hex(random_bytes(8)) . '.pdf';
-            $destino    = PAGOS_COMPROBANTES_PATH . '/' . $storedName;
 
-            if (move_uploaded_file($file['tmp_name'], $destino)) {
-                if (!empty($pago['comprobante_pdf'])) {
-                    $anterior = PAGOS_COMPROBANTES_PATH . '/' . $pago['comprobante_pdf'];
+            $guardados = [];
+            foreach ($archivos as $file) {
+                $storedName = $pagoId . '_' . bin2hex(random_bytes(8)) . '.pdf';
+                $destino    = PAGOS_COMPROBANTES_PATH . '/' . $storedName;
+                if (move_uploaded_file($file['tmp_name'], $destino)) {
+                    $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
+                    $guardados[] = [
+                        'stored'   => $storedName,
+                        'original' => $nombreOriginal !== '' ? $nombreOriginal : 'comprobante.pdf',
+                    ];
+                }
+            }
+
+            if (!empty($guardados)) {
+                foreach ($pago['comprobantes'] as $c) {
+                    $anterior = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
                     if (is_file($anterior)) @unlink($anterior);
                 }
-                $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
-                $this->pagoModel->setArchivo($pagoId, $storedName, $nombreOriginal !== '' ? $nombreOriginal : 'comprobante.pdf');
+                $this->comprobanteModel->deleteByPago($pagoId);
+
+                foreach ($guardados as $orden => $g) {
+                    $this->comprobanteModel->create($pagoId, $g['stored'], $g['original'], $orden);
+                }
             }
         }
 
@@ -308,19 +370,21 @@ class PagosController extends Controller {
     }
 
     public function descargarComprobante(string $id): void {
-        $pago = $this->pagoModel->findById((int)$id);
-        if (!$pago || empty($pago['comprobante_pdf'])) {
-            $this->redirectWith('pagos', 'error', 'El pago no tiene comprobante adjunto.');
+        $comprobante = $this->comprobanteModel->findById((int)$id);
+        if (!$comprobante) {
+            $this->redirectWith('pagos', 'error', 'El comprobante no existe.');
             return;
         }
 
-        $ruta = PAGOS_COMPROBANTES_PATH . '/' . $pago['comprobante_pdf'];
+        $pago = $this->pagoModel->findById((int)$comprobante['pago_id']);
+
+        $ruta = PAGOS_COMPROBANTES_PATH . '/' . $comprobante['archivo'];
         if (!is_file($ruta)) {
-            $this->redirectWith('pagos/lotes/' . $pago['lote_pago_id'], 'error', 'El comprobante ya no está disponible.');
+            $this->redirectWith('pagos/lotes/' . ($pago['lote_pago_id'] ?? ''), 'error', 'El comprobante ya no está disponible.');
             return;
         }
 
-        $nombreDescarga = $pago['comprobante_pdf_original'] ?: 'comprobante.pdf';
+        $nombreDescarga = $comprobante['archivo_original'] ?: 'comprobante.pdf';
         header('Content-Type: application/pdf');
         header('Content-Disposition: inline; filename="' . str_replace('"', '', $nombreDescarga) . '"');
         header('Content-Length: ' . filesize($ruta));
@@ -340,8 +404,8 @@ class PagosController extends Controller {
         $pagos = $this->pagoModel->getByLote($loteId);
         $rutas = [];
         foreach ($pagos as $p) {
-            if (!empty($p['comprobante_pdf'])) {
-                $rutas[] = PAGOS_COMPROBANTES_PATH . '/' . $p['comprobante_pdf'];
+            foreach ($p['comprobantes'] as $c) {
+                $rutas[] = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
             }
         }
 

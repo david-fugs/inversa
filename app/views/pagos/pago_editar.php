@@ -111,20 +111,23 @@
             </div>
 
             <div class="mb-3">
-                <label for="comprobante_pdf" class="form-label">Comprobante PDF</label>
-                <?php if (!empty($pago['comprobante_pdf_original'])): ?>
+                <label for="comprobante_pdf" class="form-label">Comprobante(s) PDF</label>
+                <?php if (!empty($pago['comprobantes'])): ?>
                     <p class="mb-1" style="font-size:13px;">
-                        Actual: <a href="<?= BASE_URL ?>/pagos/pagos/<?= $pago['id'] ?>/file" target="_blank">
-                            <?= htmlspecialchars($pago['comprobante_pdf_original']) ?>
-                        </a>
+                        Actuales:
+                        <?php foreach ($pago['comprobantes'] as $c): ?>
+                            <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank">
+                                <?= htmlspecialchars($c['archivo_original']) ?>
+                            </a><?= $c !== end($pago['comprobantes']) ? ',' : '' ?>
+                        <?php endforeach; ?>
                     </p>
                 <?php endif; ?>
-                <input type="file" accept="application/pdf" class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
-                    id="comprobante_pdf" name="comprobante_pdf">
+                <input type="file" accept="application/pdf" multiple class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
+                    id="comprobante_pdf" name="comprobante_pdf[]">
                 <?php if (isset($errors['comprobante_pdf'])): ?>
                     <div class="invalid-feedback"><?= $errors['comprobante_pdf'] ?></div>
                 <?php endif; ?>
-                <small class="text-muted">Déjelo vacío para conservar el comprobante actual. Tamaño máximo 2 MB.</small>
+                <small class="text-muted">Déjelo vacío para conservar los comprobantes actuales. Si sube archivos nuevos, reemplazan a todos los actuales. Puede seleccionar varios. Tamaño máximo 2 MB por archivo.</small>
             </div>
 
             <hr class="divider">
