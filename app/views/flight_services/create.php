@@ -360,6 +360,14 @@
                         value="<?= number_format((float)($old['fracciones_adc_gpu'] ?? 0), 2) ?>"
                         readonly style="background:var(--bg-body);">
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label d-block">&nbsp;</label>
+                    <div class="form-check form-switch pt-1">
+                        <input class="form-check-input" type="checkbox" role="switch" id="gpu_mas_24h" name="gpu_mas_24h" value="1"
+                            <?= !empty($old['gpu_mas_24h']) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="gpu_mas_24h">Más de 24 horas</label>
+                    </div>
+                </div>
                 <!-- <div class="col-md-2">
                     <label for="fracciones_adicionales_gpu" class="form-label">Fracciones Adicionales GPU</label>
                     <input type="number" step="0.01" class="form-control" id="fracciones_adicionales_gpu" name="fracciones_adicionales_gpu"

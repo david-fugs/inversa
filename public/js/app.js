@@ -268,6 +268,7 @@ function initGpuCalculation() {
     const fracAdicGpu   = document.getElementById('fracciones_adicionales_gpu');
     const airlineSelect = document.getElementById('airline_id');
     const baseSelect    = document.getElementById('base');
+    const mas24h        = document.getElementById('gpu_mas_24h');
 
     if (!conexion || !desconexion) return;
 
@@ -314,12 +315,17 @@ function initGpuCalculation() {
         if (c === null || d === null) return;
         let diff = d - c;
         if (diff < 0) diff += 1440;
+        // Si está activado "Más de 24 horas", se suma un día completo extra
+        // (ej: conexión 6:00am, desconexión 6:20am con el switch activado
+        // significa 24h + 20min, no 20min).
+        if (mas24h && mas24h.checked) diff += 1440;
         if (tiempoGpu) tiempoGpu.value = diff;
         recalcularFracciones();
     }
 
     conexion.addEventListener('change', calcular);
     desconexion.addEventListener('change', calcular);
+    if (mas24h) mas24h.addEventListener('change', calcular);
 
     if (airlineSelect) {
         airlineSelect.addEventListener('change', function () {
@@ -745,6 +751,14 @@ function addGpuRow() {
                 <input type="number" step="0.01" class="form-control" name="gpu_fracciones[${idx}][fracciones_adc]" value="0.00" readonly style="background:var(--bg-body);">
             </div>
             <div class="col-md-2">
+                <label class="form-label d-block">&nbsp;</label>
+                <div class="form-check form-switch pt-1">
+                    <input class="form-check-input" type="checkbox" role="switch" name="gpu_fracciones[${idx}][mas_24h]" value="1"
+                        onchange="calcFraccionGpu(this)">
+                    <label class="form-check-label" style="font-size:12px;">+24h</label>
+                </div>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label">Observación</label>
                 <input type="text" class="form-control" name="gpu_fracciones[${idx}][observacion]" placeholder="Observación">
             </div>
@@ -761,11 +775,13 @@ function calcFraccionGpu(anyInput) {
     const desconexionInp = row.querySelector('input[name$="[hora_desconexion]"]');
     const tiempoInp      = row.querySelector('input[name$="[tiempo]"]');
     const fracInp        = row.querySelector('input[name$="[fracciones_adc]"]');
+    const mas24hInp      = row.querySelector('input[name$="[mas_24h]"]');
     const c = timeToMinutes(conexionInp ? conexionInp.value : '');
     const d = timeToMinutes(desconexionInp ? desconexionInp.value : '');
     if (c !== null && d !== null) {
         let diff = d - c;
         if (diff < 0) diff += 1440;
+        if (mas24hInp && mas24hInp.checked) diff += 1440;
         if (tiempoInp) tiempoInp.value = diff;
         if (fracInp) fracInp.value = calcularFraccionesGpuValor(diff, gpuTarifaActual).toFixed(2);
     }

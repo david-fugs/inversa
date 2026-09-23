@@ -333,7 +333,7 @@ class FlightService extends Model
                     hora_itinerada_salida, satena_hora_cierre_modulo, hora_real_llegada, hora_real_salida,
                     tiempo_transito, cumple_tiempo,
                     codigo_demora, codigo_demora_id, observacion_demora,
-                    hora_conexion_gpu, hora_desconexion_gpu, tiempo_gpu, fracciones_adc_gpu, fracciones_adicionales_gpu,
+                    hora_conexion_gpu, hora_desconexion_gpu, tiempo_gpu, fracciones_adc_gpu, fracciones_adicionales_gpu, gpu_mas_24h,
                     acu, hora_conexion_acu, hora_desconexion_acu, tiempo_acu,
                     fracciones_hora_acu, fracciones_15min_acu,
                     ventiladores_activo, hora_conexion_ventiladores, hora_desconexion_ventiladores, tiempo_ventiladores,
@@ -343,7 +343,7 @@ class FlightService extends Model
                     potable, drenaje, air_starter, pay_mower, aseo_aeronaves, equipos_carga_descargue, atencion_pasajeros,
                     equipo_gse_inoperativo, afecto_operacion, rpn, observaciones, user_id
                 ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 )",
                 [
                     $data['import_id'] ?? null,
@@ -382,6 +382,7 @@ class FlightService extends Model
                     $data['tiempo_gpu'] !== '' ? $data['tiempo_gpu'] : null,
                     $data['fracciones_adc_gpu'],
                     $data['fracciones_adicionales_gpu'],
+                    !empty($data['gpu_mas_24h']) ? 1 : 0,
                     $data['acu'],
                     $data['hora_conexion_acu'] ?: null,
                     $data['hora_desconexion_acu'] ?: null,
@@ -453,7 +454,7 @@ class FlightService extends Model
                     hora_itinerada_salida=?, satena_hora_cierre_modulo=?, hora_real_llegada=?, hora_real_salida=?,
                     tiempo_transito=?, cumple_tiempo=?,
                     codigo_demora=?, codigo_demora_id=?, observacion_demora=?,
-                    hora_conexion_gpu=?, hora_desconexion_gpu=?, tiempo_gpu=?, fracciones_adc_gpu=?, fracciones_adicionales_gpu=?,
+                    hora_conexion_gpu=?, hora_desconexion_gpu=?, tiempo_gpu=?, fracciones_adc_gpu=?, fracciones_adicionales_gpu=?, gpu_mas_24h=?,
                     acu=?, hora_conexion_acu=?, hora_desconexion_acu=?, tiempo_acu=?,
                     fracciones_hora_acu=?, fracciones_15min_acu=?,
                     ventiladores_activo=?, hora_conexion_ventiladores=?, hora_desconexion_ventiladores=?, tiempo_ventiladores=?,
@@ -499,6 +500,7 @@ class FlightService extends Model
                     $data['tiempo_gpu'] !== '' ? $data['tiempo_gpu'] : null,
                     $data['fracciones_adc_gpu'],
                     $data['fracciones_adicionales_gpu'],
+                    !empty($data['gpu_mas_24h']) ? 1 : 0,
                     $data['acu'],
                     $data['hora_conexion_acu'] ?: null,
                     $data['hora_desconexion_acu'] ?: null,
@@ -559,8 +561,8 @@ class FlightService extends Model
             if (empty($row['hora_conexion']) && empty($row['hora_desconexion'])) continue;
             $this->db->query(
                 "INSERT INTO flight_service_gpu_fracciones
-                 (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_adc, observacion)
-                 VALUES (?,?,?,?,?,?)",
+                 (flight_service_id, hora_conexion, hora_desconexion, tiempo, fracciones_adc, observacion, mas_24h)
+                 VALUES (?,?,?,?,?,?,?)",
                 [
                     $serviceId,
                     $row['hora_conexion']  ?: null,
@@ -568,6 +570,7 @@ class FlightService extends Model
                     $row['tiempo'] !== '' ? (int)$row['tiempo'] : null,
                     (float)($row['fracciones_adc'] ?? 0),
                     !empty($row['observacion']) ? trim((string)$row['observacion']) : null,
+                    !empty($row['mas_24h']) ? 1 : 0,
                 ]
             );
         }

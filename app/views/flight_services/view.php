@@ -130,7 +130,7 @@ $puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], t
             <table class="table table-sm" style="font-size:14px;">
                 <tr><td class="text-muted" style="width:55%">Hora Conexión</td><td><?= $service['hora_conexion_gpu'] ?? '—' ?></td></tr>
                 <tr><td class="text-muted">Hora Desconexión</td><td><?= $service['hora_desconexion_gpu'] ?? '—' ?></td></tr>
-                <tr><td class="text-muted">Tiempo GPU</td><td><?= $service['tiempo_gpu'] !== null ? $service['tiempo_gpu'] . ' min' : '—' ?></td></tr>
+                <tr><td class="text-muted">Tiempo GPU</td><td><?= $service['tiempo_gpu'] !== null ? $service['tiempo_gpu'] . ' min' : '—' ?><?= !empty($service['gpu_mas_24h']) ? ' <span class="badge badge-info">+24h</span>' : '' ?></td></tr>
                 <tr><td class="text-muted">Fracciones ADC</td><td><?= $service['fracciones_adc_gpu'] ?? 0 ?></td></tr>
             </table>
             <?php if (!empty($service['gpu_fracciones'])): ?>
@@ -139,6 +139,7 @@ $puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], t
                     <div style="background:var(--bg-body);border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;">
                         <?= $gf['hora_conexion'] ?> → <?= $gf['hora_desconexion'] ?>
                         <span class="ms-2 badge badge-info"><?= $gf['tiempo'] ?> min</span>
+                        <?php if (!empty($gf['mas_24h'])): ?><span class="ms-1 badge badge-info">+24h</span><?php endif; ?>
                         <span class="ms-1 text-muted">ADC: <?= $gf['fracciones_adc'] ?></span>
                         <?php if (!empty($gf['observacion'])): ?>
                             <div class="text-muted mt-1"><?= htmlspecialchars($gf['observacion']) ?></div>

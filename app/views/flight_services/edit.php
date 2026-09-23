@@ -370,6 +370,14 @@
                     value="<?= number_format((float)($service['fracciones_adicionales_gpu'] ?? 0), 2) ?>"
                     readonly style="background:var(--bg-body);">
             </div>
+            <div class="col-md-2">
+                <label class="form-label d-block">&nbsp;</label>
+                <div class="form-check form-switch pt-1">
+                    <input class="form-check-input" type="checkbox" role="switch" id="gpu_mas_24h" name="gpu_mas_24h" value="1"
+                        <?= !empty($service['gpu_mas_24h']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="gpu_mas_24h">Más de 24 horas</label>
+                </div>
+            </div>
         </div>
         <div id="gpu-fracciones-container">
             <?php foreach ($service['gpu_fracciones'] as $i => $gf): ?>
@@ -384,6 +392,14 @@
                         <input type="number" class="form-control" name="gpu_fracciones[<?= $i ?>][tiempo]" value="<?= $gf['tiempo'] ?? '' ?>" readonly style="background:var(--bg-body);"></div>
                     <div class="col-md-2"><label class="form-label">Fracciones ADC GPU</label>
                         <input type="number" step="0.01" class="form-control" name="gpu_fracciones[<?= $i ?>][fracciones_adc]" value="<?= number_format((float)($gf['fracciones_adc'] ?? 0), 2) ?>" readonly style="background:var(--bg-body);"></div>
+                    <div class="col-md-2">
+                        <label class="form-label d-block">&nbsp;</label>
+                        <div class="form-check form-switch pt-1">
+                            <input class="form-check-input" type="checkbox" role="switch" name="gpu_fracciones[<?= $i ?>][mas_24h]" value="1"
+                                <?= !empty($gf['mas_24h']) ? 'checked' : '' ?> onchange="calcFraccionGpu(this)">
+                            <label class="form-check-label" style="font-size:12px;">+24h</label>
+                        </div>
+                    </div>
                     <div class="col-md-2"><label class="form-label">Observación</label>
                         <input type="text" class="form-control" name="gpu_fracciones[<?= $i ?>][observacion]" value="<?= htmlspecialchars($gf['observacion'] ?? '') ?>" placeholder="Observación"></div>
                 </div>

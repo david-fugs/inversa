@@ -587,6 +587,7 @@ class FlightServicesController extends Controller {
             'tiempo_gpu'                 => $this->inputRaw('tiempo_gpu', ''),
             'fracciones_adc_gpu'         => (float)$this->input('fracciones_adc_gpu', 0),
             'fracciones_adicionales_gpu' => (float)$this->input('fracciones_adicionales_gpu', 0),
+            'gpu_mas_24h'                => (int)$this->input('gpu_mas_24h', 0),
             // ACU
             'acu'                    => (int)$this->input('acu', 0),
             'hora_conexion_acu'      => $this->inputRaw('hora_conexion_acu', ''),

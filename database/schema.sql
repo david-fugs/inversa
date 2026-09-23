@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS `flight_services` (
     `tiempo_gpu`              SMALLINT UNSIGNED NULL,
     `fracciones_adc_gpu`      DECIMAL(8,2)      NULL DEFAULT 0,
     `fracciones_adicionales_gpu` DECIMAL(8,2)   NULL DEFAULT 0,
+    `gpu_mas_24h`             TINYINT(1)        NOT NULL DEFAULT 0 COMMENT 'Suma 24h extra al tiempo GPU principal',
     -- ACU
     `acu`                     TINYINT(1)        NOT NULL DEFAULT 0,
     `hora_conexion_acu`       TIME              NULL,
@@ -154,6 +155,8 @@ CREATE TABLE IF NOT EXISTS `flight_service_gpu_fracciones` (
     `hora_desconexion`   TIME          NULL,
     `tiempo`             SMALLINT UNSIGNED NULL,
     `fracciones_adc`     DECIMAL(8,2)  NULL DEFAULT 0,
+    `observacion`        VARCHAR(255)  NULL,
+    `mas_24h`            TINYINT(1)    NOT NULL DEFAULT 0 COMMENT 'Suma 24h extra al tiempo de esta fracción',
     PRIMARY KEY (`id`),
     KEY `fk_gpu_fs` (`flight_service_id`),
     CONSTRAINT `fk_gpu_fs`
