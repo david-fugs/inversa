@@ -990,6 +990,7 @@ XML;
             'pax_transitos'           => 'PAX Tránsitos',
             'pax_cancelados'          => 'PAX Cancelados',
             'planta_gpu'              => 'Planta GPU',
+            'fracciones_gpu'          => 'Fracciones GPU',
             'despacho'                => 'Despacho',
             'acu'                     => 'ACU',
             'acu_hora'                => 'ACU Hora',
@@ -1042,6 +1043,14 @@ XML;
             $agg['pax_transitos']           += (int)($s['pax_saliendo'] ?? 0);
             $agg['pax_cancelados']          += (int)($s['pax_cancelado'] ?? 0);
             $agg['planta_gpu']              += !empty($s['hora_conexion_gpu']) ? 1 : 0;
+            // Igual que "Fracciones ADC GPU" en el detalle del servicio: la
+            // fracción del GPU principal más la de cada fila de "GPU
+            // Adicionales" (ver total_fracciones_gpu en exportFormatCell()).
+            $fraccionesGpu = (float)($s['fracciones_adc_gpu'] ?? 0);
+            foreach ((array)($s['gpu_fracciones'] ?? []) as $gf) {
+                $fraccionesGpu += (float)($gf['fracciones_adc'] ?? 0);
+            }
+            $agg['fracciones_gpu']          += $fraccionesGpu;
             $agg['despacho']                += (int)($s['despacho'] ?? 0);
             $agg['acu']                     += (int)($s['acu'] ?? 0);
             $agg['acu_hora']                += (float)($s['fracciones_hora_acu'] ?? 0);
