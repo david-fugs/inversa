@@ -2,6 +2,9 @@
     <a href="<?= BASE_URL ?>/proveedores/create" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Proveedor
     </a>
+    <a href="<?= BASE_URL ?>/proveedores/import" class="btn btn-light">
+        <i class="bi bi-file-earmark-excel-fill"></i> Subir Excel Proveedores
+    </a>
 </div>
 
 <div class="card">

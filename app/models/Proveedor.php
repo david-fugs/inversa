@@ -60,6 +60,13 @@ class Proveedor extends Model {
         return $stmt->rowCount() > 0;
     }
 
+    public function findByNumeroIdentificacion(string $numero): array|false {
+        return $this->db->fetchOne(
+            "SELECT * FROM proveedores WHERE numero_identificacion = ?",
+            [$numero]
+        );
+    }
+
     public function numeroIdentificacionExists(string $numero, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
             "SELECT id FROM proveedores WHERE numero_identificacion = ? AND id != ?",

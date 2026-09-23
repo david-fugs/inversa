@@ -151,6 +151,11 @@ $router->post('/proveedores/edit/{id}',   'ProveedoresController', 'update');
 $router->get('/proveedores/delete/{id}',  'ProveedoresController', 'delete');
 $router->get('/proveedores/info/{id}',    'ProveedoresController', 'infoJson');
 
+$router->get('/proveedores/import',                'ProveedorImportController', 'form');
+$router->post('/proveedores/import',               'ProveedorImportController', 'upload');
+$router->get('/proveedores/import/{id}/errors',    'ProveedorImportController', 'errors');
+$router->get('/proveedores/import/{id}/delete',    'ProveedorImportController', 'deleteImport');
+
 // ─── Pagos: Lotes de pago ───────────────────────────────────────────────
 $router->get('/pagos',                        'PagosController', 'index');
 $router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm');

@@ -28,6 +28,13 @@ class Banco extends Model {
         return $stmt->rowCount() > 0;
     }
 
+    public function findByCodigo(string $codigo): array|false {
+        return $this->db->fetchOne(
+            "SELECT * FROM bancos WHERE codigo = ?",
+            [$codigo]
+        );
+    }
+
     public function codigoExists(string $codigo, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
             "SELECT id FROM bancos WHERE codigo = ? AND id != ?",
