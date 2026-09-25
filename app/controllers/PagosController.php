@@ -81,49 +81,177 @@ class PagosController extends Controller {
     }
 
     public function nuevoLoteForm(): void {
+        if (isset($_GET['nuevo'])) {
+            Session::remove('lotes_nuevo_ids');
+        }
+        $this->renderNuevo();
+    }
+
+    private function renderNuevo(array $errors = [], array $old = []): void {
         $this->view('pagos/lote_nuevo', [
-            'pageTitle'   => 'Nuevo Lote de Pago',
-            'breadcrumbs' => ['Pagos' => BASE_URL . '/pagos', 'Nuevo Lote' => null],
-            'errors'      => [],
-            'old'         => [],
+            'pageTitle'     => 'Nuevo Lote de Pago',
+            'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Nuevo Lote' => null],
+            'pagosSinLote'  => $this->pagoModel->getSinLote((int)Session::get('user_id')),
+            'pagosAsignados' => $this->pagosAsignadosNuevo(),
+            'lotesAbiertos' => $this->loteModel->getPorIds((array)Session::get('lotes_nuevo_ids', [])),
+            'proveedores'   => $this->proveedorModel->getAll(),
+            'bancos'        => $this->bancoModel->getAll(),
+            'tiposProducto' => $this->tipoProductoModel->getAll(),
+            'errors'        => $errors,
+            'old'           => $old,
         ], 'pagos');
     }
 
-    public function verificarConsecutivo(): void {
-        $consecutivo = $this->input('consecutivo', '');
+    /** Pagos ya asignados a los lotes creados en esta pantalla (se muestran en verde). */
+    private function pagosAsignadosNuevo(): array {
+        $pagos = [];
+        foreach ($this->lotesDeNuevo() as $lote) {
+            foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
+                $p['lote_consecutivo'] = $lote['consecutivo'];
+                $pagos[] = $p;
+            }
+        }
+        return $pagos;
+    }
 
-        if (empty($consecutivo)) {
-            $this->view('pagos/lote_nuevo', [
-                'pageTitle'   => 'Nuevo Lote de Pago',
-                'breadcrumbs' => ['Pagos' => BASE_URL . '/pagos', 'Nuevo Lote' => null],
-                'errors'      => ['consecutivo' => 'El consecutivo es obligatorio.'],
-                'old'         => ['consecutivo' => $consecutivo],
-            ], 'pagos');
-            return;
+    /** Crea un lote (modal "Crear lote"); si ya existe uno abierto con ese consecutivo lo reutiliza. */
+    public function crearLote(): void {
+        $consecutivo = $this->input('consecutivo', '');
+        if ($consecutivo === '') {
+            $this->json(['ok' => false, 'error' => 'El consecutivo es obligatorio.'], 422);
         }
 
         $lote = $this->loteModel->findByConsecutivo($consecutivo);
+        if ($lote && $lote['estado'] === 'cerrado') {
+            $this->json(['ok' => false, 'error' => 'Este consecutivo ya fue cerrado. Use uno diferente.'], 422);
+        }
 
+        $existente = (bool)$lote;
         if (!$lote) {
             $loteId = $this->loteModel->create([
                 'consecutivo' => $consecutivo,
                 'user_id'     => (int)Session::get('user_id'),
             ]);
-            $this->redirectWith('pagos/lotes/' . $loteId, 'success', 'Lote creado. Ya puede agregar pagos.');
-            return;
+            $lote = $this->loteModel->findById($loteId);
         }
 
+        $ids = (array)Session::get('lotes_nuevo_ids', []);
+        if (!in_array((int)$lote['id'], $ids, true)) {
+            $ids[] = (int)$lote['id'];
+            Session::set('lotes_nuevo_ids', $ids);
+        }
+
+        $this->json([
+            'ok'        => true,
+            'existente' => $existente,
+            'lote'      => $this->loteJson($this->loteModel->findConTotales((int)$lote['id'])),
+        ]);
+    }
+
+    /** Asigna un pago sin lote a un lote abierto (al soltarlo sobre el lote). */
+    public function asignarPago(string $id): void {
+        $pago = $this->pagoModel->findById((int)$id);
+        if (!$pago || $pago['lote_pago_id'] !== null) {
+            $this->json(['ok' => false, 'error' => 'El pago no existe o ya está asignado a un lote.'], 404);
+        }
+
+        $lote = $this->loteModel->findById((int)$this->input('lote_id', 0));
+        if (!$lote) {
+            $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
+        }
         if ($lote['estado'] === 'cerrado') {
-            $this->view('pagos/lote_nuevo', [
-                'pageTitle'   => 'Nuevo Lote de Pago',
-                'breadcrumbs' => ['Pagos' => BASE_URL . '/pagos', 'Nuevo Lote' => null],
-                'errors'      => ['consecutivo' => 'Este consecutivo ya fue cerrado. Use uno diferente.'],
-                'old'         => ['consecutivo' => $consecutivo],
-            ], 'pagos');
+            $this->json(['ok' => false, 'error' => 'Este lote está cerrado, no se pueden agregar más pagos.'], 422);
+        }
+
+        $this->pagoModel->asignarALote((int)$pago['id'], (int)$lote['id']);
+
+        $this->json(['ok' => true, 'lote' => $this->loteJson($this->loteModel->findConTotales((int)$lote['id']))]);
+    }
+
+    private function loteJson(array $lote): array {
+        return [
+            'id'          => (int)$lote['id'],
+            'consecutivo' => $lote['consecutivo'],
+            'estado'      => $lote['estado'],
+            'total_pagos' => (int)$lote['total_pagos'],
+            'total_valor' => '$' . number_format((float)$lote['total_valor'], 2),
+            'url'         => BASE_URL . '/pagos/lotes/' . $lote['id'],
+        ];
+    }
+
+    /** Registra un pago sin lote; luego se arrastra a un lote desde /pagos/lotes/nuevo. */
+    public function agregarPagoSinLote(): void {
+        $data   = $this->datosPago();
+        $errors = $this->validarPago($data);
+
+        $archivos = $this->archivosSubidos();
+        $errors  += $this->validarComprobantes($archivos, true);
+
+        if (!empty($errors)) {
+            $this->renderNuevo($errors, $data);
             return;
         }
 
-        $this->redirectWith('pagos/lotes/' . $lote['id'], 'warning', 'Ya existe un lote abierto con este consecutivo, se continúa agregando pagos a él.');
+        $guardados = $this->guardarArchivos($archivos, 'sl');
+        if ($guardados === null) {
+            $this->redirectWith('pagos/lotes/nuevo', 'error', 'No se pudo guardar el comprobante.');
+            return;
+        }
+
+        $data['lote_pago_id'] = null;
+        $data['user_id']      = (int)Session::get('user_id');
+        $pagoId = $this->pagoModel->create($data);
+        foreach ($guardados as $orden => $g) {
+            $this->comprobanteModel->create($pagoId, $g['stored'], $g['original'], $orden);
+        }
+
+        $this->redirectWith('pagos/lotes/nuevo', 'success', 'Pago agregado. Arrástrelo a un lote para asignarlo.');
+    }
+
+    private function datosPago(): array {
+        return [
+            'proveedor_id'        => (int)$this->input('proveedor_id', 0),
+            'tipo_identificacion' => $this->input('tipo_identificacion', ''),
+            'banco_id'            => (int)$this->input('banco_id', 0),
+            'tipo_producto_id'    => (int)$this->input('tipo_producto_id', 0),
+            'numero_producto'     => $this->input('numero_producto', ''),
+            'fecha_pago'          => $this->input('fecha_pago', ''),
+            'valor'               => $this->input('valor', ''),
+        ];
+    }
+
+    /** Errores de validación de los comprobantes subidos (vacío si todo está bien). */
+    private function validarComprobantes(array $archivos, bool $obligatorio): array {
+        if (empty($archivos)) {
+            return $obligatorio ? ['comprobante_pdf' => 'Seleccione al menos un comprobante PDF del pago.'] : [];
+        }
+        foreach ($archivos as $file) {
+            $mensaje = $this->validarArchivoPdf($file);
+            if ($mensaje !== null) {
+                return ['comprobante_pdf' => $mensaje];
+            }
+        }
+        return [];
+    }
+
+    /** Mueve los PDFs a su carpeta; retorna null si alguno falla. */
+    private function guardarArchivos(array $archivos, string $prefijo): ?array {
+        if (!is_dir(PAGOS_COMPROBANTES_PATH)) {
+            mkdir(PAGOS_COMPROBANTES_PATH, 0755, true);
+        }
+        $guardados = [];
+        foreach ($archivos as $file) {
+            $storedName = $prefijo . '_' . bin2hex(random_bytes(8)) . '.pdf';
+            if (!move_uploaded_file($file['tmp_name'], PAGOS_COMPROBANTES_PATH . '/' . $storedName)) {
+                return null;
+            }
+            $nombreOriginal = trim(preg_replace('/[\r\n]+/', ' ', basename($file['name'])));
+            $guardados[] = [
+                'stored'   => $storedName,
+                'original' => $nombreOriginal !== '' ? $nombreOriginal : 'comprobante.pdf',
+            ];
+        }
+        return $guardados;
     }
 
     public function detalle(string $id): void {
@@ -238,8 +366,8 @@ class PagosController extends Controller {
             return;
         }
 
-        $lote = $this->loteModel->findById((int)$pago['lote_pago_id']);
-        if (!$lote || $lote['estado'] === 'cerrado') {
+        $lote = $pago['lote_pago_id'] ? $this->loteModel->findById((int)$pago['lote_pago_id']) : null;
+        if ($pago['lote_pago_id'] && (!$lote || $lote['estado'] === 'cerrado')) {
             $this->redirectWith('pagos/lotes/' . $pago['lote_pago_id'], 'error', 'No se puede eliminar un pago de un lote cerrado.');
             return;
         }
@@ -250,7 +378,7 @@ class PagosController extends Controller {
         }
         $this->pagoModel->delete($pagoId);
 
-        $this->redirectWith('pagos/lotes/' . $lote['id'], 'success', 'Pago eliminado correctamente.');
+        $this->redirectWith($lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo', 'success', 'Pago eliminado correctamente.');
     }
 
     public function editarPagoForm(string $id): void {
@@ -260,16 +388,18 @@ class PagosController extends Controller {
             return;
         }
 
-        $lote = $this->loteModel->findById((int)$pago['lote_pago_id']);
-        if (!$lote || $lote['estado'] === 'cerrado') {
+        $lote = $pago['lote_pago_id'] ? $this->loteModel->findById((int)$pago['lote_pago_id']) : null;
+        if ($pago['lote_pago_id'] && (!$lote || $lote['estado'] === 'cerrado')) {
             $this->redirectWith('pagos/lotes/' . $pago['lote_pago_id'], 'error', 'No se puede editar un pago de un lote cerrado.');
             return;
         }
+        $volverUrl = $lote ? BASE_URL . '/pagos/lotes/' . $lote['id'] : BASE_URL . '/pagos/lotes/nuevo';
 
         $this->view('pagos/pago_editar', [
-            'pageTitle'     => 'Editar Pago - Lote ' . $lote['consecutivo'],
-            'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Lote ' . $lote['consecutivo'] => BASE_URL . '/pagos/lotes/' . $lote['id'], 'Editar Pago' => null],
+            'pageTitle'     => $lote ? 'Editar Pago - Lote ' . $lote['consecutivo'] : 'Editar Pago',
+            'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', ($lote ? 'Lote ' . $lote['consecutivo'] : 'Nuevo Lote') => $volverUrl, 'Editar Pago' => null],
             'lote'          => $lote,
+            'volverUrl'     => $volverUrl,
             'pago'          => $pago,
             'proveedores'   => $this->proveedorModel->getAll(),
             'bancos'        => $this->bancoModel->getAll(),
@@ -286,11 +416,12 @@ class PagosController extends Controller {
             return;
         }
 
-        $lote = $this->loteModel->findById((int)$pago['lote_pago_id']);
-        if (!$lote || $lote['estado'] === 'cerrado') {
+        $lote = $pago['lote_pago_id'] ? $this->loteModel->findById((int)$pago['lote_pago_id']) : null;
+        if ($pago['lote_pago_id'] && (!$lote || $lote['estado'] === 'cerrado')) {
             $this->redirectWith('pagos/lotes/' . $pago['lote_pago_id'], 'error', 'No se puede editar un pago de un lote cerrado.');
             return;
         }
+        $volverUrl = $lote ? BASE_URL . '/pagos/lotes/' . $lote['id'] : BASE_URL . '/pagos/lotes/nuevo';
 
         $data = [
             'proveedor_id'        => (int)$this->input('proveedor_id', 0),
@@ -321,9 +452,10 @@ class PagosController extends Controller {
 
         if (!empty($errors)) {
             $this->view('pagos/pago_editar', [
-                'pageTitle'     => 'Editar Pago - Lote ' . $lote['consecutivo'],
-                'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Lote ' . $lote['consecutivo'] => BASE_URL . '/pagos/lotes/' . $lote['id'], 'Editar Pago' => null],
+                'pageTitle'     => $lote ? 'Editar Pago - Lote ' . $lote['consecutivo'] : 'Editar Pago',
+                'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', ($lote ? 'Lote ' . $lote['consecutivo'] : 'Nuevo Lote') => $volverUrl, 'Editar Pago' => null],
                 'lote'          => $lote,
+                'volverUrl'     => $volverUrl,
                 'pago'          => array_merge($pago, $data),
                 'proveedores'   => $this->proveedorModel->getAll(),
                 'bancos'        => $this->bancoModel->getAll(),
@@ -366,7 +498,7 @@ class PagosController extends Controller {
             }
         }
 
-        $this->redirectWith('pagos/lotes/' . $lote['id'], 'success', 'Pago actualizado correctamente.');
+        $this->redirectWith($lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo', 'success', 'Pago actualizado correctamente.');
     }
 
     public function descargarComprobante(string $id): void {
@@ -394,34 +526,101 @@ class PagosController extends Controller {
     }
 
     public function descargarCombinado(string $id): void {
-        $loteId = (int)$id;
-        $lote   = $this->loteModel->findById($loteId);
+        $lote = $this->loteModel->findById((int)$id);
         if (!$lote) {
             $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
             return;
         }
+        $this->enviarCombinado([$lote], 'lote_' . $lote['consecutivo'], 'pagos/lotes/' . $lote['id']);
+    }
 
-        $pagos = $this->pagoModel->getByLote($loteId);
+    public function exportarExcel(string $id): void {
+        $lote = $this->loteModel->findById((int)$id);
+        if (!$lote) {
+            $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
+            return;
+        }
+        $this->enviarExcel([$lote], 'lote_' . $lote['consecutivo'], 'pagos/lotes/' . $lote['id']);
+    }
+
+    /** PDF combinado de todos los lotes creados en /pagos/lotes/nuevo. */
+    public function descargarCombinadoNuevo(): void {
+        $this->enviarCombinado($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His'), 'pagos/lotes/nuevo');
+    }
+
+    /** Excel de todos los lotes creados en /pagos/lotes/nuevo. */
+    public function exportarExcelNuevo(): void {
+        $this->enviarExcel($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His'), 'pagos/lotes/nuevo');
+    }
+
+    /** Datos del lote para el modal "Ver" de /pagos/lotes/nuevo. */
+    public function loteModal(string $id): void {
+        $lote = $this->loteModel->findConTotales((int)$id);
+        if (!$lote) {
+            $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
+        }
+
+        $pagos = [];
+        foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
+            $pagos[] = [
+                'orden'           => (int)$p['orden'],
+                'proveedor'       => $p['proveedor_nombre'],
+                'banco'           => $p['banco_nombre'],
+                'tipo_producto'   => $p['tipo_producto_nombre'],
+                'numero_producto' => $p['numero_producto'],
+                'fecha'           => date('d/m/Y', strtotime($p['fecha_pago'])),
+                'valor'           => '$' . number_format((float)$p['valor'], 2),
+                'comprobantes'    => array_map(fn($c) => [
+                    'url'    => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
+                    'nombre' => $c['archivo_original'],
+                ], $p['comprobantes']),
+            ];
+        }
+
+        $this->json([
+            'ok'       => true,
+            'lote'     => $this->loteJson($lote),
+            'pagos'    => $pagos,
+            'combinado' => BASE_URL . '/pagos/lotes/' . $lote['id'] . '/combinado',
+            'exportar'  => BASE_URL . '/pagos/lotes/' . $lote['id'] . '/exportar',
+        ]);
+    }
+
+    /** Lotes guardados en sesión para /pagos/lotes/nuevo que aún existen. */
+    private function lotesDeNuevo(): array {
+        $lotes = [];
+        foreach ((array)Session::get('lotes_nuevo_ids', []) as $loteId) {
+            $lote = $this->loteModel->findById((int)$loteId);
+            if ($lote) {
+                $lotes[] = $lote;
+            }
+        }
+        return $lotes;
+    }
+
+    private function enviarCombinado(array $lotes, string $nombreBase, string $redirectError): void {
         $rutas = [];
-        foreach ($pagos as $p) {
-            foreach ($p['comprobantes'] as $c) {
-                $rutas[] = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+        foreach ($lotes as $lote) {
+            foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
+                foreach ($p['comprobantes'] as $c) {
+                    $rutas[] = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+                }
             }
         }
 
         if (empty($rutas)) {
-            $this->redirectWith('pagos/lotes/' . $loteId, 'error', 'El lote no tiene comprobantes para combinar.');
+            $this->redirectWith($redirectError, 'error', 'No hay comprobantes para combinar.');
             return;
         }
 
         if (!is_dir(PAGOS_TEMP_PATH)) {
             mkdir(PAGOS_TEMP_PATH, 0755, true);
         }
-        $tmpFile = PAGOS_TEMP_PATH . '/lote_' . $loteId . '_' . bin2hex(random_bytes(6)) . '.pdf';
+        $tmpFile = PAGOS_TEMP_PATH . '/lote_' . bin2hex(random_bytes(6)) . '.pdf';
 
         PdfMerger::merge($rutas, $tmpFile);
 
-        $nombreDescarga = 'lote_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $lote['consecutivo']) . '.pdf';
+        $nombreDescarga = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nombreBase) . '.pdf';
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="' . $nombreDescarga . '"');
         header('Content-Length: ' . filesize($tmpFile));
@@ -431,17 +630,13 @@ class PagosController extends Controller {
         exit;
     }
 
-    public function exportarExcel(string $id): void {
-        $loteId = (int)$id;
-        $lote   = $this->loteModel->findById($loteId);
-        if (!$lote) {
-            $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
-            return;
+    private function enviarExcel(array $lotes, string $nombreBase, string $redirectError): void {
+        $pagos = [];
+        foreach ($lotes as $lote) {
+            $pagos = array_merge($pagos, $this->pagoModel->getByLote((int)$lote['id']));
         }
-
-        $pagos = $this->pagoModel->getByLote($loteId);
         if (empty($pagos)) {
-            $this->redirectWith('pagos/lotes/' . $loteId, 'error', 'El lote no tiene pagos para exportar.');
+            $this->redirectWith($redirectError, 'error', 'No hay pagos para exportar.');
             return;
         }
 
@@ -474,11 +669,11 @@ class PagosController extends Controller {
         if (!is_dir(PAGOS_TEMP_PATH)) {
             mkdir(PAGOS_TEMP_PATH, 0755, true);
         }
-        $tmpFile = PAGOS_TEMP_PATH . '/lote_' . $loteId . '_' . bin2hex(random_bytes(6)) . '.xlsx';
+        $tmpFile = PAGOS_TEMP_PATH . '/lote_' . bin2hex(random_bytes(6)) . '.xlsx';
 
         XlsxWriter::write($tmpFile, 'Pagos', $headers, $rows);
 
-        $nombreDescarga = 'lote_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $lote['consecutivo']) . '.xlsx';
+        $nombreDescarga = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nombreBase) . '.xlsx';
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $nombreDescarga . '"');
         header('Content-Length: ' . filesize($tmpFile));
@@ -520,7 +715,35 @@ class PagosController extends Controller {
         }
 
         $this->loteModel->cerrar($loteId);
-        $this->redirectWith('pagos/lotes/' . $loteId, 'success', 'Lote cerrado correctamente.');
+        $destino = ($_GET['volver'] ?? '') === 'nuevo' ? 'pagos/lotes/nuevo' : 'pagos/lotes/' . $loteId;
+        $this->redirectWith($destino, 'success', 'Lote cerrado correctamente.');
+    }
+
+    /** Cierra todos los lotes abiertos de /pagos/lotes/nuevo que tengan pagos. */
+    public function cerrarTodosNuevo(): void {
+        $cerrados = 0;
+        $vacios   = 0;
+        foreach ($this->lotesDeNuevo() as $lote) {
+            if ($lote['estado'] !== 'abierto') {
+                continue;
+            }
+            if (empty($this->pagoModel->getByLote((int)$lote['id']))) {
+                $vacios++;
+                continue;
+            }
+            $this->loteModel->cerrar((int)$lote['id']);
+            $cerrados++;
+        }
+
+        if ($cerrados === 0) {
+            $this->redirectWith('pagos/lotes/nuevo', 'error', 'No hay lotes abiertos con pagos para cerrar.');
+            return;
+        }
+        $msg = $cerrados . ($cerrados === 1 ? ' lote cerrado' : ' lotes cerrados') . ' correctamente.';
+        if ($vacios > 0) {
+            $msg .= ' Se omitieron ' . $vacios . ' sin pagos.';
+        }
+        $this->redirectWith('pagos/lotes/nuevo', 'success', $msg);
     }
 
     private function validarPago(array $data): array {

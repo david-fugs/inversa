@@ -159,7 +159,13 @@ $router->get('/proveedores/import/{id}/delete',    'ProveedorImportController', 
 // ─── Pagos: Lotes de pago ───────────────────────────────────────────────
 $router->get('/pagos',                        'PagosController', 'index');
 $router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm');
-$router->post('/pagos/lotes/verificar',       'PagosController', 'verificarConsecutivo');
+$router->post('/pagos/lotes/crear',           'PagosController', 'crearLote');
+$router->post('/pagos/lotes/nuevo/pagos',    'PagosController', 'agregarPagoSinLote');
+$router->post('/pagos/pagos/{id}/asignar',   'PagosController', 'asignarPago');
+$router->get('/pagos/lotes/nuevo/combinado',  'PagosController', 'descargarCombinadoNuevo');
+$router->get('/pagos/lotes/nuevo/cerrar',    'PagosController', 'cerrarTodosNuevo');
+$router->get('/pagos/lotes/nuevo/exportar',   'PagosController', 'exportarExcelNuevo');
+$router->get('/pagos/lotes/{id}/modal',       'PagosController', 'loteModal');
 $router->get('/pagos/lotes/{id}/cerrar',      'PagosController', 'cerrarLote');
 $router->get('/pagos/lotes/{id}/combinado',   'PagosController', 'descargarCombinado');
 $router->get('/pagos/lotes/{id}/exportar',    'PagosController', 'exportarExcel');

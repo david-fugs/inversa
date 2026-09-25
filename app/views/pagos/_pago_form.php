@@ -1,16 +1,9 @@
-<div class="page-actions">
-    <a href="<?= $volverUrl ?>" class="btn btn-light">
-        <i class="bi bi-arrow-left"></i> <?= $lote ? 'Volver al Lote' : 'Volver' ?>
-    </a>
-</div>
-
 <div class="card" style="max-width:720px;">
     <div class="card-header">
-        <h5><i class="bi bi-pencil-square"></i> Editar Pago</h5>
-        <span class="badge badge-primary"><?= $lote ? 'Lote ' . htmlspecialchars($lote['consecutivo']) : 'Sin lote' ?></span>
+        <h5><i class="bi bi-plus-circle-fill"></i> Agregar Pago</h5>
     </div>
     <div class="card-body">
-        <form method="POST" action="<?= BASE_URL ?>/pagos/pagos/edit/<?= $pago['id'] ?>" enctype="multipart/form-data" novalidate>
+        <form method="POST" action="<?= $formAction ?>" enctype="multipart/form-data" novalidate>
 
             <div class="mb-3">
                 <label for="proveedor_id" class="form-label">
@@ -19,7 +12,7 @@
                 <select class="form-select select2 <?= isset($errors['proveedor_id']) ? 'is-invalid' : '' ?>" id="proveedor_id" name="proveedor_id">
                     <option value="">-- Seleccione un proveedor --</option>
                     <?php foreach ($proveedores as $prov): ?>
-                        <option value="<?= $prov['id'] ?>" <?= (int)$pago['proveedor_id'] === (int)$prov['id'] ? 'selected' : '' ?>>
+                        <option value="<?= $prov['id'] ?>" <?= (int)($old['proveedor_id'] ?? 0) === (int)$prov['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($prov['numero_identificacion'] . ' - ' . $prov['nombre']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -35,7 +28,7 @@
                 </label>
                 <input type="text" class="form-control <?= isset($errors['tipo_identificacion']) ? 'is-invalid' : '' ?>"
                     id="tipo_identificacion" name="tipo_identificacion"
-                    value="<?= htmlspecialchars($pago['tipo_identificacion']) ?>"
+                    value="<?= htmlspecialchars($old['tipo_identificacion'] ?? '') ?>"
                     placeholder="Ej: 01, CC, NIT" maxlength="10">
                 <?php if (isset($errors['tipo_identificacion'])): ?>
                     <div class="invalid-feedback"><?= $errors['tipo_identificacion'] ?></div>
@@ -48,7 +41,7 @@
                     <select class="form-select <?= isset($errors['banco_id']) ? 'is-invalid' : '' ?>" id="banco_id" name="banco_id">
                         <option value="">-- Banco --</option>
                         <?php foreach ($bancos as $b): ?>
-                            <option value="<?= $b['id'] ?>" <?= (int)$pago['banco_id'] === (int)$b['id'] ? 'selected' : '' ?>>
+                            <option value="<?= $b['id'] ?>" <?= (int)($old['banco_id'] ?? 0) === (int)$b['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($b['codigo'] . ' - ' . $b['nombre']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -62,7 +55,7 @@
                     <select class="form-select <?= isset($errors['tipo_producto_id']) ? 'is-invalid' : '' ?>" id="tipo_producto_id" name="tipo_producto_id">
                         <option value="">-- Tipo de Producto --</option>
                         <?php foreach ($tiposProducto as $tp): ?>
-                            <option value="<?= $tp['id'] ?>" <?= (int)$pago['tipo_producto_id'] === (int)$tp['id'] ? 'selected' : '' ?>>
+                            <option value="<?= $tp['id'] ?>" <?= (int)($old['tipo_producto_id'] ?? 0) === (int)$tp['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($tp['codigo'] . ' - ' . $tp['nombre']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -79,7 +72,7 @@
                 </label>
                 <input type="text" class="form-control <?= isset($errors['numero_producto']) ? 'is-invalid' : '' ?>"
                     id="numero_producto" name="numero_producto"
-                    value="<?= htmlspecialchars($pago['numero_producto']) ?>">
+                    value="<?= htmlspecialchars($old['numero_producto'] ?? '') ?>">
                 <?php if (isset($errors['numero_producto'])): ?>
                     <div class="invalid-feedback"><?= $errors['numero_producto'] ?></div>
                 <?php endif; ?>
@@ -90,7 +83,7 @@
                     <label for="fecha_pago" class="form-label">Fecha <span class="required-mark">*</span></label>
                     <input type="date" class="form-control <?= isset($errors['fecha_pago']) ? 'is-invalid' : '' ?>"
                         id="fecha_pago" name="fecha_pago"
-                        value="<?= htmlspecialchars(substr($pago['fecha_pago'], 0, 10)) ?>">
+                        value="<?= htmlspecialchars($old['fecha_pago'] ?? date('Y-m-d')) ?>">
                     <?php if (isset($errors['fecha_pago'])): ?>
                         <div class="invalid-feedback"><?= $errors['fecha_pago'] ?></div>
                     <?php endif; ?>
@@ -103,7 +96,7 @@
                             class="form-control <?= isset($errors['valor']) ? 'is-invalid' : '' ?>"
                             id="valor_display" placeholder="0">
                     </div>
-                    <input type="hidden" id="valor" name="valor" value="<?= htmlspecialchars((string)(int)$pago['valor']) ?>">
+                    <input type="hidden" id="valor" name="valor" value="<?= htmlspecialchars($old['valor'] ?? '') ?>">
                     <?php if (isset($errors['valor'])): ?>
                         <div class="invalid-feedback d-block"><?= $errors['valor'] ?></div>
                     <?php endif; ?>
@@ -111,45 +104,39 @@
             </div>
 
             <div class="mb-3">
-                <label for="comprobante_pdf" class="form-label">Comprobante(s) PDF</label>
-                <?php if (!empty($pago['comprobantes'])): ?>
-                    <p class="mb-1" style="font-size:13px;">
-                        Actuales:
-                        <?php foreach ($pago['comprobantes'] as $c): ?>
-                            <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank">
-                                <?= htmlspecialchars($c['archivo_original']) ?>
-                            </a><?= $c !== end($pago['comprobantes']) ? ',' : '' ?>
-                        <?php endforeach; ?>
-                    </p>
-                <?php endif; ?>
+                <label for="comprobante_pdf" class="form-label">
+                    Comprobante(s) PDF <span class="required-mark">*</span>
+                </label>
                 <input type="file" accept="application/pdf" multiple class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
                     id="comprobante_pdf" name="comprobante_pdf[]">
                 <?php if (isset($errors['comprobante_pdf'])): ?>
                     <div class="invalid-feedback"><?= $errors['comprobante_pdf'] ?></div>
                 <?php endif; ?>
-                <small class="text-muted">Déjelo vacío para conservar los comprobantes actuales. Si sube archivos nuevos, reemplazan a todos los actuales. Puede seleccionar varios. Tamaño máximo 2 MB por archivo.</small>
+                <small class="text-muted">Puede seleccionar varios archivos PDF. Tamaño máximo 2 MB por archivo.</small>
             </div>
 
             <hr class="divider">
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-lg"></i> Actualizar
+                    <i class="bi bi-check-lg"></i> Agregar Pago
                 </button>
-                <a href="<?= $volverUrl ?>" class="btn btn-light">Cancelar</a>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-/* Precarga banco / tipo de producto / número de producto si el usuario
-   cambia el proveedor (mismo comportamiento que al agregar un pago).
-   El <select> de proveedor se inicializa como Select2 en app.js (cargado
-   después de este bloque): dispara el "change" vía jQuery, que no lo
-   propaga como evento nativo en un <select>, así que
-   addEventListener('change', ...) no se entera. Se espera a
-   DOMContentLoaded (jQuery ya cargado) y se engancha con jQuery cuando
-   está disponible, con addEventListener como respaldo. */
+/* Precarga banco / tipo de producto / número de producto según proveedor
+   seleccionado (los campos quedan editables). Los <select> de banco y
+   tipo de producto se llenan aquí porque dependen del catálogo completo,
+   que no se recorre en PHP para este formulario (solo se usa vía AJAX). */
+// El <select> de proveedor se inicializa como Select2 en app.js (que se
+// carga después de este bloque). Select2 dispara el "change" a través de
+// jQuery, y jQuery no lo propaga como evento nativo del DOM en un
+// <select> (no tiene método change() nativo), así que
+// addEventListener('change', ...) nunca se entera. Por eso se espera a
+// DOMContentLoaded (para que jQuery ya esté cargado) y se engancha con
+// jQuery cuando está disponible, con addEventListener como respaldo.
 document.addEventListener('DOMContentLoaded', function () {
     var proveedorSelect = document.getElementById('proveedor_id');
     if (!proveedorSelect) return;
@@ -159,9 +146,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var tipoProductoSelect  = document.getElementById('tipo_producto_id');
     var numeroProductoInput = document.getElementById('numero_producto');
 
-    function onProveedorChange() {
-        if (!proveedorSelect.value) return;
-        fetch(BASE_URL + '/proveedores/info/' + proveedorSelect.value)
+    function precargar(proveedorId) {
+        if (!proveedorId) return;
+        fetch(BASE_URL + '/proveedores/info/' + proveedorId)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (!data) return;
@@ -172,6 +159,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    // Solo precargar automáticamente al cambiar de proveedor (no al
+    // recargar la página tras un error de validación, para no pisar los
+    // valores que el usuario ya había editado manualmente).
+    function onProveedorChange() {
+        precargar(proveedorSelect.value);
+    }
     if (window.jQuery) {
         window.jQuery(proveedorSelect).on('change', onProveedorChange);
     } else {
@@ -179,8 +172,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-/* Valor del pago: el "$" y los puntos de miles son solo ayuda visual;
-   el campo oculto "valor" es el que se envía, siempre como número plano. */
+/* Valor del pago: el usuario ve el "$" y los puntos de miles solo como
+   ayuda visual; lo que realmente se envía al servidor (campo oculto
+   "valor") siempre queda como número plano, sin puntos. */
 (function () {
     var display = document.getElementById('valor_display');
     var hidden  = document.getElementById('valor');
@@ -198,6 +192,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     display.addEventListener('input', sincronizar);
 
+    // Si ya había un valor (reintento tras un error de validación),
+    // mostrarlo ya formateado.
     if (hidden.value) {
         display.value = formatearMiles(hidden.value.replace(/\D/g, ''));
     }

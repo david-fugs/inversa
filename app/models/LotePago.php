@@ -6,13 +6,34 @@
 class LotePago extends Model {
     protected string $table = 'lotes_pago';
 
-    public function getAll(string $orderBy = 'l.created_at DESC'): array {
+    public function getAll(string $orderBy = 'l.created_at DESC', string $where = '1=1'): array {
         return $this->db->fetchAll(
             "SELECT l.*, COUNT(p.id) AS total_pagos, COALESCE(SUM(p.valor), 0) AS total_valor
              FROM lotes_pago l
              LEFT JOIN pagos p ON p.lote_pago_id = l.id
+             WHERE {$where}
              GROUP BY l.id
              ORDER BY {$orderBy}"
+        );
+    }
+
+    public function getPorIds(array $ids): array {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (empty($ids)) {
+            return [];
+        }
+        return $this->getAll('l.created_at DESC', "l.id IN (" . implode(',', $ids) . ")");
+    }
+
+    /** Lote con sus totales (para refrescar las tarjetas tras asignar un pago). */
+    public function findConTotales(int $id): array|false {
+        return $this->db->fetchOne(
+            "SELECT l.*, COUNT(p.id) AS total_pagos, COALESCE(SUM(p.valor), 0) AS total_valor
+             FROM lotes_pago l
+             LEFT JOIN pagos p ON p.lote_pago_id = l.id
+             WHERE l.id = ?
+             GROUP BY l.id",
+            [$id]
         );
     }
 

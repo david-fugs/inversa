@@ -1,5 +1,5 @@
 <div class="page-actions">
-    <a href="<?= BASE_URL ?>/pagos/lotes/nuevo" class="btn btn-primary">
+    <a href="<?= BASE_URL ?>/pagos/lotes/nuevo?nuevo=1" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Lote de Pago
     </a>
 </div>
