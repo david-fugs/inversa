@@ -700,6 +700,28 @@ class PagosController extends Controller {
         ];
     }
 
+    public function eliminarLote(string $id): void {
+        $loteId = (int)$id;
+        $lote   = $this->loteModel->findById($loteId);
+        if (!$lote) {
+            $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
+            return;
+        }
+
+        $pagos = $this->pagoModel->getByLote($loteId);
+        $this->loteModel->eliminarConPagos($loteId);
+
+        foreach ($pagos as $pago) {
+            foreach ($pago['comprobantes'] as $c) {
+                $ruta = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+                if (is_file($ruta)) @unlink($ruta);
+            }
+        }
+
+        $destino = ($_GET['volver'] ?? '') === 'nuevo' ? 'pagos/lotes/nuevo' : 'pagos';
+        $this->redirectWith($destino, 'success', 'Lote eliminado correctamente.');
+    }
+
     public function cerrarLote(string $id): void {
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);

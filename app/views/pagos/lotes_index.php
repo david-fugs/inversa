@@ -43,6 +43,11 @@
                                    class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle">
                                     <i class="bi bi-eye-fill"></i>
                                 </a>
+                                <a href="<?= BASE_URL ?>/pagos/lotes/<?= $l['id'] ?>/delete"
+                                   class="btn btn-icon btn-danger btn-sm" title="Eliminar lote"
+                                   data-confirm="¿Eliminar el lote '<?= htmlspecialchars($l['consecutivo']) ?>' con todos sus pagos y comprobantes? Esta acción no se puede deshacer.">
+                                    <i class="bi bi-trash-fill"></i>
+                                </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

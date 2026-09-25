@@ -18,6 +18,10 @@
             <i class="bi bi-lock-fill"></i> Cerrar Lote
         </a>
     <?php endif; ?>
+    <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/delete" class="btn btn-danger"
+       data-confirm="¿Eliminar el lote '<?= htmlspecialchars($lote['consecutivo']) ?>' con todos sus pagos y comprobantes? Esta acción no se puede deshacer.">
+        <i class="bi bi-trash-fill"></i> Eliminar Lote
+    </a>
 </div>
 
 <div class="card mb-3">

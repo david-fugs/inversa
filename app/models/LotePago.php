@@ -52,6 +52,24 @@ class LotePago extends Model {
         return (int)$this->db->lastInsertId();
     }
 
+    /** Elimina el lote junto con sus pagos y comprobantes (registros en BD). */
+    public function eliminarConPagos(int $id): void {
+        $pdo = $this->db->getConnection();
+        $pdo->beginTransaction();
+        try {
+            $this->db->query(
+                "DELETE pc FROM pago_comprobantes pc JOIN pagos pg ON pg.id = pc.pago_id WHERE pg.lote_pago_id = ?",
+                [$id]
+            );
+            $this->db->query("DELETE FROM pagos WHERE lote_pago_id = ?", [$id]);
+            $this->db->query("DELETE FROM lotes_pago WHERE id = ?", [$id]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
     public function cerrar(int $id): bool {
         $stmt = $this->db->query(
             "UPDATE lotes_pago SET estado = 'cerrado', cerrado_at = NOW() WHERE id = ?",
