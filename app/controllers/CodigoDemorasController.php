@@ -74,6 +74,7 @@ class CodigoDemorasController extends Controller {
         return [
             'codigo'      => strtoupper($this->input('codigo', '')),
             'descripcion' => $this->input('descripcion', ''),
+            'airline_id'  => (int)$this->input('airline_id', 0),
         ];
     }
 
@@ -88,6 +89,11 @@ class CodigoDemorasController extends Controller {
             $errors['codigo'] = 'El código no puede tener más de 20 caracteres.';
         } elseif ($this->model->codigoExists($data['codigo'], $excludeId)) {
             $errors['codigo'] = 'Ya existe un código de demora con ese valor.';
+        }
+
+        $airlineIds = array_map('intval', array_column($this->model->getAirlines(), 'id'));
+        if (!in_array($data['airline_id'], $airlineIds, true)) {
+            $errors['airline_id'] = 'Seleccione una aerolínea.';
         }
 
         if ($data['descripcion'] === '') {
@@ -105,6 +111,7 @@ class CodigoDemorasController extends Controller {
             'pageTitle'     => 'Código Demoras',
             'breadcrumbs'   => ['Código Demoras' => null],
             'codigoDemoras' => $codigoDemoras,
+            'airlines'      => $this->model->getAirlines(),
             'errors'        => $errors,
             'old'           => $old,
             'openModal'     => $openModal,

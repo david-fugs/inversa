@@ -7,23 +7,37 @@ class CodigoDemora extends Model {
     protected string $table = 'codigo_demoras';
 
     public function getAll(string $orderBy = 'codigo'): array {
-        return $this->db->fetchAll("SELECT * FROM codigo_demoras ORDER BY {$orderBy}");
+        return $this->db->fetchAll(
+            "SELECT cd.*, a.nombre AS airline_nombre
+             FROM codigo_demoras cd
+             LEFT JOIN airlines a ON a.id = cd.airline_id
+             ORDER BY cd.{$orderBy}"
+        );
     }
 
     public function create(array $data): int {
         $this->db->query(
-            "INSERT INTO codigo_demoras (codigo, descripcion) VALUES (?, ?)",
-            [$data['codigo'], $data['descripcion']]
+            "INSERT INTO codigo_demoras (codigo, descripcion, airline_id) VALUES (?, ?, ?)",
+            [$data['codigo'], $data['descripcion'], $data['airline_id']]
         );
         return (int)$this->db->lastInsertId();
     }
 
     public function update(int $id, array $data): bool {
         $stmt = $this->db->query(
-            "UPDATE codigo_demoras SET codigo = ?, descripcion = ? WHERE id = ?",
-            [$data['codigo'], $data['descripcion'], $id]
+            "UPDATE codigo_demoras SET codigo = ?, descripcion = ?, airline_id = ? WHERE id = ?",
+            [$data['codigo'], $data['descripcion'], $data['airline_id'], $id]
         );
         return $stmt->rowCount() > 0;
+    }
+
+    /** Aerolíneas que manejan código demora (se muestran como columnas) */
+    public function getAirlines(): array {
+        return $this->db->fetchAll(
+            "SELECT id, nombre FROM airlines
+             WHERE UPPER(nombre) IN ('AVIANCA', 'CLIC', 'SATENA')
+             ORDER BY FIELD(UPPER(nombre), 'AVIANCA', 'CLIC', 'SATENA')"
+        );
     }
 
     public function codigoExists(string $codigo, int $excludeId = 0): bool {

@@ -85,6 +85,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 ]
             };
 
+            // Ocultar el selector "Mostrar N registros": data-hide-length en el <table>
+            if ($table.is('[data-hide-length]')) {
+                opts.dom = '<"row align-items-center mb-3"<"col-12 text-end"f>>rtip';
+            }
+
             // Agrupar filas por una columna: data-group-column="1" en el
             // <table> (índice de columna 0-based). La tabla debe quedar
             // ordenada por esa columna para que los grupos salgan juntos.
