@@ -159,6 +159,7 @@
 
 <?php
 $formAction = BASE_URL . '/pagos/lotes/nuevo/pagos';
+$comprobanteObligatorio = false;
 include __DIR__ . '/_pago_form.php';
 ?>
 

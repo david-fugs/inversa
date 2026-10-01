@@ -105,7 +105,7 @@
 
             <div class="mb-3">
                 <label for="comprobante_pdf" class="form-label">
-                    Comprobante(s) PDF <span class="required-mark">*</span>
+                    Comprobante(s) PDF <?php if ($comprobanteObligatorio ?? true): ?><span class="required-mark">*</span><?php endif; ?>
                 </label>
                 <input type="file" accept="application/pdf" multiple class="form-control <?= isset($errors['comprobante_pdf']) ? 'is-invalid' : '' ?>"
                     id="comprobante_pdf" name="comprobante_pdf[]">

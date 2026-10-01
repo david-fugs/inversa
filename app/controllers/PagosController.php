@@ -185,7 +185,7 @@ class PagosController extends Controller {
         $errors = $this->validarPago($data);
 
         $archivos = $this->archivosSubidos();
-        $errors  += $this->validarComprobantes($archivos, true);
+        $errors  += $this->validarComprobantes($archivos, false);
 
         if (!empty($errors)) {
             $this->renderNuevo($errors, $data);
