@@ -80,10 +80,19 @@
                             <td>$<?= number_format((float)$p['valor'], 2) ?></td>
                             <td>
                                 <?php foreach ($p['comprobantes'] as $c): ?>
-                                    <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
-                                       class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
-                                        <i class="bi bi-file-earmark-pdf-fill"></i>
-                                    </a>
+                                    <span class="d-inline-flex align-items-center gap-1 me-1">
+                                        <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
+                                           class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
+                                        </a>
+                                        <?php if ($lote['estado'] === 'abierto'): ?>
+                                            <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/delete"
+                                               class="btn btn-icon btn-danger btn-sm" title="Eliminar <?= htmlspecialchars($c['archivo_original']) ?>"
+                                               data-confirm="¿Eliminar el comprobante '<?= htmlspecialchars($c['archivo_original'], ENT_QUOTES) ?>'?">
+                                                <i class="bi bi-x-lg"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    </span>
                                 <?php endforeach; ?>
                             </td>
                             <?php if ($lote['estado'] === 'abierto'): ?>

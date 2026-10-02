@@ -178,6 +178,7 @@ $router->get('/pagos/pagos/delete/{id}',      'PagosController', 'eliminarPago')
 $router->get('/pagos/pagos/edit/{id}',        'PagosController', 'editarPagoForm');
 $router->post('/pagos/pagos/edit/{id}',       'PagosController', 'actualizarPago');
 $router->get('/pagos/comprobantes/{id}/file', 'PagosController', 'descargarComprobante');
+$router->get('/pagos/comprobantes/{id}/delete', 'PagosController', 'eliminarComprobante');
 
 // Despachar la petición
 $router->dispatch();

@@ -501,6 +501,30 @@ class PagosController extends Controller {
         $this->redirectWith($lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo', 'success', 'Pago actualizado correctamente.');
     }
 
+    /** Elimina un comprobante de un pago, solo si su lote no está cerrado. */
+    public function eliminarComprobante(string $id): void {
+        $comprobante = $this->comprobanteModel->findById((int)$id);
+        if (!$comprobante) {
+            $this->redirectWith('pagos', 'error', 'El comprobante no existe.');
+            return;
+        }
+
+        $pago   = $this->pagoModel->findById((int)$comprobante['pago_id']);
+        $lote   = $pago && $pago['lote_pago_id'] ? $this->loteModel->findById((int)$pago['lote_pago_id']) : null;
+        $volver = $lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo';
+
+        if ($lote && $lote['estado'] === 'cerrado') {
+            $this->redirectWith($volver, 'error', 'No se puede eliminar un comprobante de un lote cerrado.');
+            return;
+        }
+
+        $ruta = PAGOS_COMPROBANTES_PATH . '/' . $comprobante['archivo'];
+        if (is_file($ruta)) @unlink($ruta);
+        $this->comprobanteModel->delete((int)$comprobante['id']);
+
+        $this->redirectWith($volver, 'success', 'Comprobante eliminado correctamente.');
+    }
+
     public function descargarComprobante(string $id): void {
         $comprobante = $this->comprobanteModel->findById((int)$id);
         if (!$comprobante) {
