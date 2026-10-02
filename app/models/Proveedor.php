@@ -67,6 +67,13 @@ class Proveedor extends Model {
         );
     }
 
+    public function findByIdentificacionYProducto(string $numero, string $numeroProducto): array|false {
+        return $this->db->fetchOne(
+            "SELECT * FROM proveedores WHERE numero_identificacion = ? AND numero_producto = ?",
+            [$numero, $numeroProducto]
+        );
+    }
+
     public function numeroIdentificacionExists(string $numero, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
             "SELECT id FROM proveedores WHERE numero_identificacion = ? AND id != ?",

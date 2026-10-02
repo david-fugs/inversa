@@ -158,8 +158,6 @@ class ProveedoresController extends Controller {
 
         if (empty($data['numero_identificacion'])) {
             $errors['numero_identificacion'] = 'El número de identificación es obligatorio.';
-        } elseif ($this->proveedorModel->numeroIdentificacionExists($data['numero_identificacion'], $excludeId)) {
-            $errors['numero_identificacion'] = 'Ya existe un proveedor con este número de identificación.';
         }
 
         if (empty($data['nombre'])) {

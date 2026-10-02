@@ -197,7 +197,7 @@ class ProveedorImportController extends Controller {
             'numero_producto'       => $numProducto,
         ];
 
-        $existente = $this->proveedorModel->findByNumeroIdentificacion($numIdent);
+        $existente = $this->proveedorModel->findByIdentificacionYProducto($numIdent, $numProducto);
         if ($existente) {
             $this->proveedorModel->update((int)$existente['id'], $data);
             return false;
