@@ -403,6 +403,11 @@ function contarPor(rows, campo) {
     return mapa;
 }
 
+/* Un vuelo cuenta como "con demora" solo si tiene código de demora registrado */
+function tieneDemora(r) {
+    return !!(r.codigo_demora && r.codigo_demora.trim());
+}
+
 function seqStep(ratio) {
     // ratio 0..1 -> paso de la rampa secuencial azul
     const steps = ['--seq-100', '--seq-200', '--seq-300', '--seq-400', '--seq-500', '--seq-600', '--seq-700'];
@@ -586,14 +591,14 @@ function renderKpis(rows) {
     const totalPax = rows.reduce((sum, r) => sum + (r.pax_saliendo || 0), 0);
     document.getElementById('kpi_pax').textContent = totalPax.toLocaleString('es-CO');
 
-    const conDemora = rows.filter(r => r.demora_llegando > 0);
+    const conDemora = rows.filter(tieneDemora);
     document.getElementById('kpi_demoras').textContent = conDemora.length;
 
     const promedioEl = document.getElementById('kpi_demora_promedio');
     if (conDemora.length === 0) {
         promedioEl.textContent = '—';
     } else {
-        const promedio = conDemora.reduce((sum, r) => sum + r.demora_llegando, 0) / conDemora.length;
+        const promedio = conDemora.reduce((sum, r) => sum + (r.demora_llegando || 0), 0) / conDemora.length;
         promedioEl.textContent = Math.round(promedio) + ' min';
     }
 }
@@ -618,7 +623,7 @@ function contarPorCodigosDemora(rows) {
 
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
-    const conDemora = rows.filter(r => r.demora_llegando > 0);
+    const conDemora = rows.filter(tieneDemora);
     renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true });
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));

@@ -226,7 +226,7 @@ class FlightServicesController extends Controller {
         $data   = $this->collectFormData();
         error_log(date('Y-m-d H:i:s') . " | DATA COLLECTED | Airline ID: " . ($data['airline_id'] ?? 'NULL') . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
         
-        $errors = $this->validateFormData($data);
+        $errors = $this->validateFormData($data, true);
         error_log(date('Y-m-d H:i:s') . " | VALIDATION RESULT | Errors count: " . count($errors) . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
 
         if (!empty($errors)) {
@@ -631,7 +631,7 @@ class FlightServicesController extends Controller {
     }
 
     /** Validar datos del formulario */
-    private function validateFormData(array $data): array {
+    private function validateFormData(array $data, bool $requireCodigoDemora = false): array {
         $errors = [];
 
         if ($data['anio'] < 2000 || $data['anio'] > 2100) {
@@ -680,6 +680,11 @@ class FlightServicesController extends Controller {
         }
         if (empty($data['vuelo_saliendo'])) {
             $errors['vuelo_saliendo'] = 'El número de vuelo saliendo es obligatorio.';
+        }
+        // El bloque de demora solo se muestra cuando NO cumple tiempo
+        if ($requireCodigoDemora && (string)$data['cumple_tiempo'] === '0'
+            && empty($data['codigo_demora_ids']) && empty($data['codigo_demora_textos_legacy'])) {
+            $errors['codigo_demora_id'] = 'Seleccione al menos un código de demora.';
         }
 
         return $errors;
@@ -989,7 +994,6 @@ XML;
         return [
             'pax_transitos'           => 'PAX Tránsitos',
             'pax_cancelados'          => 'PAX Cancelados',
-            'planta_gpu'              => 'Planta GPU',
             'fracciones_gpu'          => 'Fracciones GPU',
             'despacho'                => 'Despacho',
             'acu'                     => 'ACU',
@@ -1042,7 +1046,6 @@ XML;
         foreach ($rows as $s) {
             $agg['pax_transitos']           += (int)($s['pax_saliendo'] ?? 0);
             $agg['pax_cancelados']          += (int)($s['pax_cancelado'] ?? 0);
-            $agg['planta_gpu']              += !empty($s['hora_conexion_gpu']) ? 1 : 0;
             // Igual que "Fracciones ADC GPU" en el detalle del servicio: la
             // fracción del GPU principal más la de cada fila de "GPU
             // Adicionales" (ver total_fracciones_gpu en exportFormatCell()).

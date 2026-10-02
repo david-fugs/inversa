@@ -1,11 +1,28 @@
 <?php $totalValor = array_sum(array_column($pagos, 'valor')); ?>
 
+<style>
+    .lote-drop {
+        border: 2px dashed var(--bs-border-color, #dee2e6);
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+    .lote-drop.cerrado { background: #f1f3f5; }
+    @media (min-width: 992px) {
+        .lotes-sticky {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+    }
+</style>
+
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/pagos" class="btn btn-light">
         <i class="bi bi-arrow-left"></i> Volver
     </a>
     <?php if (!empty($pagos)): ?>
-        <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/combinado" class="btn btn-outline-primary">
+        <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/combinado" data-combinar="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/comprobantes" class="btn btn-outline-primary">
             <i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF Combinado
         </a>
         <a href="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/exportar" class="btn btn-outline-success">
@@ -24,24 +41,11 @@
     </a>
 </div>
 
+<div class="row">
+<div class="col-lg-8">
 <div class="card mb-3">
     <div class="card-header">
-        <h5><i class="bi bi-cash-stack"></i> Lote <?= htmlspecialchars($lote['consecutivo']) ?></h5>
-        <?php if ($lote['estado'] === 'abierto'): ?>
-            <span class="badge badge-success">Abierto</span>
-        <?php else: ?>
-            <span class="badge badge-secondary">Cerrado</span>
-        <?php endif; ?>
-    </div>
-    <div class="card-body">
-        <p class="mb-0"><strong>Total pagos:</strong> <?= count($pagos) ?> &nbsp;|&nbsp;
-           <strong>Valor total:</strong> $<?= number_format($totalValor, 2) ?></p>
-    </div>
-</div>
-
-<div class="card mb-3">
-    <div class="card-header">
-        <h5><i class="bi bi-list-check"></i> Pagos del Lote</h5>
+        <h5><i class="bi bi-list-check"></i> Pagos</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-wrapper">
@@ -110,6 +114,27 @@
             </table>
         </div>
     </div>
+</div>
+</div>
+
+<div class="col-lg-4">
+    <div class="card mb-3 lotes-sticky">
+        <div class="card-header">
+            <h5><i class="bi bi-cash-stack"></i> Lote de este registro</h5>
+        </div>
+        <div class="card-body">
+            <div class="lote-drop <?= $lote['estado'] === 'cerrado' ? 'cerrado' : '' ?>">
+                <strong><?= htmlspecialchars($lote['consecutivo']) ?>
+                    <?php if ($lote['estado'] === 'cerrado'): ?><span class="badge badge-secondary">Cerrado</span>
+                    <?php else: ?><span class="badge badge-success">Abierto</span><?php endif; ?>
+                </strong><br>
+                <small class="text-muted">
+                    <?= count($pagos) ?> pagos &middot; $<?= number_format($totalValor, 2) ?>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 
 <?php if ($lote['estado'] === 'abierto'):

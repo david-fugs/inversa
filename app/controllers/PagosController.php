@@ -543,6 +543,38 @@ class PagosController extends Controller {
         $this->enviarExcel([$lote], 'lote_' . $lote['consecutivo'], 'pagos/lotes/' . $lote['id']);
     }
 
+    /** Lista ordenada de comprobantes de un lote; el navegador los une (pdf-lib). */
+    public function comprobantesLote(string $id): void {
+        $lote = $this->loteModel->findById((int)$id);
+        if (!$lote) {
+            $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
+        }
+        $this->json($this->comprobantesJson([$lote], 'lote_' . $lote['consecutivo']));
+    }
+
+    public function comprobantesNuevo(): void {
+        $this->json($this->comprobantesJson($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His')));
+    }
+
+    private function comprobantesJson(array $lotes, string $nombreBase): array {
+        $items = [];
+        foreach ($lotes as $lote) {
+            foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
+                foreach ($p['comprobantes'] as $c) {
+                    $items[] = [
+                        'url'    => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
+                        'nombre' => $c['archivo_original'],
+                    ];
+                }
+            }
+        }
+        return [
+            'ok'           => true,
+            'archivo'      => preg_replace('/[^A-Za-z0-9_\-]/', '_', $nombreBase) . '.pdf',
+            'comprobantes' => $items,
+        ];
+    }
+
     /** PDF combinado de todos los lotes creados en /pagos/lotes/nuevo. */
     public function descargarCombinadoNuevo(): void {
         $this->enviarCombinado($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His'), 'pagos/lotes/nuevo');
@@ -582,6 +614,7 @@ class PagosController extends Controller {
             'lote'     => $this->loteJson($lote),
             'pagos'    => $pagos,
             'combinado' => BASE_URL . '/pagos/lotes/' . $lote['id'] . '/combinado',
+            'comprobantes' => BASE_URL . '/pagos/lotes/' . $lote['id'] . '/comprobantes',
             'exportar'  => BASE_URL . '/pagos/lotes/' . $lote['id'] . '/exportar',
         ]);
     }
@@ -599,11 +632,14 @@ class PagosController extends Controller {
     }
 
     private function enviarCombinado(array $lotes, string $nombreBase, string $redirectError): void {
-        $rutas = [];
+        $rutas   = [];
+        $nombres = [];
         foreach ($lotes as $lote) {
             foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
                 foreach ($p['comprobantes'] as $c) {
-                    $rutas[] = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+                    $ruta = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+                    $rutas[] = $ruta;
+                    $nombres[$ruta] = $c['archivo_original'];
                 }
             }
         }
@@ -618,7 +654,13 @@ class PagosController extends Controller {
         }
         $tmpFile = PAGOS_TEMP_PATH . '/lote_' . bin2hex(random_bytes(6)) . '.pdf';
 
-        PdfMerger::merge($rutas, $tmpFile);
+        try {
+            PdfMerger::merge($rutas, $tmpFile, $nombres);
+        } catch (\RuntimeException $e) {
+            @unlink($tmpFile);
+            $this->redirectWith($redirectError, 'error', $e->getMessage());
+            return;
+        }
 
         $nombreDescarga = preg_replace('/[^A-Za-z0-9_\-]/', '_', $nombreBase) . '.pdf';
         header('Content-Type: application/pdf');

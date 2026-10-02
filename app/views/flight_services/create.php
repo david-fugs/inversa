@@ -303,7 +303,7 @@
                         <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Se debe completar la información de la demora</small></p>
                     </div>
                     <div class="col-12">
-                        <label for="codigo_demora_id" class="form-label">Código Demora</label>
+                        <label for="codigo_demora_id" class="form-label">Código Demora <span class="required-mark">*</span></label>
                         <?php $oldCodigoDemoraIds = array_map('intval', (array) ($old['codigo_demora_id'] ?? [])); ?>
                         <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id[]" multiple="multiple" data-placeholder="Seleccione uno o varios códigos" style="width:100%">
                             <?php foreach ($codigoDemoras as $cd): ?>
@@ -315,6 +315,9 @@
                             <?php endforeach; ?>
                         </select>
                         <small class="text-muted">Puede seleccionar uno o varios códigos.</small>
+                        <?php if (isset($errors['codigo_demora_id'])): ?>
+                            <div class="text-danger mt-1" style="font-size:13px;"><?= htmlspecialchars($errors['codigo_demora_id']) ?></div>
+                        <?php endif; ?>
                     </div>
                     <div class="col-12" id="codigo_demora_preview_container" style="display:none;">
                         <label class="form-label">Código(s) de Demora seleccionado(s)</label>

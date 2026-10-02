@@ -9,6 +9,14 @@
         margin-bottom: 10px;
         transition: background .15s, border-color .15s;
     }
+    @media (min-width: 992px) {
+        .lotes-sticky {
+            position: sticky;
+            top: 80px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+    }
     .lote-drop.over { background: #e8f1ff; border-color: #0d6efd; }
     .lote-drop.cerrado { background: #f1f3f5; }
     .lote-drop.recibido { background: #e6f6ea; border-color: #198754; }
@@ -22,7 +30,7 @@
         <i class="bi bi-plus-lg"></i> Crear Lote
     </button>
     <span id="accionesTodos" <?= empty($lotesAbiertos) ? 'style="display:none"' : '' ?>>
-        <a href="<?= BASE_URL ?>/pagos/lotes/nuevo/combinado" class="btn btn-outline-primary">
+        <a href="<?= BASE_URL ?>/pagos/lotes/nuevo/combinado" data-combinar="<?= BASE_URL ?>/pagos/lotes/nuevo/comprobantes" class="btn btn-outline-primary">
             <i class="bi bi-file-earmark-pdf-fill"></i> PDF Combinado (todos)
         </a>
         <a href="<?= BASE_URL ?>/pagos/lotes/nuevo/exportar" class="btn btn-outline-success">
@@ -126,7 +134,7 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="card mb-3">
+        <div class="card mb-3 lotes-sticky">
             <div class="card-header">
                 <h5><i class="bi bi-cash-stack"></i> Lotes de este registro</h5>
             </div>
@@ -339,6 +347,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ' &nbsp;|&nbsp; <strong>Valor total:</strong> <span id="verLoteValor"></span>';
                 document.getElementById('verLoteValor').textContent = data.lote.total_valor;
                 document.getElementById('verLotePdf').href = data.combinado;
+                document.getElementById('verLotePdf').dataset.combinar = data.comprobantes;
                 document.getElementById('verLoteExcel').href = data.exportar;
                 var hayPagos = data.pagos.length > 0;
                 var cerrar = document.getElementById('verLoteCerrar');
