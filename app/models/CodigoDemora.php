@@ -40,10 +40,10 @@ class CodigoDemora extends Model {
         );
     }
 
-    public function codigoExists(string $codigo, int $excludeId = 0): bool {
+    public function codigoExists(string $codigo, int $airlineId, int $excludeId = 0): bool {
         $row = $this->db->fetchOne(
-            "SELECT id FROM codigo_demoras WHERE codigo = ? AND id != ?",
-            [$codigo, $excludeId]
+            "SELECT id FROM codigo_demoras WHERE codigo = ? AND airline_id = ? AND id != ?",
+            [$codigo, $airlineId, $excludeId]
         );
         return $row !== false;
     }

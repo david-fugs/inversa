@@ -87,8 +87,8 @@ class CodigoDemorasController extends Controller {
             $errors['codigo'] = 'El código solo puede contener letras y números, sin espacios.';
         } elseif (strlen($data['codigo']) > 20) {
             $errors['codigo'] = 'El código no puede tener más de 20 caracteres.';
-        } elseif ($this->model->codigoExists($data['codigo'], $excludeId)) {
-            $errors['codigo'] = 'Ya existe un código de demora con ese valor.';
+        } elseif ($this->model->codigoExists($data['codigo'], $data['airline_id'], $excludeId)) {
+            $errors['codigo'] = 'Ya existe un código de demora con ese valor para esta aerolínea.';
         }
 
         $airlineIds = array_map('intval', array_column($this->model->getAirlines(), 'id'));
