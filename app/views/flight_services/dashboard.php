@@ -4,6 +4,8 @@
     </a>
 </div>
 
+<?php $navActivo = 'general'; require __DIR__ . '/_dashboard_nav.php'; ?>
+
 <!-- ══ FILTROS ══════════════════════════════════════ -->
 <div class="card mb-3">
     <div class="card-header">
@@ -14,8 +16,8 @@
             <div class="col-md-4">
                 <label class="form-label">Rango de Fecha</label>
                 <div class="d-flex gap-2">
-                    <input type="date" class="form-control" id="filter_fecha_inicio" placeholder="Fecha inicio">
-                    <input type="date" class="form-control" id="filter_fecha_fin" placeholder="Fecha fin">
+                    <div class="flex-fill"><label for="filter_fecha_inicio" class="form-label small text-muted mb-1">Fecha inicio</label><input type="date" class="form-control" id="filter_fecha_inicio" placeholder="Fecha inicio"></div>
+                    <div class="flex-fill"><label for="filter_fecha_fin" class="form-label small text-muted mb-1">Fecha fin</label><input type="date" class="form-control" id="filter_fecha_fin" placeholder="Fecha fin"></div>
                 </div>
             </div>
             <div class="col-md-3">
@@ -29,12 +31,7 @@
             </div>
             <div class="col-md-3">
                 <label for="filter_aerolinea" class="form-label">Aerolínea</label>
-                <select class="form-select" id="filter_aerolinea">
-                    <option value="">-- Todas --</option>
-                    <?php foreach ($aerolineasUniques as $aerolinea): ?>
-                        <option value="<?= htmlspecialchars($aerolinea) ?>"><?= htmlspecialchars($aerolinea) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <?php require __DIR__ . '/_aerolinea_multiselect.php'; ?>
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btn_limpiar_filtros">
@@ -362,7 +359,7 @@ function filtrarDatos() {
         endDate = new Date(y, m - 1, d);
     }
     const filtroBase = filterInputs.base.value || null;
-    const filtroAerolinea = filterInputs.aerolinea.value || null;
+    const filtroAerolineas = getAerolineasSeleccionadas();
 
     return FLIGHT_DATA.filter(s => {
         if (startDate || endDate) {
@@ -371,7 +368,7 @@ function filtrarDatos() {
             if (endDate && rowDate > endDate) return false;
         }
         if (filtroBase && s.base !== filtroBase) return false;
-        if (filtroAerolinea && s.aerolinea !== filtroAerolinea) return false;
+        if (filtroAerolineas.length && !filtroAerolineas.includes(s.aerolinea)) return false;
         return true;
     });
 }
@@ -763,7 +760,7 @@ document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
     filterInputs.fechaInicio.value = '';
     filterInputs.fechaFin.value = '';
     filterInputs.base.value = '';
-    filterInputs.aerolinea.value = '';
+    limpiarAerolineas();
     renderDashboard();
 });
 

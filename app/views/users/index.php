@@ -52,7 +52,7 @@
                             <td class="text-center">
                                 <?php if ($u['rol_nombre'] === 'Colaborador'): ?>
                                     <?php if ($u['puede_editar']): ?>
-                                        <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> Sí</span>
+                                        <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> Sí<?= !empty($u['puede_editar_servicio_id']) ? ' (vuelo #' . (int)$u['puede_editar_servicio_id'] . ')' : '' ?></span>
                                     <?php else: ?>
                                         <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> No</span>
                                     <?php endif; ?>
@@ -68,12 +68,15 @@
                                         <i class="bi bi-pencil-fill"></i>
                                     </a>
                                     <?php if ($u['rol_nombre'] === 'Colaborador'): ?>
-                                    <a href="<?= BASE_URL ?>/users/toggle-editar/<?= $u['id'] ?>"
-                                       class="btn btn-icon btn-sm <?= $u['puede_editar'] ? 'btn-warning' : 'btn-outline-warning' ?>"
-                                       title="<?= $u['puede_editar'] ? 'Quitar permiso de edición' : 'Dar permiso de edición' ?>"
-                                       data-confirm="¿Desea <?= $u['puede_editar'] ? 'quitar' : 'conceder' ?> permiso de edición a '<?= htmlspecialchars($u['nombre_completo']) ?>'?">
+                                    <button type="button"
+                                       class="btn btn-icon btn-sm btn-permiso-edicion <?= $u['puede_editar'] ? 'btn-warning' : 'btn-outline-warning' ?>"
+                                       title="<?= $u['puede_editar'] ? 'Permiso de edición (activo)' : 'Dar permiso de edición' ?>"
+                                       data-user-id="<?= (int)$u['id'] ?>"
+                                       data-nombre="<?= htmlspecialchars($u['nombre_completo']) ?>"
+                                       data-activo="<?= $u['puede_editar'] ? '1' : '0' ?>"
+                                       data-servicio-id="<?= htmlspecialchars((string)($u['puede_editar_servicio_id'] ?? '')) ?>">
                                         <i class="bi bi-pencil-square"></i>
-                                    </a>
+                                    </button>
                                     <?php endif; ?>
                                     <?php if ($u['id'] != Session::get('user_id')): ?>
                                     <a href="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>"
@@ -92,3 +95,41 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: permiso de edición (opcionalmente limitado a un vuelo) -->
+<div class="modal fade" id="modalPermisoEdicion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" id="formPermisoEdicion" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Permiso de edición</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Usuario: <strong id="permisoEdicionNombre"></strong></p>
+                <label for="permisoServicioId" class="form-label">ID del vuelo (opcional)</label>
+                <input type="number" min="1" class="form-control" name="servicio_id" id="permisoServicioId" placeholder="Vacío = puede editar todos los vuelos">
+                <div class="form-text">Si indica un ID, el usuario solo podrá editar ese servicio en Servicios de Vuelo.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" name="accion" value="quitar" class="btn btn-outline-danger me-auto" id="btnQuitarPermiso">Quitar permiso</button>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" name="accion" value="conceder" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+window.addEventListener('load', function () {
+    const modalEl = document.getElementById('modalPermisoEdicion');
+    const modal = new bootstrap.Modal(modalEl);
+    document.querySelectorAll('.btn-permiso-edicion').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('formPermisoEdicion').action = BASE_URL + '/users/permiso-edicion/' + btn.dataset.userId;
+            document.getElementById('permisoEdicionNombre').textContent = btn.dataset.nombre;
+            document.getElementById('permisoServicioId').value = btn.dataset.servicioId;
+            document.getElementById('btnQuitarPermiso').hidden = btn.dataset.activo !== '1';
+            modal.show();
+        });
+    });
+});
+</script>

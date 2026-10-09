@@ -11,7 +11,7 @@ $puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], t
     <a href="<?= BASE_URL ?>/flight-services" class="btn btn-light">
         <i class="bi bi-arrow-left"></i> Volver al listado
     </a>
-    <?php if (!$esVisualizador && !$esSupervisorRampa && (!$esColaborador || $puedeEditar)): ?>
+    <?php if (!$esVisualizador && !$esSupervisorRampa && (!$esColaborador || ($puedeEditar && (Session::get('user_puede_editar_servicio_id') === null || (int)Session::get('user_puede_editar_servicio_id') === (int)$service['id'])))): ?>
     <a href="<?= BASE_URL ?>/flight-services/edit/<?= $service['id'] ?>" class="btn btn-outline-secondary">
         <i class="bi bi-pencil-fill"></i> Editar
     </a>

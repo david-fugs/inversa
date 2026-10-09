@@ -101,6 +101,7 @@ class TarifasGpuController extends Controller {
             'tipo_cobro'       => $data['tipo_cobro'],
             'primeros_minutos' => $data['primeros_minutos'],
             'fraccion_minutos' => $data['fraccion_minutos'],
+            'acu_cobrar_desde_servicios' => $data['acu_cobrar_desde_servicios'],
         ];
     }
 
@@ -138,9 +139,31 @@ class TarifasGpuController extends Controller {
             $this->json(['primeros_minutos' => null, 'fraccion_minutos' => null]);
             return;
         }
+
+        $desde    = $tipoCobro === TarifaGpu::TIPO_ACU ? (int)($tarifa['acu_cobrar_desde_servicios'] ?? 0) : 0;
+        $previos  = 0;
+        $anio     = $_GET['anio'] ?? '';
+        $mes      = $_GET['mes'] ?? '';
+        $dia      = $_GET['dia'] ?? '';
+        // Solo se cuentan los servicios previos del mes cuando la tarifa
+        // ACU maneja "cobrar a partir del servicio N" y llega la fecha.
+        if ($desde > 0 && ctype_digit((string)$anio) && ctype_digit((string)$mes) && ctype_digit((string)$dia)) {
+            $baseNombre = null;
+            if ($tarifa['base_id'] !== null) {
+                $base = $this->baseModel->findById((int)$tarifa['base_id']);
+                $baseNombre = $base ? $base['nombre'] : null;
+            }
+            $excludeId = ctype_digit((string)($_GET['exclude_id'] ?? '')) ? (int)$_GET['exclude_id'] : 0;
+            $previos = (new FlightService())->countAcuServiciosPrevios(
+                (int)$airline_id, $baseNombre, (int)$anio, (int)$mes, (int)$dia, $excludeId
+            );
+        }
+
         $this->json([
             'primeros_minutos' => $tarifa['primeros_minutos'] !== null ? (int)$tarifa['primeros_minutos'] : null,
             'fraccion_minutos' => (int)$tarifa['fraccion_minutos'],
+            'acu_cobrar_desde_servicios' => $desde,
+            'servicios_previos_mes'      => $previos,
         ]);
     }
 
@@ -158,6 +181,9 @@ class TarifasGpuController extends Controller {
             'tipo_cobro'       => $tipoCobro,
             'primeros_minutos' => $primeros === '' ? null : $primeros,
             'fraccion_minutos' => $this->input('fraccion_minutos', ''),
+            'acu_cobrar_desde_servicios' => $tipoCobro === TarifaGpu::TIPO_ACU
+                ? $this->input('acu_cobrar_desde_servicios', '0')
+                : '0',
         ];
     }
 
@@ -168,6 +194,7 @@ class TarifasGpuController extends Controller {
             'tipo_cobro'       => $data['tipo_cobro'],
             'primeros_minutos' => $data['primeros_minutos'] !== null ? (int)$data['primeros_minutos'] : null,
             'fraccion_minutos' => (int)$data['fraccion_minutos'],
+            'acu_cobrar_desde_servicios' => (int)$data['acu_cobrar_desde_servicios'],
         ];
     }
 
@@ -215,6 +242,12 @@ class TarifasGpuController extends Controller {
             $errors['fraccion_minutos'] = 'La fracción es obligatoria y debe ser un número entero de minutos (sin decimales).';
         } elseif ((int)$data['fraccion_minutos'] <= 0) {
             $errors['fraccion_minutos'] = 'Debe ser mayor a cero.';
+        }
+
+        if ($data['acu_cobrar_desde_servicios'] === '') {
+            $errors['acu_cobrar_desde_servicios'] = 'Ingrese 0 o un número entero de servicios.';
+        } elseif (!ctype_digit((string)$data['acu_cobrar_desde_servicios'])) {
+            $errors['acu_cobrar_desde_servicios'] = 'Debe ser un número entero (0 o mayor).';
         }
 
         return $errors;

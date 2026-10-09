@@ -83,17 +83,17 @@ class TarifaGpu extends Model {
 
     public function create(array $data): int {
         $this->db->query(
-            "INSERT INTO tarifas_gpu (airline_id, base_id, tipo_cobro, primeros_minutos, fraccion_minutos)
-             VALUES (?, ?, ?, ?, ?)",
-            [$data['airline_id'], $data['base_id'], $data['tipo_cobro'], $data['primeros_minutos'], $data['fraccion_minutos']]
+            "INSERT INTO tarifas_gpu (airline_id, base_id, tipo_cobro, primeros_minutos, fraccion_minutos, acu_cobrar_desde_servicios)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            [$data['airline_id'], $data['base_id'], $data['tipo_cobro'], $data['primeros_minutos'], $data['fraccion_minutos'], $data['acu_cobrar_desde_servicios']]
         );
         return (int)$this->db->lastInsertId();
     }
 
     public function update(int $id, array $data): bool {
         $stmt = $this->db->query(
-            "UPDATE tarifas_gpu SET airline_id = ?, base_id = ?, tipo_cobro = ?, primeros_minutos = ?, fraccion_minutos = ? WHERE id = ?",
-            [$data['airline_id'], $data['base_id'], $data['tipo_cobro'], $data['primeros_minutos'], $data['fraccion_minutos'], $id]
+            "UPDATE tarifas_gpu SET airline_id = ?, base_id = ?, tipo_cobro = ?, primeros_minutos = ?, fraccion_minutos = ?, acu_cobrar_desde_servicios = ? WHERE id = ?",
+            [$data['airline_id'], $data['base_id'], $data['tipo_cobro'], $data['primeros_minutos'], $data['fraccion_minutos'], $data['acu_cobrar_desde_servicios'], $id]
         );
         return $stmt->rowCount() > 0;
     }

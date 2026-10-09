@@ -172,10 +172,24 @@ class UsersController extends Controller {
         }
     }
 
-    /** Activar/desactivar permiso de edición para colaborador */
-    public function toggleEditar(string $id): void {
+    /** Conceder/quitar permiso de edición a un colaborador. Con "servicio_id"
+     *  (opcional) el permiso se limita a ese servicio de vuelo. */
+    public function permisoEdicion(string $id): void {
         $this->requireAdmin();
-        $this->userModel->togglePuedeEditar((int)$id);
+        $userId = (int)$id;
+
+        if (($_POST['accion'] ?? '') === 'quitar') {
+            $this->userModel->quitarPermisoEdicion($userId);
+            $this->redirectWith('users', 'success', 'Permiso de edición retirado.');
+            return;
+        }
+
+        $servicioId = trim((string)($_POST['servicio_id'] ?? ''));
+        if ($servicioId !== '' && !ctype_digit($servicioId)) {
+            $this->redirectWith('users', 'error', 'El ID del vuelo debe ser un número.');
+            return;
+        }
+        $this->userModel->concederPermisoEdicion($userId, $servicioId === '' ? null : (int)$servicioId);
         $this->redirectWith('users', 'success', 'Permiso de edición actualizado.');
     }
 

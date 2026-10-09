@@ -37,8 +37,8 @@ $meses = FlightService::$meses;
                 <div class="col-md-4">
                     <label class="form-label">Rango de Fecha</label>
                     <div class="d-flex gap-2">
-                        <input type="date" class="form-control" id="filter_fecha_inicio" value="<?= htmlspecialchars($fechaInicio) ?>" placeholder="Fecha inicio">
-                        <input type="date" class="form-control" id="filter_fecha_fin" value="<?= htmlspecialchars($fechaFin) ?>" placeholder="Fecha fin">
+                        <div class="flex-fill"><label for="filter_fecha_inicio" class="form-label small text-muted mb-1">Fecha inicio</label><input type="date" class="form-control" id="filter_fecha_inicio" value="<?= htmlspecialchars($fechaInicio) ?>" placeholder="Fecha inicio"></div>
+                        <div class="flex-fill"><label for="filter_fecha_fin" class="form-label small text-muted mb-1">Fecha fin</label><input type="date" class="form-control" id="filter_fecha_fin" value="<?= htmlspecialchars($fechaFin) ?>" placeholder="Fecha fin"></div>
                     </div>
                 </div>
             <div class="col-md-3">
@@ -52,12 +52,7 @@ $meses = FlightService::$meses;
             </div>
             <div class="col-md-3">
                 <label for="filter_aerolinea" class="form-label">Aerolínea</label>
-                <select class="form-select" id="filter_aerolinea">
-                    <option value="">-- Todas --</option>
-                    <?php foreach ($aerolineasUniques as $aerolinea): ?>
-                        <option value="<?= htmlspecialchars($aerolinea) ?>"><?= htmlspecialchars($aerolinea) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <?php require __DIR__ . '/_aerolinea_multiselect.php'; ?>
             </div>
             <div class="col-md-3 d-flex align-items-end">
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btn_limpiar_filtros">
@@ -110,7 +105,8 @@ window.addEventListener('load', function () {
     const esColaborador     = <?= json_encode($esColaborador) ?>;
     const esSupervisorRampa = <?= json_encode($esSupervisorRampa) ?>;
     const puedeEditar       = <?= json_encode($puedeEditar) ?>;
-    const puedeEditarFila   = !esVisualizador && !esSupervisorRampa && (!esColaborador || puedeEditar);
+    const servicioEditable  = <?= json_encode(Session::get('user_puede_editar_servicio_id')) ?>;
+    const puedeEditarFila   = (id) => !esVisualizador && !esSupervisorRampa && (!esColaborador || (puedeEditar && (servicioEditable === null || Number(servicioEditable) === Number(id))));
     const puedeEliminarFila = !esVisualizador && !esColaborador && !esSupervisorRampa;
     const meses = <?= json_encode(FlightService::$meses, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -145,7 +141,7 @@ window.addEventListener('load', function () {
                 d.fecha_inicio = filterInputs.fechaInicio.value;
                 d.fecha_fin    = filterInputs.fechaFin.value;
                 d.base         = filterInputs.base.value;
-                d.aerolinea    = filterInputs.aerolinea.value;
+                d.aerolinea    = getAerolineasSeleccionadas();
             }
         },
         columns: [
@@ -171,9 +167,13 @@ window.addEventListener('load', function () {
             },
             {
                 data: 'cumple_tiempo', orderable: true,
-                render: (d) => d === null
-                    ? '<span class="text-muted">—</span>'
-                    : (Number(d) ? '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>' : '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>')
+                render: (d, type, row) => {
+                    if (d === null) return '<span class="text-muted">—</span>';
+                    if (Number(d)) return '<span class="cumple-si"><i class="bi bi-check-circle-fill"></i> SI</span>';
+                    const sinCodigo = !row.codigo_demora || !String(row.codigo_demora).trim();
+                    return '<span class="cumple-no"><i class="bi bi-x-circle-fill"></i> NO</span>'
+                        + (sinCodigo ? '<span class="badge bg-warning text-dark d-block mt-1" title="Falta registrar el código de demora"><i class="bi bi-exclamation-triangle-fill"></i> Falta código demora</span>' : '');
+                }
             },
             {
                 data: 'archivo_pdf', orderable: false, className: 'text-center',
@@ -186,7 +186,7 @@ window.addEventListener('load', function () {
                 render: (id) => {
                     let html = '<div class="d-flex gap-1 justify-content-center">';
                     html += '<a href="' + BASE_URL + '/flight-services/view/' + id + '" class="btn btn-icon btn-outline-primary btn-sm" title="Ver detalle"><i class="bi bi-eye-fill"></i></a>';
-                    if (puedeEditarFila) {
+                    if (puedeEditarFila(id)) {
                         html += '<a href="' + BASE_URL + '/flight-services/edit/' + id + '" class="btn btn-icon btn-outline-secondary btn-sm" title="Editar"><i class="bi bi-pencil-fill"></i></a>';
                     }
                     if (puedeEliminarFila) {
@@ -224,7 +224,7 @@ window.addEventListener('load', function () {
         filterInputs.fechaInicio.value = '';
         filterInputs.fechaFin.value = '';
         filterInputs.base.value = '';
-        filterInputs.aerolinea.value = '';
+        limpiarAerolineas();
         aplicarFiltros();
     });
 
@@ -235,7 +235,7 @@ window.addEventListener('load', function () {
         if (filterInputs.fechaInicio.value) params.set('fecha_inicio', filterInputs.fechaInicio.value);
         if (filterInputs.fechaFin.value) params.set('fecha_fin', filterInputs.fechaFin.value);
         if (filterInputs.base.value) params.set('base', filterInputs.base.value);
-        if (filterInputs.aerolinea.value) params.set('aerolinea', filterInputs.aerolinea.value);
+        getAerolineasSeleccionadas().forEach(a => params.append('aerolinea[]', a));
         window.location.href = BASE_URL + '/flight-services/export?' + params.toString();
     });
 });

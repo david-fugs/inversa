@@ -52,6 +52,15 @@
         </div>
 
         <?php if (Session::get('user_rol') === 'Administrador'): ?>
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/facturacion" class="nav-link">
+                <i class="bi bi-receipt"></i>
+                <span>Facturación</span>
+            </a>
+        </div>
+        <?php endif; ?>
+
+        <?php if (Session::get('user_rol') === 'Administrador'): ?>
         <p class="nav-section-title">Catálogos</p>
 
         <div class="nav-item">

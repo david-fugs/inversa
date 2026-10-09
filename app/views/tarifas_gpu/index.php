@@ -67,6 +67,9 @@ sort($aerolineasConTarifa);
                             <td>
                                 <?php if ($t['tipo_cobro'] === 'acu'): ?>
                                     <span class="badge badge-primary"><i class="bi bi-wind me-1"></i>Aire Acondicionado</span>
+                                    <?php if ((int)($t['acu_cobrar_desde_servicios'] ?? 0) > 0): ?>
+                                        <br><small class="text-muted">Cobra desde el servicio <?= (int)$t['acu_cobrar_desde_servicios'] ?> del mes</small>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="badge badge-warning"><i class="bi bi-lightning-charge-fill me-1"></i>Planta Eléctrica</span>
                                 <?php endif; ?>
@@ -105,6 +108,7 @@ sort($aerolineasConTarifa);
                                             "tipo_cobro"       => $t["tipo_cobro"],
                                             "primeros_minutos" => $t["primeros_minutos"] !== null ? (int)$t["primeros_minutos"] : null,
                                             "fraccion_minutos" => (int)$t["fraccion_minutos"],
+                                            "acu_cobrar_desde_servicios" => (int)($t["acu_cobrar_desde_servicios"] ?? 0),
                                         ]), ENT_QUOTES) ?>)'>
                                         <i class="bi bi-pencil-fill"></i>
                                     </button>
@@ -168,6 +172,24 @@ sort($aerolineasConTarifa);
                         <?php if (isset($errors['tipo_cobro'])): ?>
                             <div class="invalid-feedback d-block"><?= $errors['tipo_cobro'] ?></div>
                         <?php endif; ?>
+                    </div>
+
+                    <div class="mb-3" id="grupo_acu_cobrar_desde" style="display:none;">
+                        <label for="tarifa_acu_cobrar_desde" class="form-label">
+                            Cobrar a partir de cuántos servicios por mes
+                        </label>
+                        <div class="input-group">
+                            <input type="number" step="1" min="0"
+                                class="form-control <?= isset($errors['acu_cobrar_desde_servicios']) ? 'is-invalid' : '' ?>"
+                                id="tarifa_acu_cobrar_desde" name="acu_cobrar_desde_servicios"
+                                value="<?= htmlspecialchars((string)($old['acu_cobrar_desde_servicios'] ?? '0')) ?>"
+                                placeholder="0">
+                            <span class="input-group-text">servicios</span>
+                            <?php if (isset($errors['acu_cobrar_desde_servicios'])): ?>
+                                <div class="invalid-feedback"><?= $errors['acu_cobrar_desde_servicios'] ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <small class="text-muted">0 = se cobra siempre. Si es N, el ACU se cobra desde el servicio N del mes (por aerolínea); los anteriores no se cobran.</small>
                     </div>
 
                     <div class="mb-3">
@@ -240,6 +262,12 @@ function setTarifaBases(baseIds) {
     $('#tarifa_base_id').val(ids).trigger('change');
 }
 
+function toggleAcuCobrarDesde() {
+    var esAcu = document.getElementById('tarifa_tipo_cobro').value === 'acu';
+    document.getElementById('grupo_acu_cobrar_desde').style.display = esAcu ? '' : 'none';
+    if (!esAcu) document.getElementById('tarifa_acu_cobrar_desde').value = '0';
+}
+
 function abrirModalCrearTarifa() {
     document.getElementById('formTarifa').action = '<?= BASE_URL ?>/tarifas-cobros/create';
     document.getElementById('modalTarifaTitle').innerHTML = '<i class="bi bi-plus-circle-fill"></i> Nueva Tarifa';
@@ -249,6 +277,8 @@ function abrirModalCrearTarifa() {
     setTarifaBases([]);
     document.getElementById('tarifa_primeros_minutos').value = '';
     document.getElementById('tarifa_fraccion_minutos').value = '';
+    document.getElementById('tarifa_acu_cobrar_desde').value = '0';
+    toggleAcuCobrarDesde();
 }
 
 function abrirModalEditarTarifa(t) {
@@ -260,6 +290,8 @@ function abrirModalEditarTarifa(t) {
     setTarifaBases(t.base_ids || []);
     document.getElementById('tarifa_primeros_minutos').value = (t.primeros_minutos === null || t.primeros_minutos === undefined) ? '' : t.primeros_minutos;
     document.getElementById('tarifa_fraccion_minutos').value = t.fraccion_minutos;
+    document.getElementById('tarifa_acu_cobrar_desde').value = t.acu_cobrar_desde_servicios || 0;
+    toggleAcuCobrarDesde();
 }
 
 <?php if (!empty($errors)): ?>
@@ -271,7 +303,8 @@ document.addEventListener('DOMContentLoaded', function () {
             tipo_cobro: <?= json_encode($old['tipo_cobro'] ?? 'gpu') ?>,
             base_ids: <?= json_encode(array_values((array)($old['base_id'] ?? []))) ?>,
             primeros_minutos: <?= $old['primeros_minutos'] !== null ? (int)$old['primeros_minutos'] : 'null' ?>,
-            fraccion_minutos: <?= json_encode($old['fraccion_minutos'] ?? '') ?>
+            fraccion_minutos: <?= json_encode($old['fraccion_minutos'] ?? '') ?>,
+            acu_cobrar_desde_servicios: <?= json_encode($old['acu_cobrar_desde_servicios'] ?? '0') ?>
         });
     <?php else: ?>
         abrirModalCrearTarifa();
@@ -280,6 +313,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setTarifaBases(<?= json_encode(array_values((array)($old['base_id'] ?? []))) ?>);
         document.getElementById('tarifa_primeros_minutos').value = <?= json_encode((string)($old['primeros_minutos'] ?? '')) ?>;
         document.getElementById('tarifa_fraccion_minutos').value = <?= json_encode((string)($old['fraccion_minutos'] ?? '')) ?>;
+        document.getElementById('tarifa_acu_cobrar_desde').value = <?= json_encode((string)($old['acu_cobrar_desde_servicios'] ?? '0')) ?>;
+        toggleAcuCobrarDesde();
     <?php endif; ?>
     var modalEl = document.getElementById('modalTarifa');
     var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -292,6 +327,8 @@ document.addEventListener('DOMContentLoaded', function () {
 // "load" para que app.js ya haya inicializado la tabla como DataTable
 // (con agrupación por aerolínea, ver data-group-column en el <table>).
 window.addEventListener('load', function () {
+    document.getElementById('tarifa_tipo_cobro').addEventListener('change', toggleAcuCobrarDesde);
+    toggleAcuCobrarDesde();
     $('#tarifa_base_id').select2({
         dropdownParent: $('#modalTarifa'),
         placeholder: 'Todas las bases (dejar vacío)',

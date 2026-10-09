@@ -51,7 +51,7 @@ $router->get('/users/create',               'UsersController', 'createForm');
 $router->post('/users/create',              'UsersController', 'store');
 $router->get('/users/edit/{id}',            'UsersController', 'editForm');
 $router->post('/users/edit/{id}',           'UsersController', 'update');
-$router->get('/users/toggle-editar/{id}',   'UsersController', 'toggleEditar');
+$router->post('/users/permiso-edicion/{id}', 'UsersController', 'permisoEdicion');
 $router->get('/users/delete/{id}',          'UsersController', 'delete');
 
 // ─── Aerolíneas ─────────────────────────────────────────────────────
@@ -105,6 +105,11 @@ $router->get('/flight-services',              'FlightServicesController', 'index
 $router->get('/flight-services/data',         'FlightServicesController', 'data');
 $router->get('/flight-services/export',       'FlightServicesController', 'export');
 $router->get('/flight-services/dashboard',    'FlightServicesController', 'dashboard');
+$router->get('/flight-services/dashboard-aerolinea/{slug}',      'FlightServicesController', 'dashboardAerolinea');
+$router->get('/flight-services/dashboard-aerolinea/{slug}/data', 'FlightServicesController', 'dashboardAerolineaData');
+$router->get('/facturacion',                  'FacturacionController', 'index');
+$router->get('/facturacion/data',             'FacturacionController', 'data');
+$router->get('/facturacion/export-excel',     'FacturacionController', 'exportExcel');
 $router->get('/flight-services/create',       'FlightServicesController', 'createForm');
 $router->post('/flight-services/create',      'FlightServicesController', 'store');
 $router->get('/flight-services/view/{id}',    'FlightServicesController', 'detail');

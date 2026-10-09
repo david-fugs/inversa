@@ -77,7 +77,8 @@ class FlightServicesController extends Controller {
         $filtroInicio    = trim($_GET['fecha_inicio'] ?? '');
         $filtroFin       = trim($_GET['fecha_fin'] ?? '');
         $filtroBase      = trim($_GET['base'] ?? '');
-        $filtroAerolinea = trim($_GET['aerolinea'] ?? '');
+        $filtroAerolineas = $this->aerolineasFromRequest();
+        $filtroAerolinea  = implode(', ', $filtroAerolineas);
 
         // Si se proporciona un rango de fechas (inicio/fin), usarlo. Si solo viene "fecha", mantener compatibilidad.
         if ($filtroInicio !== '' || $filtroFin !== '') {
@@ -101,14 +102,26 @@ class FlightServicesController extends Controller {
             $services = array_values(array_filter($services, fn($s) => $s['base'] === $filtroBase));
         }
 
-        if ($filtroAerolinea !== '') {
-            $services = array_values(array_filter($services, fn($s) => $s['airline_nombre'] === $filtroAerolinea));
+        if ($filtroAerolineas) {
+            $services = array_values(array_filter($services, fn($s) => in_array($s['airline_nombre'], $filtroAerolineas, true)));
         }
 
         $adicionalesPorServicio = $this->model->getAdicionalesForIds(array_column($services, 'id'));
         $gpuFraccionesPorServicio = $this->model->getGpuFraccionesForIds(array_column($services, 'id'));
 
         $this->downloadExcel($services, $adicionalesPorServicio, $gpuFraccionesPorServicio, $filtroInicio, $filtroFin, $filtroBase, $filtroAerolinea);
+    }
+
+    /** Aerolíneas seleccionadas en el filtro (admite aerolinea[]=A&aerolinea[]=B o un valor simple). */
+    private function aerolineasFromRequest(): array {
+        $raw = $_GET['aerolinea'] ?? [];
+        $raw = is_array($raw) ? $raw : [$raw];
+        $out = [];
+        foreach ($raw as $v) {
+            $v = trim((string)$v);
+            if ($v !== '') $out[] = $v;
+        }
+        return array_values(array_unique($out));
     }
 
     /** Fuente de datos server-side para el listado (DataTables): pagina,
@@ -135,8 +148,8 @@ class FlightServicesController extends Controller {
             'fecha_inicio' => trim((string)($_GET['fecha_inicio'] ?? '')),
             'fecha_fin'    => trim((string)($_GET['fecha_fin'] ?? '')),
             'base'         => trim((string)($_GET['base'] ?? '')),
-            'aerolinea'    => trim((string)($_GET['aerolinea'] ?? '')),
-            'buscar'       => trim((string)($_GET['search']['value'] ?? '')),
+            'aerolinea'    => $this->aerolineasFromRequest(),
+            'buscar'      => trim((string)($_GET['search']['value'] ?? '')),
         ];
 
         $resultado = $this->model->getPaginated($filtros, $orderBy, $orderDir, $start, $length, $baseScope);
@@ -196,6 +209,80 @@ class FlightServicesController extends Controller {
         ]);
     }
 
+    /** Paneles por aerolínea (pestañas del Panel Analítico): qué se muestra en cada uno. */
+    private const PANEL_AEROLINEAS = [
+        'avianca' => [
+            'nombre' => 'AVIANCA', 'logo' => 'logo_avianca.png', 'color' => '#E30613',
+            'tarjetas'  => ['vuelos'],
+            'combinada' => ['ventiladores', 'sillas', 'rampa', 'gpu', 'acu'],
+            'combinada_titulo' => 'Servicios por mes',
+        ],
+        'clic' => [
+            'nombre' => 'CLIC', 'logo' => 'logo_clic.png', 'color' => '#7F7F7F',
+            'tarjetas'  => ['vuelos', 'pax'],
+            'combinada' => [],
+            'combinada_titulo' => '',
+        ],
+        'satena' => [
+            'nombre' => 'SATENA', 'logo' => 'logo_satena.png', 'color' => '#2F5597',
+            'tarjetas'  => ['vuelos', 'pax'],
+            'combinada' => ['gpu', 'remolque', 'drenaje', 'potable'],
+            'combinada_titulo' => 'Servicios por mes',
+        ],
+    ];
+
+    private function panelBaseScope(): ?string {
+        $base = Session::get('user_base_asociada');
+        return (in_array(Session::get('user_rol'), self::ROLES_ESCOPADOS_A_BASE, true) && $base) ? $base : null;
+    }
+
+    /** Vista del panel de una aerolínea (AVIANCA / CLIC / SATENA). */
+    public function dashboardAerolinea(string $slug): void {
+        $cfg = self::PANEL_AEROLINEAS[$slug] ?? null;
+        if ($cfg === null) {
+            $this->redirectWith('flight-services/dashboard', 'error', 'Panel no encontrado.');
+            return;
+        }
+        $opciones = $this->model->getDistinctBasesYAerolineas($this->panelBaseScope());
+        $metricas = (new Facturacion())->metricasPanel();
+        $etiquetas = [];
+        foreach (array_merge($cfg['tarjetas'], $cfg['combinada']) as $k) {
+            $etiquetas[$k] = $metricas[$k][0];
+        }
+        $this->view('flight_services/dashboard_aerolinea', [
+            'pageTitle'    => 'Panel ' . $cfg['nombre'],
+            'breadcrumbs'  => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Panel Analítico' => BASE_URL . '/flight-services/dashboard', $cfg['nombre'] => null],
+            'slug'         => $slug,
+            'cfg'          => $cfg,
+            'etiquetas'    => $etiquetas,
+            'basesUniques' => $opciones['bases'],
+        ]);
+    }
+
+    /** JSON del panel: totales mensuales por año con filtros de fecha y bases (varias). */
+    public function dashboardAerolineaData(string $slug): void {
+        $cfg = self::PANEL_AEROLINEAS[$slug] ?? null;
+        if ($cfg === null) {
+            $this->json(['error' => 'Panel no encontrado'], 404);
+            return;
+        }
+        $fecha = fn(string $k) => preg_match('/^\d{4}-\d{2}-\d{2}$/', $f = trim((string)($_GET[$k] ?? ''))) ? $f : '';
+        $bases = $_GET['base'] ?? [];
+        $bases = array_values(array_filter(array_map('trim', array_map('strval', is_array($bases) ? $bases : [$bases])), fn($v) => $v !== ''));
+
+        $facturacion = new Facturacion();
+        $servicios = $facturacion->getServicios([
+            'aerolineas'   => [$cfg['nombre']],
+            'bases'        => $bases,
+            'fecha_inicio' => $fecha('fecha_inicio'),
+            'fecha_fin'    => $fecha('fecha_fin'),
+        ], $this->panelBaseScope());
+
+        $salida = $facturacion->seriesMensuales($servicios, array_merge($cfg['tarjetas'], $cfg['combinada']));
+        $salida['total_vuelos'] = count($servicios);
+        $this->json($salida);
+    }
+
     /** Formulario nuevo registro */
     public function createForm(): void {
         if (Session::get('user_rol') === 'Líder SVC') {
@@ -226,7 +313,7 @@ class FlightServicesController extends Controller {
         $data   = $this->collectFormData();
         error_log(date('Y-m-d H:i:s') . " | DATA COLLECTED | Airline ID: " . ($data['airline_id'] ?? 'NULL') . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
         
-        $errors = $this->validateFormData($data, true);
+        $errors = $this->validateFormData($data);
         error_log(date('Y-m-d H:i:s') . " | VALIDATION RESULT | Errors count: " . count($errors) . "\n", 3, dirname(__DIR__) . '/../logs/flight_services.log');
 
         if (!empty($errors)) {
@@ -285,10 +372,19 @@ class FlightServicesController extends Controller {
         ]);
     }
 
+    /** Si el rol actual puede editar el servicio $id (un Colaborador puede tener el permiso limitado a un solo servicio). */
+    private function puedeEditarServicio(int $id): bool {
+        $rol = Session::get('user_rol');
+        if ($rol === 'Visualizador' || $rol === 'Líder SVC') return false;
+        if ($rol !== 'Colaborador') return true;
+        if (!Session::get('user_puede_editar')) return false;
+        $limite = Session::get('user_puede_editar_servicio_id');
+        return $limite === null || (int)$limite === $id;
+    }
+
     /** Formulario editar */
     public function editForm(string $id): void {
-        $rol = Session::get('user_rol');
-        if ($rol === 'Visualizador' || $rol === 'Líder SVC' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
+        if (!$this->puedeEditarServicio((int)$id)) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -316,8 +412,7 @@ class FlightServicesController extends Controller {
 
     /** Actualizar registro */
     public function update(string $id): void {
-        $rol = Session::get('user_rol');
-        if ($rol === 'Visualizador' || $rol === 'Líder SVC' || ($rol === 'Colaborador' && !Session::get('user_puede_editar'))) {
+        if (!$this->puedeEditarServicio((int)$id)) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para editar registros.');
             return;
         }
@@ -1248,8 +1343,79 @@ XML;
         ];
     }
 
+    /** Exportación de Facturación: hoja "Servicios de Vuelo" (igual a la de
+     *  /flight-services/export) con los servicios ya filtrados, y hoja
+     *  "Resumen" con los conceptos facturables ($resumen = salida de
+     *  Facturacion::resumir). $filtros: fecha_inicio, fecha_fin, bases,
+     *  aerolineas, tipos_avion. */
+    public function downloadFacturacionExcel(array $services, array $filtros, array $resumen): void {
+        $ids = array_column($services, 'id');
+        $partes = [];
+        if (!empty($filtros['bases']))       $partes[] = 'Base ' . implode(', ', $filtros['bases']);
+        if (!empty($filtros['aerolineas']))  $partes[] = implode(', ', $filtros['aerolineas']);
+        if (!empty($filtros['tipos_avion'])) $partes[] = 'Avión ' . implode(', ', $filtros['tipos_avion']);
+        $this->downloadExcel(
+            $services,
+            $this->model->getAdicionalesForIds($ids),
+            $this->model->getGpuFraccionesForIds($ids),
+            (string)($filtros['fecha_inicio'] ?? ''),
+            (string)($filtros['fecha_fin'] ?? ''),
+            '',
+            implode(' — ', $partes),
+            $resumen,
+            'facturacion_'
+        );
+    }
+
+    /** Hoja "Resumen" de Facturación: Aerolínea, Sección, Concepto, Cantidad
+     *  y Vuelos de la sección (cantidades como números reales). Misma forma
+     *  que buildResumenSheetXml para que downloadExcel la use igual. */
+    private function buildFacturacionResumenSheet(array $resumen, string $subtitulo): array {
+        $headers    = ['Aerolínea', 'Sección', 'Concepto', 'Cantidad', 'Vuelos de la sección'];
+        $totalCols  = count($headers);
+        $mergeCells = ['A1:' . $this->excelColLetter($totalCols) . '1', 'A2:' . $this->excelColLetter($totalCols) . '2'];
+        $text = fn(int $r, int $c, string $v, int $style) =>
+            '<c r="' . $this->excelColLetter($c) . $r . '" t="inlineStr" s="' . $style . '"><is><t xml:space="preserve">' . $this->xmlText($v) . '</t></is></c>';
+
+        $xml  = '<row r="1" ht="28" customHeight="1">' . $text(1, 1, 'RESUMEN DE FACTURACIÓN', self::XLSX_STYLE_TITLE) . '</row>';
+        $xml .= '<row r="2" ht="22" customHeight="1">' . $text(2, 1, $subtitulo, self::XLSX_STYLE_SUBTITLE) . '</row>';
+
+        $headerRow = 4;
+        $xml .= '<row r="' . $headerRow . '" ht="30" customHeight="1">';
+        foreach ($headers as $i => $h) $xml .= $text($headerRow, $i + 1, $h, self::XLSX_STYLE_COL_HEADER);
+        $xml .= '</row>';
+
+        $rowNum = $headerRow + 1;
+        $n = 0;
+        foreach ($resumen['airlines'] ?? [] as $a) {
+            foreach ($a['secciones'] as $sec) {
+                foreach ($sec['conceptos'] as $c) {
+                    $style = $n++ % 2 === 0 ? self::XLSX_STYLE_DATA_EVEN : self::XLSX_STYLE_DATA_ODD;
+                    $xml .= '<row r="' . $rowNum . '">'
+                        . $text($rowNum, 1, (string)$a['nombre'], $style)
+                        . $text($rowNum, 2, (string)$sec['titulo'], $style)
+                        . $text($rowNum, 3, (string)$c['concepto'], $style)
+                        . '<c r="D' . $rowNum . '" s="' . $style . '"><v>' . (float)$c['cantidad'] . '</v></c>'
+                        . '<c r="E' . $rowNum . '" s="' . $style . '"><v>' . (int)$sec['vuelos'] . '</v></c>'
+                        . '</row>';
+                    $rowNum++;
+                }
+            }
+        }
+
+        return [
+            'xml'         => $xml,
+            'maxCol'      => $totalCols,
+            'lastRow'     => max($rowNum - 1, $headerRow),
+            'mergeCells'  => $mergeCells,
+            'headerRow'   => $headerRow,
+            'lastDataRow' => max($rowNum - 1, $headerRow),
+            'labelCols'   => 3,
+        ];
+    }
+
     /** Generar y enviar el reporte de servicios de vuelo como un archivo .xlsx real */
-    private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroInicio = '', string $filtroFin = '', string $filtroBase = '', string $filtroAerolinea = ''): void {
+    private function downloadExcel(array $services, array $adicionalesPorServicio, array $gpuFraccionesPorServicio, string $filtroInicio = '', string $filtroFin = '', string $filtroBase = '', string $filtroAerolinea = '', ?array $resumenFacturacion = null, string $filenamePrefix = 'servicios_vuelo_'): void {
         foreach ($services as &$s) {
             $s['adicionales']     = $adicionalesPorServicio[$s['id']] ?? [];
             $s['gpu_fracciones']  = $gpuFraccionesPorServicio[$s['id']] ?? [];
@@ -1271,7 +1437,11 @@ XML;
             elseif ($finText) $subtitulo .= ' — Hasta ' . $finText;
         }
 
-        $resumen = $this->buildResumenSheetXml($services, $subtitulo);
+        // Desde Facturación la hoja "Resumen" es la de conceptos facturables
+        // (la misma que se ve en pantalla) en vez del resumen operativo.
+        $resumen = $resumenFacturacion !== null
+            ? $this->buildFacturacionResumenSheet($resumenFacturacion, $subtitulo)
+            : $this->buildResumenSheetXml($services, $subtitulo);
 
         $lastCol   = $this->excelColLetter($totalCols);
         $dataStart = 5; // fila donde inician los datos (tras logo/título/subtítulo/grupos/encabezados)
@@ -1469,7 +1639,7 @@ XML;
         $bytes = file_get_contents($tmpFile);
         unlink($tmpFile);
 
-        $filename = 'servicios_vuelo_' . date('Ymd_His') . '.xlsx';
+        $filename = $filenamePrefix . date('Ymd_His') . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');

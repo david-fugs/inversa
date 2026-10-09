@@ -8,6 +8,29 @@ class FlightService extends Model
 {
     protected string $table = 'flight_services';
 
+    /**
+     * Cantidad de servicios con ACU (tiempo_acu > 0) de la aerolínea que
+     * ocurrieron ANTES del servicio indicado dentro del mismo mes. Se usa
+     * para la regla "cobrar ACU a partir del servicio N del mes".
+     *
+     * Orden: por día y, dentro del mismo día, por id. $excludeId = 0 es un
+     * servicio nuevo (todos los existentes del día cuentan como previos).
+     * $baseNombre != null limita el conteo a esa base (tarifa específica).
+     */
+    public function countAcuServiciosPrevios(int $airlineId, ?string $baseNombre, int $anio, int $mes, int $dia, int $excludeId = 0): int {
+        $sql = "SELECT COUNT(*) AS total FROM flight_services
+                WHERE airline_id = ? AND anio = ? AND mes = ?
+                  AND tiempo_acu > 0
+                  AND (dia < ? OR (dia = ? AND id < ?))";
+        $params = [$airlineId, $anio, $mes, $dia, $dia, $excludeId > 0 ? $excludeId : PHP_INT_MAX];
+        if ($baseNombre !== null) {
+            $sql .= " AND base = ?";
+            $params[] = $baseNombre;
+        }
+        $row = $this->db->fetchOne($sql, $params);
+        return (int)($row['total'] ?? 0);
+    }
+
     /** Tipos de atención */
     public static array $tiposAtencion = [
         'Tránsito',
@@ -147,9 +170,10 @@ class FlightService extends Model
             $where[] = 'fs.base = ?';
             $params[] = $filtros['base'];
         }
-        if ($filtros['aerolinea'] !== '') {
-            $where[] = 'COALESCE(a.nombre, fs.airline_custom_nombre) = ?';
-            $params[] = $filtros['aerolinea'];
+        $aerolineas = array_values(array_filter((array)$filtros['aerolinea'], fn($v) => $v !== ''));
+        if ($aerolineas) {
+            $where[] = 'COALESCE(a.nombre, fs.airline_custom_nombre) IN (' . implode(',', array_fill(0, count($aerolineas), '?')) . ')';
+            array_push($params, ...$aerolineas);
         }
         if ($filtros['fecha_inicio'] !== '') {
             $where[] = "STR_TO_DATE(CONCAT(fs.anio, '-', fs.mes, '-', fs.dia), '%Y-%m-%d') >= ?";
@@ -195,7 +219,7 @@ class FlightService extends Model
 
         $rows = $this->db->fetchAll(
             "SELECT fs.id, fs.dia, fs.mes, fs.anio, fs.quincena, fs.base, fs.vuelo_llegando, fs.vuelo_saliendo,
-                    fs.matricula, fs.tipo_atencion, fs.tiempo_transito, fs.cumple_tiempo, fs.archivo_pdf,
+                    fs.matricula, fs.tipo_atencion, fs.tiempo_transito, fs.cumple_tiempo, fs.archivo_pdf, fs.codigo_demora,
                     COALESCE(a.nombre, fs.airline_custom_nombre) AS airline_nombre,
                     COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo
              FROM flight_services fs {$joins} {$whereSql}

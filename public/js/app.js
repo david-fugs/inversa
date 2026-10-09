@@ -367,16 +367,27 @@ function recalcularFraccionesGpuAdicionales() {
 }
 
 /* ── Cálculo de fracciones ACU según tarifa de la aerolínea/base ──
- * Misma regla de negocio que GPU (ver calcularFraccionesGpuValor): el
- * tramo de "primeros minutos" no genera ningún cobro, ni siquiera al
- * llegar justo a él. Por eso "Fracciones Hora ACU" (el cobro fijo que
- * antes se disparaba al alcanzar ese tramo) queda siempre en 0; solo
- * "Fracciones [fracción] ACU" cobra, y únicamente por el tiempo que
- * SUPERA el umbral (o desde el minuto 0 si la aerolínea/base no
- * maneja tarifa inicial).
+ * Diferente a GPU: en ACU el tramo de "primeros minutos" SÍ se cobra.
+ *  - Con "primeros_minutos" configurado: cualquier tiempo de 1 hasta
+ *    "primeros_minutos" cobra 1 en "Fracciones Hora ACU" (horas = 1).
+ *    Si el tiempo lo supera, además cada "fraccion_minutos" (o parte)
+ *    de exceso suma 1 en "Fracciones por Fracción ACU".
+ *    Ej: primeros=60, fraccion=15 → 30 min: 1/0 · 60 min: 1/0 · 61 min: 1/1
+ *  - Sin "primeros_minutos": horas = 0 y fracciones = ceil(t / fracción).
+ *  - "acu_cobrar_desde_servicios" (N): 0 = se cobra siempre. Si N > 0, solo
+ *    se cobra cuando este servicio es el N-ésimo (o posterior) ACU del mes
+ *    de la aerolínea; "servicios_previos_mes" trae cuántos hubo antes.
  */
+function acuSeCobra(tarifa) {
+    const desde = parseInt(tarifa && tarifa.acu_cobrar_desde_servicios, 10) || 0;
+    if (desde <= 0) return true;
+    const previos = parseInt(tarifa.servicios_previos_mes, 10) || 0;
+    return (previos + 1) >= desde;
+}
+
 function calcularFraccionesAcuValores(tiempoMin, tarifa) {
     if (!tarifa || !tiempoMin || tiempoMin <= 0) return { horas: 0, fracciones: 0 };
+    if (!acuSeCobra(tarifa)) return { horas: 0, fracciones: 0 };
 
     const fraccion = parseInt(tarifa.fraccion_minutos, 10) || 0;
     const primeros = tarifa.primeros_minutos !== null && tarifa.primeros_minutos !== undefined
@@ -387,7 +398,7 @@ function calcularFraccionesAcuValores(tiempoMin, tarifa) {
         const fracciones = (fraccion > 0 && tiempoMin > primeros)
             ? Math.ceil((tiempoMin - primeros) / fraccion)
             : 0;
-        return { horas: 0, fracciones: fracciones };
+        return { horas: 1, fracciones: fracciones };
     }
 
     return { horas: 0, fracciones: fraccion > 0 ? Math.ceil(tiempoMin / fraccion) : 0 };
@@ -407,6 +418,11 @@ function initAcuCalculation() {
     const baseSelect     = document.getElementById('base');
     const fraccionLabel  = document.getElementById('acu_fraccion_minutos_valor');
     const warningEl      = document.getElementById('acu-tarifa-warning');
+    const cobroInfoEl    = document.getElementById('acu-cobro-info');
+    const anioInp        = document.getElementById('anio');
+    const mesInp         = document.getElementById('mes');
+    const diaInp         = document.getElementById('dia');
+    const formEl         = document.getElementById('flightServiceForm');
 
     if (!conexion || !desconexion) return;
 
@@ -422,6 +438,17 @@ function initAcuCalculation() {
                 ? false
                 : (!acuTarifaActual || acuTarifaActual.fraccion_minutos === null || acuTarifaActual.fraccion_minutos === undefined);
             warningEl.style.display = sinTarifa ? '' : 'none';
+        }
+        if (cobroInfoEl) {
+            const desde = parseInt(acuTarifaActual && acuTarifaActual.acu_cobrar_desde_servicios, 10) || 0;
+            if (desde > 0) {
+                const pos = (parseInt(acuTarifaActual.servicios_previos_mes, 10) || 0) + 1;
+                cobroInfoEl.textContent = 'Servicio ACU #' + pos + ' del mes para esta aerolínea. Se cobra desde el servicio ' + desde + ': '
+                    + (pos >= desde ? 'SÍ se cobra.' : 'NO se cobra.');
+                cobroInfoEl.style.display = '';
+            } else {
+                cobroInfoEl.style.display = 'none';
+            }
         }
     }
 
@@ -455,7 +482,11 @@ function initAcuCalculation() {
         }
         const baseId = getBaseIdSeleccionado();
         const url = BASE_URL + '/tarifas-cobros/by-airline/' + airlineId
-            + '?tipo_cobro=acu' + (baseId ? '&base_id=' + encodeURIComponent(baseId) : '');
+            + '?tipo_cobro=acu' + (baseId ? '&base_id=' + encodeURIComponent(baseId) : '')
+            + '&anio=' + encodeURIComponent(anioInp ? anioInp.value : '')
+            + '&mes=' + encodeURIComponent(mesInp ? mesInp.value : '')
+            + '&dia=' + encodeURIComponent(diaInp ? diaInp.value : '')
+            + '&exclude_id=' + encodeURIComponent(formEl && formEl.dataset.serviceId ? formEl.dataset.serviceId : '');
         fetch(url)
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
@@ -492,15 +523,16 @@ function initAcuCalculation() {
         }
     }
 
-    // La tarifa también depende de la base: al cambiarla, recargar con
-    // la aerolínea ya seleccionada.
-    if (baseSelect) {
-        baseSelect.addEventListener('change', function () {
+    // La tarifa también depende de la base y de la fecha (conteo de
+    // servicios del mes): al cambiarlas, recargar con la aerolínea ya seleccionada.
+    [baseSelect, anioInp, mesInp, diaInp].forEach(function (el) {
+        if (!el) return;
+        el.addEventListener('change', function () {
             if (airlineSelect && airlineSelect.value) {
                 cargarTarifaAcuAerolinea(airlineSelect.value);
             }
         });
-    }
+    });
 }
 
 // Recalcula, con la misma tarifa de la aerolínea/base, las fracciones

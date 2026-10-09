@@ -114,6 +114,26 @@ class User extends Model {
     }
 
     /**
+     * Conceder permiso de edición, opcionalmente limitado a un servicio de vuelo
+     */
+    public function concederPermisoEdicion(int $id, ?int $servicioId): void {
+        $this->db->query(
+            "UPDATE users SET puede_editar = 1, puede_editar_servicio_id = ? WHERE id = ?",
+            [$servicioId, $id]
+        );
+    }
+
+    /**
+     * Quitar permiso de edición (y la restricción por servicio)
+     */
+    public function quitarPermisoEdicion(int $id): void {
+        $this->db->query(
+            "UPDATE users SET puede_editar = 0, puede_editar_servicio_id = NULL WHERE id = ?",
+            [$id]
+        );
+    }
+
+    /**
      * Cambiar contraseña
      */
     public function updatePassword(int $id, string $password): bool {

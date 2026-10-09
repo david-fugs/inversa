@@ -420,6 +420,7 @@
             <i class="bi bi-exclamation-triangle"></i>
             No hay tarifa de Aire Acondicionado (ACU) configurada para esta aerolínea/base en <a href="<?= BASE_URL ?>/tarifas-cobros" target="_blank">Tarifas / Cobros</a>. Las fracciones se calcularán en 0.
         </div>
+        <div id="acu-cobro-info" class="alert alert-info mb-3" style="display:none;font-size:13px;"></div>
         <div class="row g-3 mb-3">
             <div class="col-md-3">
                 <label class="form-label">ACU</label>

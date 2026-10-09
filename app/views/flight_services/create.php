@@ -300,10 +300,10 @@
                 <div class="row g-3 mt-2">
                     <div class="col-12">
                         <hr class="my-2">
-                        <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Se debe completar la información de la demora</small></p>
+                        <p class="text-muted mb-3"><i class="bi bi-info-circle"></i> <small>Puede completar la información de la demora ahora o más adelante</small></p>
                     </div>
                     <div class="col-12">
-                        <label for="codigo_demora_id" class="form-label">Código Demora <span class="required-mark">*</span></label>
+                        <label for="codigo_demora_id" class="form-label">Código Demora</label>
                         <?php $oldCodigoDemoraIds = array_map('intval', (array) ($old['codigo_demora_id'] ?? [])); ?>
                         <select class="form-select js-codigo-demora-select2" id="codigo_demora_id" name="codigo_demora_id[]" multiple="multiple" data-placeholder="Seleccione uno o varios códigos" style="width:100%">
                             <?php foreach ($codigoDemoras as $cd): ?>
@@ -395,6 +395,7 @@
                 <i class="bi bi-exclamation-triangle"></i>
                 No hay tarifa de Aire Acondicionado (ACU) configurada para esta aerolínea/base en <a href="<?= BASE_URL ?>/tarifas-cobros" target="_blank">Tarifas / Cobros</a>. Las fracciones se calcularán en 0.
             </div>
+            <div id="acu-cobro-info" class="alert alert-info mb-3" style="display:none;font-size:13px;"></div>
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <label class="form-label">ACU</label>
