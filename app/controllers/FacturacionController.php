@@ -13,8 +13,8 @@ class FacturacionController extends Controller {
 
     public function __construct() {
         parent::__construct();
-        // Por ahora solo el Administrador accede a Facturación.
-        if (Session::get('user_rol') !== 'Administrador') {
+        // Facturación: solo Administrador y Visualizador.
+        if (!in_array(Session::get('user_rol'), ['Administrador', 'Visualizador'], true)) {
             $this->redirectWith('flight-services', 'error', 'No tiene permiso para acceder a Facturación.');
             exit;
         }

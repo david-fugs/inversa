@@ -378,7 +378,7 @@ class Facturacion extends Model
         return [
             ['Atención Rampa ATR',                         fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::esAtr($s))],
             ['Atención Rampa A320',                        fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::esA320($s))],
-            ['Atención Pax',                               fn($s) => (int)$s['atencion_pasajeros']],
+            ['Atención Pax',                               fn($s) => (int)$s['pax_saliendo']],
             self::conceptoAcu(),
             self::conceptoGpu(),
             ['Despacho Centralizado (no aplica Arauca y Quibdó)', fn($s) => self::uno((int)$s['despacho'] === 1 && !in_array($s['base'], self::BASES_SIN_DESPACHO, true))],
@@ -400,9 +400,9 @@ class Facturacion extends Model
     private function catalogoSatena(): array
     {
         $rampa4870 = ['Atención Rampa Avión 48/70 Pax', fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::es4870($s))];
-        $pax4870   = ['Atención Pax Avión 48/70',        fn($s) => self::es4870($s) ? (int)$s['atencion_pasajeros'] : 0];
+        $pax4870   = ['Atención Pax Avión 48/70',        fn($s) => self::es4870($s) ? (int)$s['pax_saliendo'] : 0];
         $rampa19   = ['Atención Rampa Avión 19 Pax',     fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::es19($s))];
-        $pax19     = ['Atención Pax Avión 19',           fn($s) => self::es19($s) ? (int)$s['atencion_pasajeros'] : 0];
+        $pax19     = ['Atención Pax Avión 19',           fn($s) => self::es19($s) ? (int)$s['pax_saliendo'] : 0];
         $acu30     = self::conceptoAcu();
         $silla     = ['Silla de Ruedas',                 fn($s) => (int)$s['sillas_ruedas']];
         $remAdic   = ['Remolque adicional por servicio', fn($s) => self::adic($s, 'Remolque')];

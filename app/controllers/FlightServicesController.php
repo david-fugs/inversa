@@ -200,12 +200,28 @@ class FlightServicesController extends Controller {
         sort($basesUniques);
         sort($aerolineasUniques);
 
+        // Códigos de demora: todo el catálogo más los que ya estén en los servicios.
+        $codigosDemoraUniques = [];
+        foreach ($this->codigoDemoraModel->getAll() as $cd) {
+            $codigosDemoraUniques[strtoupper(trim($cd['codigo']))] = true;
+        }
+        foreach ($services as $s) {
+            foreach (explode(' - ', (string)($s['codigo_demora'] ?? '')) as $cod) {
+                $cod = strtoupper(trim($cod));
+                if ($cod !== '') $codigosDemoraUniques[$cod] = true;
+            }
+        }
+        $codigosDemoraUniques = array_keys($codigosDemoraUniques);
+        natcasesort($codigosDemoraUniques);
+        $codigosDemoraUniques = array_values($codigosDemoraUniques);
+
         $this->view('flight_services/dashboard', [
             'pageTitle'         => 'Panel Analítico',
             'breadcrumbs'       => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Panel Analítico' => null],
             'chartDataJson'     => json_encode($chartData, JSON_UNESCAPED_UNICODE),
             'basesUniques'      => $basesUniques,
             'aerolineasUniques' => $aerolineasUniques,
+            'codigosDemoraUniques' => $codigosDemoraUniques,
         ]);
     }
 

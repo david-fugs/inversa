@@ -51,7 +51,7 @@
             </a>
         </div>
 
-        <?php if (Session::get('user_rol') === 'Administrador'): ?>
+        <?php if (in_array(Session::get('user_rol'), ['Administrador', 'Visualizador'], true)): ?>
         <div class="nav-item">
             <a href="<?= BASE_URL ?>/facturacion" class="nav-link">
                 <i class="bi bi-receipt"></i>

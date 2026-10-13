@@ -20,7 +20,7 @@
                     <div class="flex-fill"><label for="filter_fecha_fin" class="form-label small text-muted mb-1">Fecha fin</label><input type="date" class="form-control" id="filter_fecha_fin" placeholder="Fecha fin"></div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="filter_base" class="form-label">Base</label>
                 <select class="form-select" id="filter_base">
                     <option value="">-- Todas --</option>
@@ -33,8 +33,12 @@
                 <label for="filter_aerolinea" class="form-label">Aerolínea</label>
                 <?php require __DIR__ . '/_aerolinea_multiselect.php'; ?>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="btn_limpiar_filtros">
+            <div class="col-md-3">
+                <label class="form-label">Código Demora</label>
+                <?php require __DIR__ . '/_codigo_demora_multiselect.php'; ?>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn_limpiar_filtros">
                     <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
                 </button>
             </div>
@@ -360,6 +364,7 @@ function filtrarDatos() {
     }
     const filtroBase = filterInputs.base.value || null;
     const filtroAerolineas = getAerolineasSeleccionadas();
+    const filtroCodigos = getCodigosDemoraSeleccionados();
 
     return FLIGHT_DATA.filter(s => {
         if (startDate || endDate) {
@@ -369,6 +374,10 @@ function filtrarDatos() {
         }
         if (filtroBase && s.base !== filtroBase) return false;
         if (filtroAerolineas.length && !filtroAerolineas.includes(s.aerolinea)) return false;
+        if (filtroCodigos.length) {
+            const codigos = (s.codigo_demora || '').split(' - ').map(c => c.trim().toUpperCase()).filter(Boolean);
+            if (!codigos.some(c => filtroCodigos.includes(c))) return false;
+        }
         return true;
     });
 }
@@ -755,12 +764,14 @@ filterInputs.fechaInicio.addEventListener('change', renderDashboard);
 filterInputs.fechaFin.addEventListener('change', renderDashboard);
 filterInputs.base.addEventListener('change', renderDashboard);
 filterInputs.aerolinea.addEventListener('change', renderDashboard);
+document.getElementById('filter_codigo_demora').addEventListener('change', renderDashboard);
 
 document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
     filterInputs.fechaInicio.value = '';
     filterInputs.fechaFin.value = '';
     filterInputs.base.value = '';
     limpiarAerolineas();
+    limpiarCodigosDemora();
     renderDashboard();
 });
 
