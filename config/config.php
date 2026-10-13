@@ -34,6 +34,10 @@ define('PAGOS_COMPROBANTES_PATH', APP_PATH . '/storage/pagos_comprobantes');
 // vuelo en cada descarga y se borran después, no se persisten).
 define('PAGOS_TEMP_PATH', APP_PATH . '/storage/pagos_temp');
 
+// Documentos de Egresos / Legalizaciones (PDF). Mismo criterio que los comprobantes:
+// fuera de public/, solo servidos por EgresosController.
+define('EGRESOS_PATH', APP_PATH . '/storage/egresos');
+
 // Configuración de sesión
 define('SESSION_LIFETIME', 3600); // 1 hora en segundos
 define('SESSION_NAME', 'inversa_session');

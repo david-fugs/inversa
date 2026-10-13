@@ -9,7 +9,7 @@ class AuthController extends Controller {
      *  usuario con uno de estos roles llega a este login (el de Ground
      *  Handling) por error, se le redirige a su propio módulo en vez de
      *  dejarlo en un menú que no reconoce su rol. */
-    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos'];
+    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos', 'Creador Pagos', 'Revisor Pagos'];
 
     private User $userModel;
 

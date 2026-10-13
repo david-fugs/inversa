@@ -350,6 +350,18 @@ function bindTooltip(el, text) {
     el.addEventListener('blur', hideTooltip);
 }
 
+/* ── Códigos de demora: separa cualquier formato de texto ──
+   Acepta "A - B", "A,B y C", "A-B", "A/B"... y devuelve los códigos
+   individuales, en mayúsculas y sin repetir. */
+function separarCodigos(raw) {
+    const out = new Set();
+    String(raw || '').split(/\s*(?:[,;\/+\-]|\s+y\s+)\s*/i).forEach(c => {
+        c = c.trim().toUpperCase();
+        if (c) out.add(c);
+    });
+    return Array.from(out);
+}
+
 /* ── Filtrado ────────────────────────────────────────── */
 function filtrarDatos() {
     let startDate = null;
@@ -375,8 +387,7 @@ function filtrarDatos() {
         if (filtroBase && s.base !== filtroBase) return false;
         if (filtroAerolineas.length && !filtroAerolineas.includes(s.aerolinea)) return false;
         if (filtroCodigos.length) {
-            const codigos = (s.codigo_demora || '').split(' - ').map(c => c.trim().toUpperCase()).filter(Boolean);
-            if (!codigos.some(c => filtroCodigos.includes(c))) return false;
+            if (!separarCodigos(s.codigo_demora).some(c => filtroCodigos.includes(c))) return false;
         }
         return true;
     });
@@ -617,8 +628,7 @@ function renderKpis(rows) {
 function contarPorCodigosDemora(rows) {
     const mapa = new Map();
     rows.forEach(r => {
-        const raw = (r.codigo_demora || '').trim();
-        const codigos = raw ? raw.split(' - ').map(c => c.trim()).filter(Boolean) : [];
+        const codigos = separarCodigos(r.codigo_demora);
         if (codigos.length === 0) codigos.push('Sin código');
         codigos.forEach(codigo => {
             mapa.set(codigo, (mapa.get(codigo) || 0) + 1);

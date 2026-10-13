@@ -9,12 +9,18 @@ class PagosController extends Controller {
 
     private const ARCHIVO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 
+    /** Roles del flujo de revisión: el creador solo registra/edita sus pagos,
+     *  el revisor los aprueba o rechaza; el resto (Admin/Operador Pagos) arma lotes. */
+    private const ROL_CREADOR = 'Creador Pagos';
+    private const ROL_REVISOR = 'Revisor Pagos';
+
     private LotePago  $loteModel;
     private Pago      $pagoModel;
     private PagoComprobante $comprobanteModel;
     private Proveedor $proveedorModel;
     private Banco     $bancoModel;
     private TipoProducto $tipoProductoModel;
+    private EgresoDocumento $egresoModel;
 
     public function __construct() {
         parent::__construct();
@@ -25,6 +31,36 @@ class PagosController extends Controller {
         $this->proveedorModel   = new Proveedor();
         $this->bancoModel       = new Banco();
         $this->tipoProductoModel = new TipoProducto();
+        $this->egresoModel      = new EgresoDocumento();
+    }
+
+    private function rol(): string {
+        return (string)Session::get('user_rol');
+    }
+
+    private function esCreador(): bool { return $this->rol() === self::ROL_CREADOR; }
+    private function esRevisor(): bool { return $this->rol() === self::ROL_REVISOR; }
+
+    /** Pantalla de inicio de cada rol dentro del módulo. */
+    private function inicioPath(): string {
+        if ($this->esCreador()) return 'pagos/lotes/nuevo';
+        if ($this->esRevisor()) return 'pagos/revision';
+        return 'pagos';
+    }
+
+    /** Bloquea a Creador/Revisor en las acciones de lotes (gestión de pagos). */
+    private function soloGestion(bool $json = false): void {
+        if (!$this->esCreador() && !$this->esRevisor()) return;
+        if ($json) {
+            $this->json(['ok' => false, 'error' => 'No tiene permiso para esta acción.'], 403);
+        }
+        $this->redirectWith($this->inicioPath(), 'error', 'No tiene permiso para esta acción.');
+        exit;
+    }
+
+    /** ¿El pago lo registró el usuario actual? */
+    private function esPropio(array $pago): bool {
+        return (int)$pago['user_id'] === (int)Session::get('user_id');
     }
 
     /**
@@ -72,6 +108,10 @@ class PagosController extends Controller {
     }
 
     public function index(): void {
+        if ($this->esCreador() || $this->esRevisor()) {
+            $this->redirect($this->inicioPath());
+            return;
+        }
         $lotes = $this->loteModel->getAll();
         $this->view('pagos/lotes_index', [
             'pageTitle'   => 'Pagos a Proveedores',
@@ -80,14 +120,129 @@ class PagosController extends Controller {
         ], 'pagos');
     }
 
+    private const POR_PAGINA = 15;
+
+    /** Pantalla del Revisor Pagos: pagos de los creadores, por pestaña (estado o archivados), paginados. */
+    public function revision(): void {
+        if (!$this->esRevisor()) {
+            $this->redirectWith($this->inicioPath(), 'error', 'No tiene permiso para esta acción.');
+            return;
+        }
+        $tab = $_GET['estado'] ?? 'pendiente';
+        if (!in_array($tab, ['pendiente', 'aprobado', 'rechazado', 'todos', 'archivados'], true)) {
+            $tab = 'pendiente';
+        }
+        $archivados = $tab === 'archivados';
+        $estado     = in_array($tab, ['pendiente', 'aprobado', 'rechazado'], true) ? $tab : null;
+
+        $total = $this->pagoModel->contarParaRevision($estado, $archivados);
+        [$pagina, $totalPaginas, $offset] = $this->paginar($total, self::POR_PAGINA);
+
+        $this->view('pagos/revision', [
+            'pageTitle'    => 'Revisión de Pagos',
+            'breadcrumbs'  => ['Revisión de Pagos' => null],
+            'pagos'        => $this->pagoModel->getParaRevision($estado, $archivados, self::POR_PAGINA, $offset),
+            'tab'          => $tab,
+            'resumen'      => $this->pagoModel->resumenRevision(),
+            'pagina'       => $pagina,
+            'totalPaginas' => $totalPaginas,
+            'total'        => $total,
+        ], 'pagos');
+    }
+
+    /** Archiva/desarchiva un pago en la bandeja de quien lo pide (revisor: cualquiera; creador: los suyos). */
+    public function archivar(string $id): void {
+        $pago = $this->pagoModel->findById((int)$id);
+        $rol  = $this->esRevisor() ? 'revisor' : ($this->esCreador() ? 'creador' : null);
+        if ($rol === null) {
+            $this->soloGestion();
+            return;
+        }
+        $volver = $rol === 'revisor' ? 'pagos/revision' : 'pagos/lotes/nuevo';
+        if (!$pago || ($rol === 'creador' && !$this->esPropio($pago))) {
+            $this->redirectWith($volver, 'error', 'Pago no encontrado.');
+            return;
+        }
+        $archivar = ($_POST['valor'] ?? '1') === '1';
+        $this->pagoModel->setArchivado((int)$pago['id'], $rol, $archivar);
+
+        $volverUrl = $_POST['volver'] ?? '';
+        $destino = (strpos($volverUrl, BASE_URL . '/pagos/') === 0) ? $volverUrl : BASE_URL . '/' . $volver;
+        Session::setFlash('success', $archivar ? 'Pago archivado.' : 'Pago restaurado.');
+        header('Location: ' . $destino);
+        exit;
+    }
+
+    /** Aprueba o rechaza un pago (solo Revisor Pagos). */
+    public function revisar(string $id): void {
+        if (!$this->esRevisor()) {
+            $this->redirectWith($this->inicioPath(), 'error', 'Solo el revisor puede aprobar o rechazar pagos.');
+            return;
+        }
+        $pago = $this->pagoModel->findById((int)$id);
+        if (!$pago) {
+            $this->redirectWith('pagos/revision', 'error', 'Pago no encontrado.');
+            return;
+        }
+        if ($pago['lote_pago_id'] !== null) {
+            $this->redirectWith('pagos/revision', 'error', 'Este pago ya está asignado a un lote y no puede cambiarse.');
+            return;
+        }
+
+        $accion = $_POST['accion'] ?? '';
+        $motivo = trim((string)($_POST['motivo'] ?? ''));
+        if (!in_array($accion, ['aprobar', 'rechazar'], true)) {
+            $this->redirectWith('pagos/revision', 'error', 'Acción no válida.');
+            return;
+        }
+        if ($accion === 'rechazar' && $motivo === '') {
+            $this->redirectWith('pagos/revision', 'error', 'Indique el motivo del rechazo.');
+            return;
+        }
+
+        $this->pagoModel->setRevision((int)$pago['id'], $accion === 'aprobar' ? 'aprobado' : 'rechazado',
+            (int)Session::get('user_id'), mb_substr($motivo, 0, 255));
+        $this->redirectWith('pagos/revision', 'success', $accion === 'aprobar' ? 'Pago aprobado.' : 'Pago rechazado.');
+    }
+
     public function nuevoLoteForm(): void {
+        if ($this->esRevisor()) {
+            $this->redirect($this->inicioPath());
+            return;
+        }
         if (isset($_GET['nuevo'])) {
             Session::remove('lotes_nuevo_ids');
         }
         $this->renderNuevo();
     }
 
+    /** Pantalla del Creador Pagos: formulario + sus propios pagos con su estado de revisión. */
+    private function renderCreador(array $errors = [], array $old = []): void {
+        $userId     = (int)Session::get('user_id');
+        $archivados = ($_GET['tab'] ?? '') === 'archivados';
+        $resumen    = $this->pagoModel->resumenCreador($userId);
+        [$pagina, $totalPaginas, $offset] = $this->paginar($archivados ? $resumen['archivados'] : $resumen['activos'], self::POR_PAGINA);
+        $this->view('pagos/creador_pagos', [
+            'pageTitle'     => 'Registrar Pagos',
+            'breadcrumbs'   => ['Registrar Pagos' => null],
+            'misPagos'      => $this->pagoModel->getByCreador($userId, $archivados, self::POR_PAGINA, $offset),
+            'tab'           => $archivados ? 'archivados' : 'activos',
+            'resumen'       => $resumen,
+            'pagina'        => $pagina,
+            'totalPaginas'  => $totalPaginas,
+            'proveedores'   => $this->proveedorModel->getAll(),
+            'bancos'        => $this->bancoModel->getAll(),
+            'tiposProducto' => $this->tipoProductoModel->getAll(),
+            'errors'        => $errors,
+            'old'           => $old,
+        ], 'pagos');
+    }
+
     private function renderNuevo(array $errors = [], array $old = []): void {
+        if ($this->esCreador()) {
+            $this->renderCreador($errors, $old);
+            return;
+        }
         $this->view('pagos/lote_nuevo', [
             'pageTitle'     => 'Nuevo Lote de Pago',
             'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Nuevo Lote' => null],
@@ -116,6 +271,7 @@ class PagosController extends Controller {
 
     /** Crea un lote (modal "Crear lote"); si ya existe uno abierto con ese consecutivo lo reutiliza. */
     public function crearLote(): void {
+        $this->soloGestion(true);
         $consecutivo = $this->input('consecutivo', '');
         if ($consecutivo === '') {
             $this->json(['ok' => false, 'error' => 'El consecutivo es obligatorio.'], 422);
@@ -150,9 +306,14 @@ class PagosController extends Controller {
 
     /** Asigna un pago sin lote a un lote abierto (al soltarlo sobre el lote). */
     public function asignarPago(string $id): void {
+        $this->soloGestion(true);
         $pago = $this->pagoModel->findById((int)$id);
         if (!$pago || $pago['lote_pago_id'] !== null) {
             $this->json(['ok' => false, 'error' => 'El pago no existe o ya está asignado a un lote.'], 404);
+        }
+
+        if (($pago['estado_revision'] ?? 'aprobado') !== 'aprobado') {
+            $this->json(['ok' => false, 'error' => 'Solo se pueden asignar a un lote los pagos aprobados.'], 422);
         }
 
         $lote = $this->loteModel->findById((int)$this->input('lote_id', 0));
@@ -181,11 +342,14 @@ class PagosController extends Controller {
 
     /** Registra un pago sin lote; luego se arrastra a un lote desde /pagos/lotes/nuevo. */
     public function agregarPagoSinLote(): void {
+        if ($this->esRevisor()) {
+            $this->soloGestion();
+        }
         $data   = $this->datosPago();
         $errors = $this->validarPago($data);
 
         $archivos = $this->archivosSubidos();
-        $errors  += $this->validarComprobantes($archivos, false);
+        $errors  += $this->validarComprobantes($archivos, $this->esCreador());
 
         if (!empty($errors)) {
             $this->renderNuevo($errors, $data);
@@ -200,12 +364,16 @@ class PagosController extends Controller {
 
         $data['lote_pago_id'] = null;
         $data['user_id']      = (int)Session::get('user_id');
+        // Lo que registra un Creador queda pendiente de revisión; el resto entra aprobado.
+        $data['estado_revision'] = $this->esCreador() ? 'pendiente' : 'aprobado';
         $pagoId = $this->pagoModel->create($data);
         foreach ($guardados as $orden => $g) {
             $this->comprobanteModel->create($pagoId, $g['stored'], $g['original'], $orden);
         }
 
-        $this->redirectWith('pagos/lotes/nuevo', 'success', 'Pago agregado. Arrástrelo a un lote para asignarlo.');
+        $this->redirectWith('pagos/lotes/nuevo', 'success', $this->esCreador()
+            ? 'Pago registrado. Quedó pendiente de revisión.'
+            : 'Pago agregado. Arrástrelo a un lote para asignarlo.');
     }
 
     private function datosPago(): array {
@@ -255,6 +423,7 @@ class PagosController extends Controller {
     }
 
     public function detalle(string $id): void {
+        $this->soloGestion();
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);
         if (!$lote) {
@@ -267,6 +436,7 @@ class PagosController extends Controller {
             'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Lote ' . $lote['consecutivo'] => null],
             'lote'          => $lote,
             'pagos'         => $this->pagoModel->getByLote($loteId),
+            'documentos'    => $this->egresoModel->getByLote($loteId),
             'proveedores'   => $this->proveedorModel->getAll(),
             'bancos'        => $this->bancoModel->getAll(),
             'tiposProducto' => $this->tipoProductoModel->getAll(),
@@ -276,6 +446,7 @@ class PagosController extends Controller {
     }
 
     public function agregarPago(string $id): void {
+        $this->soloGestion();
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);
         if (!$lote) {
@@ -318,6 +489,7 @@ class PagosController extends Controller {
                 'breadcrumbs'   => ['Pagos' => BASE_URL . '/pagos', 'Lote ' . $lote['consecutivo'] => null],
                 'lote'          => $lote,
                 'pagos'         => $this->pagoModel->getByLote($loteId),
+                'documentos'    => $this->egresoModel->getByLote($loteId),
                 'proveedores'   => $this->proveedorModel->getAll(),
                 'bancos'        => $this->bancoModel->getAll(),
                 'tiposProducto' => $this->tipoProductoModel->getAll(),
@@ -348,6 +520,7 @@ class PagosController extends Controller {
 
         $data['lote_pago_id'] = $loteId;
         $data['user_id']      = (int)Session::get('user_id');
+        $data['estado_revision'] = 'aprobado';
 
         $pagoId = $this->pagoModel->create($data);
 
@@ -359,6 +532,7 @@ class PagosController extends Controller {
     }
 
     public function eliminarPago(string $id): void {
+        $this->soloGestion();
         $pagoId = (int)$id;
         $pago   = $this->pagoModel->findById($pagoId);
         if (!$pago) {
@@ -382,9 +556,15 @@ class PagosController extends Controller {
     }
 
     public function editarPagoForm(string $id): void {
+        if ($this->esRevisor()) {
+            $this->soloGestion();
+        }
         $pago = $this->pagoModel->findById((int)$id);
         if (!$pago) {
-            $this->redirectWith('pagos', 'error', 'Pago no encontrado.');
+            $this->redirectWith($this->inicioPath(), 'error', 'Pago no encontrado.');
+            return;
+        }
+        if (!$this->puedeEditarComoCreador($pago)) {
             return;
         }
 
@@ -409,10 +589,16 @@ class PagosController extends Controller {
     }
 
     public function actualizarPago(string $id): void {
+        if ($this->esRevisor()) {
+            $this->soloGestion();
+        }
         $pagoId = (int)$id;
         $pago   = $this->pagoModel->findById($pagoId);
         if (!$pago) {
-            $this->redirectWith('pagos', 'error', 'Pago no encontrado.');
+            $this->redirectWith($this->inicioPath(), 'error', 'Pago no encontrado.');
+            return;
+        }
+        if (!$this->puedeEditarComoCreador($pago)) {
             return;
         }
 
@@ -498,11 +684,29 @@ class PagosController extends Controller {
             }
         }
 
+        // Un pago editado por su creador vuelve a revisión.
+        if ($this->esCreador()) {
+            $this->pagoModel->resetRevision($pagoId);
+        }
+
         $this->redirectWith($lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo', 'success', 'Pago actualizado correctamente.');
+    }
+
+    /** El Creador Pagos solo edita sus propios pagos que aún no tienen lote. */
+    private function puedeEditarComoCreador(array $pago): bool {
+        if (!$this->esCreador()) return true;
+        if (!$this->esPropio($pago) || $pago['lote_pago_id'] !== null) {
+            $this->redirectWith($this->inicioPath(), 'error', 'No puede editar este pago.');
+            return false;
+        }
+        return true;
     }
 
     /** Elimina un comprobante de un pago, solo si su lote no está cerrado. */
     public function eliminarComprobante(string $id): void {
+        if ($this->esRevisor()) {
+            $this->soloGestion();
+        }
         $comprobante = $this->comprobanteModel->findById((int)$id);
         if (!$comprobante) {
             $this->redirectWith('pagos', 'error', 'El comprobante no existe.');
@@ -510,6 +714,9 @@ class PagosController extends Controller {
         }
 
         $pago   = $this->pagoModel->findById((int)$comprobante['pago_id']);
+        if ($pago && !$this->puedeEditarComoCreador($pago)) {
+            return;
+        }
         $lote   = $pago && $pago['lote_pago_id'] ? $this->loteModel->findById((int)$pago['lote_pago_id']) : null;
         $volver = $lote ? 'pagos/lotes/' . $lote['id'] : 'pagos/lotes/nuevo';
 
@@ -521,6 +728,9 @@ class PagosController extends Controller {
         $ruta = PAGOS_COMPROBANTES_PATH . '/' . $comprobante['archivo'];
         if (is_file($ruta)) @unlink($ruta);
         $this->comprobanteModel->delete((int)$comprobante['id']);
+        if ($pago && $this->esCreador()) {
+            $this->pagoModel->resetRevision((int)$pago['id']);
+        }
 
         $this->redirectWith($volver, 'success', 'Comprobante eliminado correctamente.');
     }
@@ -533,6 +743,11 @@ class PagosController extends Controller {
         }
 
         $pago = $this->pagoModel->findById((int)$comprobante['pago_id']);
+        // El creador solo puede ver los comprobantes de sus propios pagos.
+        if ($this->esCreador() && (!$pago || !$this->esPropio($pago))) {
+            $this->redirectWith($this->inicioPath(), 'error', 'No puede ver este comprobante.');
+            return;
+        }
 
         $ruta = PAGOS_COMPROBANTES_PATH . '/' . $comprobante['archivo'];
         if (!is_file($ruta)) {
@@ -550,6 +765,7 @@ class PagosController extends Controller {
     }
 
     public function descargarCombinado(string $id): void {
+        $this->soloGestion();
         $lote = $this->loteModel->findById((int)$id);
         if (!$lote) {
             $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
@@ -559,6 +775,7 @@ class PagosController extends Controller {
     }
 
     public function exportarExcel(string $id): void {
+        $this->soloGestion();
         $lote = $this->loteModel->findById((int)$id);
         if (!$lote) {
             $this->redirectWith('pagos', 'error', 'Lote no encontrado.');
@@ -569,6 +786,7 @@ class PagosController extends Controller {
 
     /** Lista ordenada de comprobantes de un lote; el navegador los une (pdf-lib). */
     public function comprobantesLote(string $id): void {
+        $this->soloGestion(true);
         $lote = $this->loteModel->findById((int)$id);
         if (!$lote) {
             $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
@@ -577,11 +795,32 @@ class PagosController extends Controller {
     }
 
     public function comprobantesNuevo(): void {
+        $this->soloGestion(true);
         $this->json($this->comprobantesJson($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His')));
+    }
+
+    /** Archivos de egresos/legalizaciones asociados a los lotes (sin repetir), en orden de documento. */
+    private function archivosEgresosDeLotes(array $lotes): array {
+        $archivos = [];
+        foreach ($lotes as $lote) {
+            foreach ($this->egresoModel->getByLote((int)$lote['id']) as $doc) {
+                foreach ($doc['archivos'] as $a) {
+                    $archivos[(int)$a['id']] = $a;
+                }
+            }
+        }
+        return array_values($archivos);
     }
 
     private function comprobantesJson(array $lotes, string $nombreBase): array {
         $items = [];
+        // Egresos / legalizaciones primero, luego los comprobantes de cada pago.
+        foreach ($this->archivosEgresosDeLotes($lotes) as $a) {
+            $items[] = [
+                'url'    => BASE_URL . '/pagos/egresos/archivos/' . $a['id'] . '/file',
+                'nombre' => $a['archivo_original'],
+            ];
+        }
         foreach ($lotes as $lote) {
             foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
                 foreach ($p['comprobantes'] as $c) {
@@ -601,16 +840,19 @@ class PagosController extends Controller {
 
     /** PDF combinado de todos los lotes creados en /pagos/lotes/nuevo. */
     public function descargarCombinadoNuevo(): void {
+        $this->soloGestion();
         $this->enviarCombinado($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His'), 'pagos/lotes/nuevo');
     }
 
     /** Excel de todos los lotes creados en /pagos/lotes/nuevo. */
     public function exportarExcelNuevo(): void {
+        $this->soloGestion();
         $this->enviarExcel($this->lotesDeNuevo(), 'lotes_' . date('Ymd_His'), 'pagos/lotes/nuevo');
     }
 
     /** Datos del lote para el modal "Ver" de /pagos/lotes/nuevo. */
     public function loteModal(string $id): void {
+        $this->soloGestion(true);
         $lote = $this->loteModel->findConTotales((int)$id);
         if (!$lote) {
             $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
@@ -658,6 +900,11 @@ class PagosController extends Controller {
     private function enviarCombinado(array $lotes, string $nombreBase, string $redirectError): void {
         $rutas   = [];
         $nombres = [];
+        foreach ($this->archivosEgresosDeLotes($lotes) as $a) {
+            $ruta = EGRESOS_PATH . '/' . $a['archivo'];
+            $rutas[] = $ruta;
+            $nombres[$ruta] = $a['archivo_original'];
+        }
         foreach ($lotes as $lote) {
             foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
                 foreach ($p['comprobantes'] as $c) {
@@ -767,6 +1014,7 @@ class PagosController extends Controller {
     }
 
     public function eliminarLote(string $id): void {
+        $this->soloGestion();
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);
         if (!$lote) {
@@ -789,6 +1037,7 @@ class PagosController extends Controller {
     }
 
     public function cerrarLote(string $id): void {
+        $this->soloGestion();
         $loteId = (int)$id;
         $lote   = $this->loteModel->findById($loteId);
         if (!$lote) {
@@ -809,6 +1058,7 @@ class PagosController extends Controller {
 
     /** Cierra todos los lotes abiertos de /pagos/lotes/nuevo que tengan pagos. */
     public function cerrarTodosNuevo(): void {
+        $this->soloGestion();
         $cerrados = 0;
         $vacios   = 0;
         foreach ($this->lotesDeNuevo() as $lote) {

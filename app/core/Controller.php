@@ -52,6 +52,15 @@ abstract class Controller {
     }
 
     /**
+     * Calcula la paginación a partir de ?page=N: [página actual, total de páginas, offset].
+     */
+    protected function paginar(int $total, int $porPagina = 15): array {
+        $totalPaginas = max(1, (int)ceil($total / $porPagina));
+        $pagina = min(max(1, (int)($_GET['page'] ?? 1)), $totalPaginas);
+        return [$pagina, $totalPaginas, ($pagina - 1) * $porPagina];
+    }
+
+    /**
      * Responder JSON (para peticiones AJAX)
      */
     protected function json(array $data, int $statusCode = 200): void {

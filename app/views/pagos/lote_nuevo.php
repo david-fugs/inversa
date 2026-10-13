@@ -1,6 +1,7 @@
 <style>
     .pago-row[draggable="true"] { cursor: grab; }
     .pago-row.dragging { opacity: .4; }
+    .pago-row.bloqueado > td { background: #f8f9fa; color: #6c757d; }
     .pago-row.asignado, .pago-row.asignado > td { background: #d1f2dc; }
     .lote-drop {
         border: 2px dashed var(--bs-border-color, #dee2e6);
@@ -52,7 +53,7 @@
             </div>
             <div class="card-body p-0">
                 <p class="text-muted px-3 pt-3 mb-2" style="font-size:13px;">
-                    <i class="bi bi-arrows-move"></i> Arrastre un pago con el mouse y suéltelo sobre un lote para asignarlo.
+                    <i class="bi bi-arrows-move"></i> Arrastre un pago <strong>aprobado</strong> con el mouse y suéltelo sobre un lote para asignarlo. Los pagos pendientes o rechazados (con candado) no se pueden mover.
                 </p>
                 <div class="table-wrapper">
                     <table class="table" style="width:100%">
@@ -66,17 +67,19 @@
                                 <th>Nro. Producto</th>
                                 <th>Fecha</th>
                                 <th>Valor</th>
+                                <th>Estado</th>
                                 <th>Comprobante</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tbodySinLote">
                             <tr id="filaVacia" <?= empty($pagosSinLote) && empty($pagosAsignados) ? '' : 'style="display:none"' ?>>
-                                <td colspan="10" class="text-center text-muted">No hay pagos pendientes de asignar. Agregue uno con el formulario.</td>
+                                <td colspan="11" class="text-center text-muted">No hay pagos pendientes de asignar. Agregue uno con el formulario.</td>
                             </tr>
                             <?php foreach ($pagosSinLote as $p): ?>
-                                <tr class="pago-row" draggable="true" data-pago-id="<?= $p['id'] ?>">
-                                    <td class="text-muted"><i class="bi bi-grip-vertical"></i></td>
+                                <?php $aprobado = ($p['estado_revision'] ?? 'aprobado') === 'aprobado'; ?>
+                                <tr class="pago-row<?= $aprobado ? '' : ' bloqueado' ?>" <?= $aprobado ? 'draggable="true"' : '' ?> data-pago-id="<?= $p['id'] ?>">
+                                    <td class="text-muted"><?= $aprobado ? '<i class="bi bi-grip-vertical"></i>' : '<i class="bi bi-lock-fill" title="Solo se pueden mover los pagos aprobados"></i>' ?></td>
                                     <td class="celda-lote"><span class="text-muted">Sin lote</span></td>
                                     <td><?= htmlspecialchars($p['proveedor_nombre']) ?></td>
                                     <td><?= htmlspecialchars($p['banco_nombre']) ?></td>
@@ -84,6 +87,11 @@
                                     <td><?= htmlspecialchars($p['numero_producto']) ?></td>
                                     <td><?= date('d/m/Y', strtotime($p['fecha_pago'])) ?></td>
                                     <td>$<?= number_format((float)$p['valor'], 2) ?></td>
+                                    <td><?php require __DIR__ . '/_estado_revision.php'; ?>
+                                        <?php if (!empty($p['creador_nombre']) && (int)$p['user_id'] !== (int)Session::get('user_id')): ?>
+                                            <small class="d-block text-muted">Por <?= htmlspecialchars($p['creador_nombre']) ?></small>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?php foreach ($p['comprobantes'] as $c): ?>
                                             <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
@@ -93,10 +101,12 @@
                                         <?php endforeach; ?>
                                     </td>
                                     <td class="text-center">
+                                        <?php if ($aprobado): ?>
                                         <a href="<?= BASE_URL ?>/pagos/pagos/edit/<?= $p['id'] ?>"
                                            class="btn btn-icon btn-outline-primary btn-sm" title="Editar">
                                             <i class="bi bi-pencil-fill"></i>
                                         </a>
+                                        <?php endif; ?>
                                         <a href="<?= BASE_URL ?>/pagos/pagos/delete/<?= $p['id'] ?>"
                                            class="btn btn-icon btn-danger btn-sm" title="Eliminar"
                                            data-confirm="¿Eliminar este pago?">
@@ -115,6 +125,7 @@
                                     <td><?= htmlspecialchars($p['numero_producto']) ?></td>
                                     <td><?= date('d/m/Y', strtotime($p['fecha_pago'])) ?></td>
                                     <td>$<?= number_format((float)$p['valor'], 2) ?></td>
+                                    <td><span class="badge bg-success">Aprobado</span></td>
                                     <td>
                                         <?php foreach ($p['comprobantes'] as $c): ?>
                                             <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
@@ -414,3 +425,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+
+<?php require __DIR__ . '/_modal_documentos_pdf.php'; ?>

@@ -41,10 +41,33 @@
     <nav class="sidebar-nav">
         <p class="nav-section-title">Principal</p>
 
+        <?php $rolPagos = Session::get('user_rol'); ?>
+        <?php if ($rolPagos === 'Creador Pagos'): ?>
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/pagos/lotes/nuevo" class="nav-link">
+                <i class="bi bi-plus-circle-fill"></i>
+                <span>Registrar Pagos</span>
+            </a>
+        </div>
+        <?php elseif ($rolPagos === 'Revisor Pagos'): ?>
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/pagos/revision" class="nav-link">
+                <i class="bi bi-clipboard-check-fill"></i>
+                <span>Revisión de Pagos</span>
+            </a>
+        </div>
+        <?php else: ?>
         <div class="nav-item">
             <a href="<?= BASE_URL ?>/pagos" class="nav-link">
                 <i class="bi bi-cash-stack"></i>
                 <span>Lotes de Pago</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/pagos/egresos" class="nav-link">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span>Egresos / Legalizaciones</span>
             </a>
         </div>
 
@@ -54,8 +77,18 @@
                 <span>Proveedores</span>
             </a>
         </div>
+        <?php endif; ?>
 
         <?php if (Session::get('user_rol') === 'Admin Pagos'): ?>
+        <p class="nav-section-title">Administración</p>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/users" class="nav-link">
+                <i class="bi bi-people-fill"></i>
+                <span>Usuarios</span>
+            </a>
+        </div>
+
         <p class="nav-section-title">Catálogos</p>
 
         <div class="nav-item">

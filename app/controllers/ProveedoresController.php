@@ -12,6 +12,11 @@ class ProveedoresController extends Controller {
     public function __construct() {
         parent::__construct();
         Session::requireAuth();
+        // Creador y Revisor de pagos no gestionan proveedores.
+        if (in_array(Session::get('user_rol'), ['Creador Pagos', 'Revisor Pagos'], true)) {
+            $this->redirectWith(Session::get('user_rol') === 'Creador Pagos' ? 'pagos/lotes/nuevo' : 'pagos/revision', 'error', 'No tiene permiso para esta acción.');
+            exit;
+        }
         $this->proveedorModel    = new Proveedor();
         $this->bancoModel        = new Banco();
         $this->tipoProductoModel = new TipoProducto();

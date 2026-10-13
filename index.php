@@ -163,10 +163,24 @@ $router->get('/proveedores/import/{id}/delete',    'ProveedorImportController', 
 
 // ─── Pagos: Lotes de pago ───────────────────────────────────────────────
 $router->get('/pagos',                        'PagosController', 'index');
+$router->get('/pagos/egresos',                'EgresosController', 'index');
+$router->get('/pagos/egresos/nuevo',          'EgresosController', 'createForm');
+$router->post('/pagos/egresos/nuevo',         'EgresosController', 'store');
+$router->get('/pagos/egresos/archivos/{id}/file',   'EgresosController', 'archivo');
+$router->get('/pagos/egresos/archivos/{id}/delete', 'EgresosController', 'deleteArchivo');
+$router->get('/pagos/egresos/{id}/edit',      'EgresosController', 'editForm');
+$router->post('/pagos/egresos/{id}/edit',     'EgresosController', 'update');
+$router->get('/pagos/egresos/{id}/delete',    'EgresosController', 'delete');
+$router->get('/pagos/revision',               'PagosController', 'revision');
+$router->post('/pagos/pagos/{id}/revisar',  'PagosController', 'revisar');
+$router->post('/pagos/pagos/{id}/archivar', 'PagosController', 'archivar');
 $router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm');
 $router->post('/pagos/lotes/crear',           'PagosController', 'crearLote');
 $router->post('/pagos/lotes/nuevo/pagos',    'PagosController', 'agregarPagoSinLote');
 $router->post('/pagos/pagos/{id}/asignar',   'PagosController', 'asignarPago');
+$router->get('/pagos/lotes/nuevo/documentos', 'EgresosController', 'documentosNuevo');
+$router->get('/pagos/lotes/{id}/documentos',  'EgresosController', 'documentosLote');
+$router->post('/pagos/lotes/{id}/documentos', 'EgresosController', 'subirALote');
 $router->get('/pagos/lotes/nuevo/combinado',  'PagosController', 'descargarCombinadoNuevo');
 $router->get('/pagos/lotes/nuevo/cerrar',    'PagosController', 'cerrarTodosNuevo');
 $router->get('/pagos/lotes/nuevo/exportar',   'PagosController', 'exportarExcelNuevo');

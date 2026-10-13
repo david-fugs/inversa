@@ -15,29 +15,72 @@ class UsersController extends Controller {
         $this->baseModel = new Base();
     }
 
-    /** Sólo admins pueden acceder a la gestión de usuarios */
+    /** Roles del módulo de Pagos: los únicos que puede gestionar el Admin Pagos. */
+    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos', 'Creador Pagos', 'Revisor Pagos'];
+
+    private function esAdminPagos(): bool {
+        return Session::get('user_rol') === 'Admin Pagos';
+    }
+
+    /** Administrador gestiona todos los usuarios; Admin Pagos solo los de Pagos. */
     private function requireAdmin(): void {
-        if (Session::get('user_rol') !== 'Administrador') {
+        $rol = Session::get('user_rol');
+        if ($rol !== 'Administrador' && $rol !== 'Admin Pagos') {
             $this->redirectWith('flight-services', 'error', 'Acceso denegado.');
             exit;
         }
+    }
+
+    /** Solo el Administrador (acciones propias de Ground Handling). */
+    private function requireSuperAdmin(): void {
+        if (Session::get('user_rol') !== 'Administrador') {
+            $this->redirectWith($this->esAdminPagos() ? 'users' : 'flight-services', 'error', 'Acceso denegado.');
+            exit;
+        }
+    }
+
+    /** Layout según el módulo del usuario en sesión. */
+    private function layout(): string {
+        return $this->esAdminPagos() ? 'pagos' : 'main';
+    }
+
+    /** Roles que el usuario en sesión puede asignar. */
+    private function rolesPermitidos(): array {
+        $roles = $this->userModel->getRoles();
+        if (!$this->esAdminPagos()) return $roles;
+        return array_values(array_filter($roles, fn($r) => in_array($r['nombre'], self::ROLES_PAGOS, true)));
+    }
+
+    /** ¿Puede el usuario en sesión gestionar a este usuario? */
+    private function puedeGestionar(array $user): bool {
+        return !$this->esAdminPagos() || in_array($user['rol_nombre'], self::ROLES_PAGOS, true);
+    }
+
+    private function rolIdPermitido(int $rolId): bool {
+        foreach ($this->rolesPermitidos() as $r) {
+            if ((int)$r['id'] === $rolId) return true;
+        }
+        return false;
     }
 
     /** Listar usuarios */
     public function index(): void {
         $this->requireAdmin();
         $users = $this->userModel->getAllWithRol();
+        if ($this->esAdminPagos()) {
+            $users = array_values(array_filter($users, fn($u) => in_array($u['rol_nombre'], self::ROLES_PAGOS, true)));
+        }
         $this->view('users/index', [
             'pageTitle'   => 'Gestión de Usuarios',
             'breadcrumbs' => ['Usuarios' => null],
             'users'       => $users,
-        ]);
+        ], $this->layout());
     }
 
     /** Formulario crear */
     public function createForm(): void {
         $this->requireAdmin();
-        $roles = $this->userModel->getRoles();
+        $roles = $this->rolesPermitidos();
         $this->view('users/create', [
             'pageTitle'   => 'Nuevo Usuario',
             'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Nuevo' => null],
@@ -45,7 +88,7 @@ class UsersController extends Controller {
             'bases'       => $this->baseModel->getAll(),
             'errors'      => [],
             'old'         => [],
-        ]);
+        ], $this->layout());
     }
 
     /** Guardar nuevo usuario */
@@ -65,7 +108,7 @@ class UsersController extends Controller {
         $errors = $this->validateUser($data);
 
         if (!empty($errors)) {
-            $roles = $this->userModel->getRoles();
+            $roles = $this->rolesPermitidos();
             $this->view('users/create', [
                 'pageTitle'   => 'Nuevo Usuario',
                 'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Nuevo' => null],
@@ -73,7 +116,7 @@ class UsersController extends Controller {
                 'bases'       => $this->baseModel->getAll(),
                 'errors'      => $errors,
                 'old'         => $data,
-            ]);
+            ], $this->layout());
             return;
         }
 
@@ -89,11 +132,11 @@ class UsersController extends Controller {
     public function editForm(string $id): void {
         $this->requireAdmin();
         $user = $this->userModel->findById((int)$id);
-        if (!$user) {
+        if (!$user || !$this->puedeGestionar($user)) {
             $this->redirectWith('users', 'error', 'Usuario no encontrado.');
             return;
         }
-        $roles = $this->userModel->getRoles();
+        $roles = $this->rolesPermitidos();
         $this->view('users/edit', [
             'pageTitle'   => 'Editar Usuario',
             'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Editar' => null],
@@ -101,7 +144,7 @@ class UsersController extends Controller {
             'roles'       => $roles,
             'bases'       => $this->baseModel->getAll(),
             'errors'      => [],
-        ]);
+        ], $this->layout());
     }
 
     /** Actualizar usuario */
@@ -109,7 +152,7 @@ class UsersController extends Controller {
         $this->requireAdmin();
         $userId = (int)$id;
         $user   = $this->userModel->findById($userId);
-        if (!$user) {
+        if (!$user || !$this->puedeGestionar($user)) {
             $this->redirectWith('users', 'error', 'Usuario no encontrado.');
             return;
         }
@@ -128,7 +171,7 @@ class UsersController extends Controller {
         $errors = $this->validateUser($data, $userId);
 
         if (!empty($errors)) {
-            $roles = $this->userModel->getRoles();
+            $roles = $this->rolesPermitidos();
             $this->view('users/edit', [
                 'pageTitle'   => 'Editar Usuario',
                 'breadcrumbs' => ['Usuarios' => BASE_URL . '/users', 'Editar' => null],
@@ -136,7 +179,7 @@ class UsersController extends Controller {
                 'roles'       => $roles,
                 'bases'       => $this->baseModel->getAll(),
                 'errors'      => $errors,
-            ]);
+            ], $this->layout());
             return;
         }
 
@@ -164,6 +207,11 @@ class UsersController extends Controller {
             $this->redirectWith('users', 'error', 'No puede eliminar su propio usuario.');
             return;
         }
+        $objetivo = $this->userModel->findById($userId);
+        if (!$objetivo || !$this->puedeGestionar($objetivo)) {
+            $this->redirectWith('users', 'error', 'Usuario no encontrado.');
+            return;
+        }
 
         if ($this->userModel->delete($userId)) {
             $this->redirectWith('users', 'success', 'Usuario eliminado correctamente.');
@@ -175,7 +223,7 @@ class UsersController extends Controller {
     /** Conceder/quitar permiso de edición a un colaborador. Con "servicio_id"
      *  (opcional) el permiso se limita a ese servicio de vuelo. */
     public function permisoEdicion(string $id): void {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $userId = (int)$id;
 
         if (($_POST['accion'] ?? '') === 'quitar') {
@@ -215,6 +263,8 @@ class UsersController extends Controller {
 
         if (empty($data['rol_id'])) {
             $errors['rol_id'] = 'Seleccione un rol.';
+        } elseif (!$this->rolIdPermitido((int)$data['rol_id'])) {
+            $errors['rol_id'] = 'No tiene permiso para asignar este rol.';
         }
 
         if ($this->roleRequiresBaseAsociada((int)$data['rol_id'])) {

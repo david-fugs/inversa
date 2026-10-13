@@ -7,7 +7,7 @@
 
 class PagosAuthController extends Controller {
 
-    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos'];
+    private const ROLES_PAGOS = ['Admin Pagos', 'Operador Pagos', 'Creador Pagos', 'Revisor Pagos'];
 
     private User $userModel;
 

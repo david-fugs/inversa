@@ -133,14 +133,53 @@
         </div>
         <div class="card-body">
             <div class="lote-drop <?= $lote['estado'] === 'cerrado' ? 'cerrado' : '' ?>">
-                <strong><?= htmlspecialchars($lote['consecutivo']) ?>
-                    <?php if ($lote['estado'] === 'cerrado'): ?><span class="badge badge-secondary">Cerrado</span>
-                    <?php else: ?><span class="badge badge-success">Abierto</span><?php endif; ?>
-                </strong><br>
+                <div class="d-flex justify-content-between align-items-start">
+                    <strong><?= htmlspecialchars($lote['consecutivo']) ?>
+                        <?php if ($lote['estado'] === 'cerrado'): ?><span class="badge badge-secondary">Cerrado</span>
+                        <?php else: ?><span class="badge badge-success">Abierto</span><?php endif; ?>
+                    </strong>
+                    <button type="button" class="btn btn-icon btn-outline-primary btn-sm" title="Ver lote" data-ver-lote="<?= $lote['id'] ?>">
+                        <i class="bi bi-eye-fill"></i>
+                    </button>
+                </div>
                 <small class="text-muted">
                     <?= count($pagos) ?> pagos &middot; $<?= number_format($totalValor, 2) ?>
                 </small>
             </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5><i class="bi bi-receipt-cutoff"></i> Egresos / Legalizaciones</h5>
+            <span class="badge <?= empty($documentos) ? 'bg-warning text-dark' : 'bg-success' ?>"><?= count($documentos) ?></span>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-2" style="font-size:13px;">Van al inicio del PDF combinado.</p>
+            <?php if (empty($documentos)): ?>
+                <div class="alert alert-warning py-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Este lote no tiene comprobante de egreso ni legalización de anticipo asociados.
+                </div>
+            <?php endif; ?>
+            <?php foreach ($documentos as $d): ?>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge bg-primary"><?= htmlspecialchars(EgresoDocumento::TIPOS[$d['tipo']] ?? $d['tipo']) ?></span>
+                    <small class="text-muted"><?= date('d/m/Y', strtotime($d['fecha'])) ?></small>
+                    <?php foreach ($d['archivos'] as $a): ?>
+                        <a href="<?= BASE_URL ?>/pagos/egresos/archivos/<?= $a['id'] ?>/file" target="_blank"
+                           class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($a['archivo_original']) ?>">
+                            <i class="bi bi-file-earmark-pdf-fill"></i>
+                        </a>
+                    <?php endforeach; ?>
+                    <a href="<?= BASE_URL ?>/pagos/egresos/<?= $d['id'] ?>/edit" class="btn btn-icon btn-outline-secondary btn-sm" title="Editar documento">
+                        <i class="bi bi-pencil-fill"></i>
+                    </a>
+                </div>
+            <?php endforeach; ?>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-1"
+                    data-docs-abrir="<?= BASE_URL ?>/pagos/lotes/<?= $lote['id'] ?>/comprobantes">
+                <i class="bi bi-upload"></i> <?= empty($documentos) ? 'Subir documento' : 'Agregar documento' ?>
+            </button>
         </div>
     </div>
 </div>
@@ -150,3 +189,7 @@
     $formAction = BASE_URL . '/pagos/lotes/' . $lote['id'] . '/pagos';
     include __DIR__ . '/_pago_form.php';
 endif; ?>
+
+<script>document.body.dataset.recargarDocs = '1';</script>
+<?php require __DIR__ . '/_modal_documentos_pdf.php'; ?>
+<?php require __DIR__ . '/_modal_ver_lote.php'; ?>

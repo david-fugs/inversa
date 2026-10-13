@@ -206,9 +206,8 @@ class FlightServicesController extends Controller {
             $codigosDemoraUniques[strtoupper(trim($cd['codigo']))] = true;
         }
         foreach ($services as $s) {
-            foreach (explode(' - ', (string)($s['codigo_demora'] ?? '')) as $cod) {
-                $cod = strtoupper(trim($cod));
-                if ($cod !== '') $codigosDemoraUniques[$cod] = true;
+            foreach (self::separarCodigosDemora((string)($s['codigo_demora'] ?? '')) as $cod) {
+                $codigosDemoraUniques[$cod] = true;
             }
         }
         $codigosDemoraUniques = array_keys($codigosDemoraUniques);
@@ -223,6 +222,18 @@ class FlightServicesController extends Controller {
             'aerolineasUniques' => $aerolineasUniques,
             'codigosDemoraUniques' => $codigosDemoraUniques,
         ]);
+    }
+
+    /** Separa un texto de códigos de demora guardado con cualquier formato
+     *  ("A - B", "A,B y C", "A-B", "A/B"...) en códigos individuales en mayúsculas. */
+    private static function separarCodigosDemora(string $raw): array {
+        $partes = preg_split('/\s*(?:[,;\/+-]|\s+y\s+)\s*/iu', $raw) ?: [];
+        $out = [];
+        foreach ($partes as $p) {
+            $p = strtoupper(trim($p));
+            if ($p !== '') $out[$p] = true;
+        }
+        return array_keys($out);
     }
 
     /** Paneles por aerolínea (pestañas del Panel Analítico): qué se muestra en cada uno. */
