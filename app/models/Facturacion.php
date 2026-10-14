@@ -336,6 +336,12 @@ class Facturacion extends Model
         return ['ACU - Aire acondicionado (fracciones)', fn($s) => (float)$s['fracciones_hora_acu'] + (float)$s['fracciones_15min_acu']];
     }
 
+    /** ACU: solo las fracciones por hora. */
+    private static function conceptoAcuHora(): array
+    {
+        return ['Fracciones Hora ACU', fn($s) => (float)$s['fracciones_hora_acu']];
+    }
+
     /** GPU (planta eléctrica): un solo campo con todas sus fracciones. */
     private static function conceptoGpu(): array
     {
@@ -360,6 +366,7 @@ class Facturacion extends Model
                 ['Hora Hombre',                       fn($s) => self::adic($s, 'Hora hombre')],
                 self::conceptoGpu(),
                 self::conceptoAcu(),
+                self::conceptoAcuHora(),
                 ['Demora del min 91 al 210 (15%)',    fn($s) => self::uno((int)$s['demora_llegando'] >= 91 && (int)$s['demora_llegando'] <= 210)],
                 ['Demora a partir del min 211 (25%)', fn($s) => self::uno((int)$s['demora_llegando'] >= 211)],
             ]]];
@@ -380,6 +387,7 @@ class Facturacion extends Model
             ['Atención Rampa A320',                        fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::esA320($s))],
             ['Atención Pax',                               fn($s) => (int)$s['pax_saliendo']],
             self::conceptoAcu(),
+            self::conceptoAcuHora(),
             self::conceptoGpu(),
             ['Despacho Centralizado (no aplica Arauca y Quibdó)', fn($s) => self::uno((int)$s['despacho'] === 1 && !in_array($s['base'], self::BASES_SIN_DESPACHO, true))],
             ['Silla de Ruedas',                            fn($s) => (int)$s['sillas_ruedas']],
@@ -404,6 +412,7 @@ class Facturacion extends Model
         $rampa19   = ['Atención Rampa Avión 19 Pax',     fn($s) => self::uno(self::tipo($s, 'Tránsito') && self::es19($s))];
         $pax19     = ['Atención Pax Avión 19',           fn($s) => self::es19($s) ? (int)$s['pax_saliendo'] : 0];
         $acu30     = self::conceptoAcu();
+        $acuHora   = self::conceptoAcuHora();
         $silla     = ['Silla de Ruedas',                 fn($s) => (int)$s['sillas_ruedas']];
         $remAdic   = ['Remolque adicional por servicio', fn($s) => self::adic($s, 'Remolque')];
         $tractor   = ['Servicio de tractor 30 Min o frac', fn($s) => (int)$s['remolque_aeronave']];
@@ -426,13 +435,13 @@ class Facturacion extends Model
                 $rampa4870, $pax4870, $rampa19, $pax19,
                 ['Vuelo Cancelado 48/70 (40% sobre la neta)',       fn($s) => self::uno(self::tipo($s, 'Cancelado') && self::es4870($s))],
                 ['Pasajeros Cancelado 48/70 (30% sobre la neta)',   fn($s) => (self::tipo($s, 'Cancelado') && self::es4870($s)) ? (int)$s['pax_cancelado'] : 0],
-                $acu30, $silla, $remAdic, $tractor, $gpu,
+                $acu30, $acuHora, $silla, $remAdic, $tractor, $gpu,
             ]],
             ['titulo' => 'Satena Popayán', 'bases' => ['PPN'], 'conceptos' => [
                 ['Svc Remolque aeronaves Ppn', fn($s) => (int)$s['remolque_aeronave']],
             ]],
             ['titulo' => 'Satena Valledupar', 'bases' => ['VUP'], 'conceptos' => [
-                $rampa4870, $pax4870, $rampa19, $pax19, $acu30, $silla, $remAdic, $tractor, $gpu,
+                $rampa4870, $pax4870, $rampa19, $pax19, $acu30, $acuHora, $silla, $remAdic, $tractor, $gpu,
             ]],
             ['titulo' => 'Satena Riohacha', 'bases' => ['RCH'], 'conceptos' => [
                 $asistencia, $aguaPotable, $sillaDos, $tractorSvc, $gpu,

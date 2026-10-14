@@ -242,6 +242,7 @@ a:hover { color: var(--color-primary-dark); }
 /* ── Main content ────────────────────────────────────────── */
 .main-content {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   display: flex;
@@ -808,3 +809,28 @@ a:hover { color: var(--color-primary-dark); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #A0AEC0; }
+
+/* ── Tabla de servicios de vuelo: ajuste a pantallas pequeñas ── */
+.card-body > .table-wrapper { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.card-body > .table-wrapper .dataTables_wrapper { max-width: 100%; }
+#tableServices { font-size: 12.5px; }
+#tableServices thead th,
+#tableServices tbody td { padding: 8px 6px; }
+#tableServices thead th { font-size: 11px; letter-spacing: 0; padding-right: 20px; }
+#tableServices .badge { font-size: 11px; padding: 3px 7px; }
+#tableServices .btn-icon { width: 28px; height: 28px; padding: 0; }
+@media (max-width: 1900px) {
+  /* Oculta Tipo Avión (7) y Archivo (11) */
+  #tableServices th:nth-child(7), #tableServices td:nth-child(7),
+  #tableServices th:nth-child(11), #tableServices td:nth-child(11) { display: none; }
+}
+@media (max-width: 1500px) {
+  /* Oculta Matrícula (6) y Tipo Atención (8) */
+  #tableServices th:nth-child(6), #tableServices td:nth-child(6),
+  #tableServices th:nth-child(8), #tableServices td:nth-child(8) { display: none; }
+}
+@media (max-width: 1100px) {
+  /* Oculta Aerolínea (4) y Base (3) */
+  #tableServices th:nth-child(3), #tableServices td:nth-child(3),
+  #tableServices th:nth-child(4), #tableServices td:nth-child(4) { display: none; }
+}
