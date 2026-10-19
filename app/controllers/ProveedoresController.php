@@ -12,8 +12,11 @@ class ProveedoresController extends Controller {
     public function __construct() {
         parent::__construct();
         Session::requireAuth();
-        // Creador y Revisor de pagos no gestionan proveedores.
-        if (in_array(Session::get('user_rol'), ['Creador Pagos', 'Revisor Pagos'], true)) {
+        // Creador y Revisor de pagos no gestionan proveedores (salvo consultar
+        // infoJson, que usa el formulario de pagos para precargar datos).
+        $accion = strtok($_SERVER['REQUEST_URI'] ?? '', '?');
+        $esInfoJson = (bool)preg_match('#/proveedores/info/\d+$#', (string)$accion);
+        if (!$esInfoJson && in_array(Session::get('user_rol'), ['Creador Pagos', 'Revisor Pagos'], true)) {
             $this->redirectWith(Session::get('user_rol') === 'Creador Pagos' ? 'pagos/lotes/nuevo' : 'pagos/revision', 'error', 'No tiene permiso para esta acción.');
             exit;
         }
