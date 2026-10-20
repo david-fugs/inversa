@@ -178,6 +178,7 @@ $router->get('/pagos/lotes/nuevo',            'PagosController', 'nuevoLoteForm'
 $router->post('/pagos/lotes/crear',           'PagosController', 'crearLote');
 $router->post('/pagos/lotes/nuevo/pagos',    'PagosController', 'agregarPagoSinLote');
 $router->post('/pagos/pagos/{id}/asignar',   'PagosController', 'asignarPago');
+$router->post('/pagos/pagos/{id}/desasignar', 'PagosController', 'desasignarPago');
 $router->get('/pagos/lotes/nuevo/documentos', 'EgresosController', 'documentosNuevo');
 $router->get('/pagos/lotes/{id}/documentos',  'EgresosController', 'documentosLote');
 $router->post('/pagos/lotes/{id}/documentos', 'EgresosController', 'subirALote');

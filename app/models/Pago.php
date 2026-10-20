@@ -73,6 +73,15 @@ class Pago extends Model {
         }
     }
 
+    /** Devuelve un pago de un lote a "sin lote" para poder asignarlo de nuevo. */
+    public function quitarDeLote(int $pagoId): bool {
+        $stmt = $this->db->query(
+            "UPDATE pagos SET lote_pago_id = NULL, orden = 0 WHERE id = ? AND lote_pago_id IS NOT NULL",
+            [$pagoId]
+        );
+        return $stmt->rowCount() > 0;
+    }
+
     /** Pagos sin lote visibles para quien arma lotes: los propios y los
      *  registrados por usuarios "Creador Pagos" (con su estado de revisión). */
     public function getSinLote(int $userId): array {

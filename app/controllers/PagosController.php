@@ -329,6 +329,24 @@ class PagosController extends Controller {
         $this->json(['ok' => true, 'lote' => $this->loteJson($this->loteModel->findConTotales((int)$lote['id']))]);
     }
 
+    /** Devuelve un pago de un lote abierto a "sin lote" para poder asignarlo de nuevo. */
+    public function desasignarPago(string $id): void {
+        $this->soloGestion(true);
+        $pago = $this->pagoModel->findById((int)$id);
+        if (!$pago || $pago['lote_pago_id'] === null) {
+            $this->json(['ok' => false, 'error' => 'El pago no existe o no está asignado a un lote.'], 404);
+        }
+
+        $lote = $this->loteModel->findById((int)$pago['lote_pago_id']);
+        if (!$lote || $lote['estado'] === 'cerrado') {
+            $this->json(['ok' => false, 'error' => 'Este lote está cerrado, no se pueden quitar pagos.'], 422);
+        }
+
+        $this->pagoModel->quitarDeLote((int)$pago['id']);
+
+        $this->json(['ok' => true, 'lote' => $this->loteJson($this->loteModel->findConTotales((int)$lote['id']))]);
+    }
+
     private function loteJson(array $lote): array {
         return [
             'id'          => (int)$lote['id'],
@@ -868,6 +886,7 @@ class PagosController extends Controller {
         $pagos = [];
         foreach ($this->pagoModel->getByLote((int)$lote['id']) as $p) {
             $pagos[] = [
+                'id'              => (int)$p['id'],
                 'orden'           => (int)$p['orden'],
                 'proveedor'       => $p['proveedor_nombre'],
                 'banco'           => $p['banco_nombre'],

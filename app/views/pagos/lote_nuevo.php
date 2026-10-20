@@ -219,7 +219,7 @@ include __DIR__ . '/_pago_form.php';
                         <thead>
                             <tr>
                                 <th>#</th><th>Proveedor</th><th>Banco</th><th>Tipo Producto</th>
-                                <th>Nro. Producto</th><th>Fecha</th><th>Valor</th><th>Comprobante</th>
+                                <th>Nro. Producto</th><th>Fecha</th><th>Valor</th><th>Comprobante</th><th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="verLoteBody"></tbody>
@@ -371,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!hayPagos) {
                     var vacio = document.createElement('tr');
                     var td = celda(vacio, 'Aún no hay pagos en este lote.');
-                    td.colSpan = 8;
+                    td.colSpan = 9;
                     td.className = 'text-center text-muted';
                     verBody.appendChild(vacio);
                 }
@@ -389,11 +389,36 @@ document.addEventListener('DOMContentLoaded', function () {
                         tdc.appendChild(a);
                     });
                     tr.appendChild(tdc);
+                    var tda = document.createElement('td');
+                    tda.className = 'text-center';
+                    if (data.lote.estado === 'abierto') {
+                        var b = document.createElement('button');
+                        b.type = 'button';
+                        b.className = 'btn btn-outline-warning btn-sm btn-devolver-pago';
+                        b.dataset.pagoId = p.id;
+                        b.title = 'Quitar del lote y devolver a sin asignar';
+                        b.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Devolver';
+                        tda.appendChild(b);
+                    }
+                    tr.appendChild(tda);
                     verBody.appendChild(tr);
                 });
                 modalVer.show();
             })
             .catch(function () { alert('Error de conexión al cargar el lote.'); });
+    });
+
+    verBody.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-devolver-pago');
+        if (!btn || !confirm('¿Devolver este pago a "sin lote"? Podrá asignarlo de nuevo.')) return;
+        btn.disabled = true;
+        fetch(BASE_URL + '/pagos/pagos/' + btn.dataset.pagoId + '/desasignar', { method: 'POST' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.ok) { alert(data.error || 'No se pudo devolver el pago.'); btn.disabled = false; return; }
+                window.location.reload();
+            })
+            .catch(function () { alert('Error de conexión.'); btn.disabled = false; });
     });
 
     var modalEl = document.getElementById('modalCrearLote');
