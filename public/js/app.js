@@ -233,11 +233,10 @@ function initTimeInputsRequireAmPm() {
 /* ── Cálculo de fracciones GPU según tarifa de la aerolínea ──
  * Regla de negocio (tarifas_gpu):
  *  - Si la aerolínea tiene "primeros_minutos" configurado, ese tramo
- *    es un período sin cobro (0 fracciones): mientras el tiempo no
- *    SUPERE esa cantidad de minutos (incluido llegar justo a ella),
- *    no se cobra nada. Apenas se supera el umbral, cada
- *    "fraccion_minutos" (o parte de ellos) de exceso suma 1 fracción.
- *    Ej: primeros=70, fraccion=15 → 70 min=0, 71 min=1, 85 min=1, 86 min=2
+ *    SÍ se cobra (igual que ACU): cualquier tiempo de 1 hasta
+ *    "primeros_minutos" cuenta 1 fracción. Al superar el umbral, cada
+ *    "fraccion_minutos" (o parte de ellos) de exceso suma 1 más.
+ *    Ej: primeros=70, fraccion=15 → 30 min=1, 70 min=1, 71 min=2, 85 min=2, 86 min=3
  *  - Si la aerolínea NO tiene "primeros_minutos" (solo maneja
  *    fracción), las fracciones se cuentan directamente cada
  *    "fraccion_minutos" desde el minuto 0.
@@ -253,8 +252,8 @@ function calcularFraccionesGpuValor(tiempoMin, tarifa) {
         : 0;
 
     if (primeros > 0) {
-        if (tiempoMin <= primeros) return 0;
-        return Math.ceil((tiempoMin - primeros) / fraccion);
+        if (tiempoMin <= primeros) return 1;
+        return 1 + Math.ceil((tiempoMin - primeros) / fraccion);
     }
 
     return Math.ceil(tiempoMin / fraccion);

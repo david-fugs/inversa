@@ -218,7 +218,7 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
-<script src="<?= BASE_URL ?>/public/js/app.js"></script>
+<script src="<?= BASE_URL ?>/public/js/app.js?v=<?= @filemtime(__DIR__ . '/../../../public/js/app.js') ?: time() ?>"></script>
 <?php if (isset($extraScripts)): ?>
     <?= $extraScripts ?>
 <?php endif; ?>
