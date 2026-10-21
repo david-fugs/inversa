@@ -194,7 +194,7 @@ class Facturacion extends Model
             'sillas'       => ['Sillas de ruedas',                fn($s) => (int)$s['sillas_ruedas']],
             'rampa'        => ['Rampa escalera',                  fn($s) => self::uno((int)$s['rampa_escalera'] === 1) + self::adic($s, 'Escalera', 'Rampa escalera')],
             'gpu'          => ['Planta eléctrica GPU (fracciones)', fn($s) => $s['fracciones_gpu']],
-            'acu'          => ['Aire ACU (fracciones)',           fn($s) => (float)$s['fracciones_hora_acu'] + (float)$s['fracciones_15min_acu']],
+            'acu'          => ['Aire ACU (fracciones)',           fn($s) => (float)$s['fracciones_15min_acu']],
             'remolque'     => ['Remolque avión',                  fn($s) => (int)$s['remolque_aeronave']],
             'drenaje'      => ['Drenaje',                         fn($s) => (int)$s['drenaje']],
             'potable'      => ['Agua potable',                    fn($s) => (int)$s['potable']],
@@ -467,10 +467,10 @@ class Facturacion extends Model
     }
     private static function uno(bool $c): int { return $c ? 1 : 0; }
 
-    /** ACU (aire acondicionado): un solo campo con todas sus fracciones. */
+    /** ACU (aire acondicionado): solo las fracciones por fracción; las de hora van aparte (conceptoAcuHora). */
     private static function conceptoAcu(): array
     {
-        return ['ACU - Aire acondicionado (fracciones)', fn($s) => (float)$s['fracciones_hora_acu'] + (float)$s['fracciones_15min_acu']];
+        return ['ACU - Aire acondicionado (fracciones)', fn($s) => (float)$s['fracciones_15min_acu']];
     }
 
     /** ACU: solo las fracciones por hora. */
