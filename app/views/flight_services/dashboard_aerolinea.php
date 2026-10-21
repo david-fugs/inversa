@@ -25,7 +25,7 @@ $color = $cfg['color'];
     <div>
         <h4>Panel <?= htmlspecialchars($cfg['nombre']) ?></h4>
         <?php if ($slug === 'satena'): ?>
-            <small class="text-muted">Las bases PPN y VVC no se cuentan como vuelos; el resto de los datos sí se cuenta.</small>
+            <small class="text-muted">Las bases PPN y VVC no se cuentan como vuelos ni como pasajeros; el resto de los datos sí se cuenta.</small>
         <?php endif; ?>
     </div>
 </div>

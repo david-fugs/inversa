@@ -187,6 +187,7 @@ class FlightServicesController extends Controller {
             if (!in_array($s['airline_nombre'], $aerolineasUniques, true)) {
                 $aerolineasUniques[] = $s['airline_nombre'];
             }
+            $cuentaVuelo = Facturacion::cuentaComoVuelo($s);
             $chartData[] = [
                 'anio'            => (int)$s['anio'],
                 'mes'             => (int)$s['mes'],
@@ -196,11 +197,11 @@ class FlightServicesController extends Controller {
                 'tipo_atencion'   => $s['tipo_atencion'],
                 'cumple_tiempo'   => $s['cumple_tiempo'] === null ? null : (bool)$s['cumple_tiempo'],
                 'tiempo_transito' => $s['tiempo_transito'] !== null ? (int)$s['tiempo_transito'] : null,
-                'pax_saliendo'    => (int)$s['pax_saliendo'],
-                'pax_cancelado'   => (int)$s['pax_cancelado'],
+                'pax_saliendo'    => $cuentaVuelo ? (int)$s['pax_saliendo'] : 0,
+                'pax_cancelado'   => $cuentaVuelo ? (int)$s['pax_cancelado'] : 0,
                 'demora_llegando' => $s['demora_llegando'] !== null ? (int)$s['demora_llegando'] : null,
                 'codigo_demora'   => $s['codigo_demora'] ?: null,
-                'cuenta_vuelo'    => Facturacion::cuentaComoVuelo($s),
+                'cuenta_vuelo'    => $cuentaVuelo,
             ];
         }
         sort($basesUniques);

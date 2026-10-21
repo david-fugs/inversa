@@ -106,6 +106,11 @@ class Facturacion extends Model
                 $s['fracciones_hora_acu']  = (float)$s['fracciones_hora_acu']  + (float)($a['fracciones_hora'] ?? 0);
                 $s['fracciones_15min_acu'] = (float)$s['fracciones_15min_acu'] + (float)($a['fracciones_15min'] ?? 0);
             }
+            // SATENA PPN / VVC: no cuentan como vuelo ni como pasajeros.
+            if (!self::cuentaComoVuelo($s)) {
+                $s['pax_saliendo']  = 0;
+                $s['pax_cancelado'] = 0;
+            }
             $s['adicionales'] = $adic[$s['id']] ?? [];
             $fr = (float)($s['fracciones_adc_gpu'] ?? 0);
             foreach ($gpu[$s['id']] ?? [] as $g) {
