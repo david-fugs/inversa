@@ -331,7 +331,7 @@ window.addEventListener('load', function () {
     });
     document.getElementById('btn_exportar_excel').addEventListener('click', (e) => {
         e.preventDefault();
-        window.location.href = BASE_URL + '/facturacion/export-excel?' + params();
+        window.location.href = BASE_URL + '/facturacion/export-excel?' + params() + (el.ceros.checked ? '&ocultar_ceros=1' : '');
     });
 
     actualizarCamposPorAerolineas();

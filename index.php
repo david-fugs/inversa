@@ -105,6 +105,7 @@ $router->get('/flight-services',              'FlightServicesController', 'index
 $router->get('/flight-services/data',         'FlightServicesController', 'data');
 $router->get('/flight-services/export',       'FlightServicesController', 'export');
 $router->get('/flight-services/dashboard',    'FlightServicesController', 'dashboard');
+$router->get('/flight-services/dashboard-general', 'FlightServicesController', 'dashboardGeneral');
 $router->get('/flight-services/dashboard-aerolinea/{slug}',      'FlightServicesController', 'dashboardAerolinea');
 $router->get('/flight-services/dashboard-aerolinea/{slug}/data', 'FlightServicesController', 'dashboardAerolineaData');
 $router->get('/facturacion',                  'FacturacionController', 'index');

@@ -1,11 +1,11 @@
 <?php
-/** Barra de pestañas del Panel Analítico: General + paneles por aerolínea.
+/** Barra de pestañas del Panel Analítico: paneles por aerolínea + General.
  *  Requiere $navActivo ('general' | 'avianca' | 'clic' | 'satena'). */
 $navItems = [
-    'general' => ['texto' => 'Panel general', 'url' => BASE_URL . '/flight-services/dashboard',                    'icono' => 'bi-grid-1x2-fill', 'color' => '#1B4F8A', 'logo' => null],
     'avianca' => ['texto' => 'AVIANCA',       'url' => BASE_URL . '/flight-services/dashboard-aerolinea/avianca',   'icono' => null, 'color' => '#E30613', 'logo' => 'logo_avianca.png'],
     'clic'    => ['texto' => 'CLIC',          'url' => BASE_URL . '/flight-services/dashboard-aerolinea/clic',      'icono' => null, 'color' => '#D9142F', 'logo' => 'logo_clic.png'],
     'satena'  => ['texto' => 'SATENA',        'url' => BASE_URL . '/flight-services/dashboard-aerolinea/satena',    'icono' => null, 'color' => '#2F5597', 'logo' => 'logo_satena.png'],
+    'general' => ['texto' => 'Panel general', 'url' => BASE_URL . '/flight-services/dashboard-general',            'icono' => 'bi-grid-1x2-fill', 'color' => '#1B4F8A', 'logo' => null],
 ];
 ?>
 <style>

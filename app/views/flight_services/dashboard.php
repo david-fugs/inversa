@@ -216,70 +216,8 @@
 
 </div>
 
+<?php require __DIR__ . '/_dashboard_viz.php'; ?>
 <style>
-.viz-root {
-    --series-1: #2a78d6;   /* blue   — sequential / slot 1 */
-    --series-2: #eb6834;   /* orange — slot 2 */
-    --series-3: #1baf7a;   /* aqua   — slot 3 */
-    --series-4: #eda100;   /* yellow — slot 4 */
-    --seq-100: #cde2fb; --seq-200: #9ec5f4; --seq-300: #6da7ec;
-    --seq-400: #3987e5; --seq-500: #256abf; --seq-600: #184f95; --seq-700: #0d366b;
-    --ink-primary: #0b0b0b; --ink-secondary: #52514e; --ink-muted: #898781;
-    --grid: #e1e0d9;
-}
-
-.stat-icon.warning { background: linear-gradient(135deg, #E8B92E, #F1C94A); }
-.stat-icon.danger { background: linear-gradient(135deg, #C0392B, #E74C3C); }
-
-.viz-empty { color: var(--ink-muted); font-size: 13px; margin: 8px 0 0; }
-.viz-caption { color: var(--ink-secondary); font-size: 12px; margin: 10px 0 0; text-align: center; }
-
-/* Bar list (Servicios por Base / Aerolínea) */
-.bar-list { display: flex; flex-direction: column; gap: 10px; }
-.bar-row { display: grid; grid-template-columns: 110px 1fr 40px; align-items: center; gap: 10px; }
-.bar-row .bar-name {
-    font-size: 12.5px; color: var(--ink-secondary); font-weight: 600;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.bar-track { background: var(--grid); border-radius: 4px; height: 20px; position: relative; }
-.bar-fill {
-    height: 20px; border-radius: 4px 4px 4px 0; background: var(--series-1);
-    transition: filter .15s, width .3s ease; cursor: pointer;
-}
-.bar-fill:hover, .bar-fill:focus { filter: brightness(1.12); outline: none; }
-.bar-row .bar-value {
-    font-size: 12.5px; font-weight: 700; color: var(--ink-primary); text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-.bar-list-extra { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.bar-list-toggle {
-    margin-top: 10px; align-self: flex-start; background: none; border: none; padding: 0;
-    color: var(--series-1); font-size: 12.5px; font-weight: 600; cursor: pointer;
-}
-.bar-list-toggle:hover, .bar-list-toggle:focus { text-decoration: underline; outline: none; }
-
-/* Stacked bar (Tipo de Atención) */
-.stacked-bar {
-    display: flex; height: 32px; border-radius: 6px; overflow: hidden;
-    background: var(--grid);
-}
-.stacked-seg {
-    height: 100%; display: flex; align-items: center; justify-content: center;
-    font-size: 11.5px; font-weight: 700; color: #fff; cursor: pointer;
-    transition: filter .15s; border-right: 2px solid #fff;
-}
-.stacked-seg:last-child { border-right: none; }
-.stacked-seg:hover, .stacked-seg:focus { filter: brightness(1.1); outline: none; }
-.viz-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
-.viz-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-secondary); }
-.viz-legend-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
-
-/* Meter */
-.meter-wrap { display: flex; align-items: center; gap: 14px; }
-.meter-track { flex: 1; height: 18px; border-radius: 9px; background: var(--seq-100); overflow: hidden; }
-.meter-fill { height: 100%; background: var(--series-1); transition: width .3s ease; border-radius: 9px; }
-.meter-value { font-size: 22px; font-weight: 700; color: var(--ink-primary); min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
-
 /* Pivot heatmap table */
 #pivot_table { font-size: 12.5px; }
 #pivot_table th, #pivot_table td {
@@ -295,19 +233,11 @@
 #pivot_table td.pivot-cell:hover { filter: brightness(0.95); }
 #pivot_table .pivot-total { background: #F4F8FC; font-weight: 700; color: var(--ink-primary); }
 #pivot_table tfoot td, #pivot_table tfoot th { background: #DCE9F7; font-weight: 700; color: #1B4F8A; }
-
-/* Tooltip */
-.viz-tooltip {
-    position: fixed; z-index: 2000; pointer-events: none; background: #1a1a19; color: #fff;
-    font-size: 12px; padding: 6px 10px; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
-    opacity: 0; transform: translateY(4px); transition: opacity .1s, transform .1s; max-width: 240px;
-}
-.viz-tooltip.is-visible { opacity: 1; transform: translateY(0); }
-.viz-tooltip strong { font-variant-numeric: tabular-nums; }
 </style>
 
 <script>
 const FLIGHT_DATA = <?= $chartDataJson ?>;
+window.DESCRIPCIONES_DEMORA = <?= json_encode($codigosDemoraDesc, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT) ?>;
 const MESES_NOMBRE = {
     'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4, 'Mayo': 5, 'Junio': 6,
     'Julio': 7, 'Agosto': 8, 'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
@@ -320,47 +250,6 @@ const filterInputs = {
     aerolinea: document.getElementById('filter_aerolinea'),
 };
 
-/* ── Tooltip compartido ─────────────────────────────── */
-const tooltipEl = document.createElement('div');
-tooltipEl.className = 'viz-tooltip';
-document.body.appendChild(tooltipEl);
-
-function showTooltip(evt, text) {
-    tooltipEl.textContent = '';
-    tooltipEl.appendChild(document.createTextNode(text));
-    tooltipEl.classList.add('is-visible');
-    moveTooltip(evt);
-}
-function moveTooltip(evt) {
-    const pad = 14;
-    let x = evt.clientX + pad;
-    let y = evt.clientY + pad;
-    if (x + 240 > window.innerWidth) x = evt.clientX - 240 - pad;
-    if (y + 40 > window.innerHeight) y = evt.clientY - 40 - pad;
-    tooltipEl.style.left = x + 'px';
-    tooltipEl.style.top = y + 'px';
-}
-function hideTooltip() { tooltipEl.classList.remove('is-visible'); }
-
-function bindTooltip(el, text) {
-    el.addEventListener('mousemove', (e) => showTooltip(e, text));
-    el.addEventListener('mouseleave', hideTooltip);
-    el.setAttribute('tabindex', '0');
-    el.addEventListener('focus', (e) => showTooltip(e, text));
-    el.addEventListener('blur', hideTooltip);
-}
-
-/* ── Códigos de demora: separa cualquier formato de texto ──
-   Acepta "A - B", "A,B y C", "A-B", "A/B"... y devuelve los códigos
-   individuales, en mayúsculas y sin repetir. */
-function separarCodigos(raw) {
-    const out = new Set();
-    String(raw || '').split(/\s*(?:[,;\/+\-]|\s+y\s+)\s*/i).forEach(c => {
-        c = c.trim().toUpperCase();
-        if (c) out.add(c);
-    });
-    return Array.from(out);
-}
 
 /* ── Filtrado ────────────────────────────────────────── */
 function filtrarDatos() {
@@ -401,7 +290,7 @@ let pivotMetric = 'count';
 function pivotValueGetter(metric) {
     if (metric === 'pax_saliendo') return (r) => r.pax_saliendo || 0;
     if (metric === 'pax_cancelado') return (r) => r.pax_cancelado || 0;
-    return () => 1;
+    return (r) => cuentaVuelo(r) ? 1 : 0;
 }
 
 function pivotUnitLabel(metric, value) {
@@ -420,172 +309,31 @@ function contarPor(rows, campo) {
     return mapa;
 }
 
+/* Las bases PPN y VVC de SATENA no cuentan como vuelos (sí cuentan en el resto de métricas) */
+function cuentaVuelo(r) {
+    return r.cuenta_vuelo !== false;
+}
+
 /* Un vuelo cuenta como "con demora" solo si tiene código de demora registrado */
 function tieneDemora(r) {
     return !!(r.codigo_demora && r.codigo_demora.trim());
 }
 
-function seqStep(ratio) {
-    // ratio 0..1 -> paso de la rampa secuencial azul
-    const steps = ['--seq-100', '--seq-200', '--seq-300', '--seq-400', '--seq-500', '--seq-600', '--seq-700'];
-    const idx = Math.min(steps.length - 1, Math.floor(ratio * steps.length));
-    return steps[idx];
-}
-
-/* ── Render: bar list genérico (sequential, magnitud) ──
- * `opts` acepta un número (compat: límite de items, el resto se
- * agrupa en una barra "Otras") o un objeto { maxItems, expandable }.
- * Con expandable:true el resto NO se agrupa: queda oculto detrás de
- * un botón "Ver X más" (útil cuando agrupar perdería información
- * relevante, p.ej. códigos de demora individuales). */
-function renderBarList(containerId, emptyId, mapa, opts) {
-    if (typeof opts === 'number') opts = { maxItems: opts };
-    opts = opts || {};
-    const { maxItems, expandable } = opts;
-
-    const container = document.getElementById(containerId);
-    const emptyEl = document.getElementById(emptyId);
-    container.textContent = '';
-
-    let entries = Array.from(mapa.entries()).sort((a, b) => b[1] - a[1]);
-    let hidden = [];
-    if (maxItems && entries.length > maxItems) {
-        if (expandable) {
-            hidden = entries.slice(maxItems);
-            entries = entries.slice(0, maxItems);
-        } else {
-            const resto = entries.slice(maxItems).reduce((sum, [, v]) => sum + v, 0);
-            entries = entries.slice(0, maxItems);
-            if (resto > 0) entries.push(['Otras', resto]);
-        }
-    }
-
-    if (entries.length === 0) {
-        emptyEl.hidden = false;
-        return;
-    }
-    emptyEl.hidden = true;
-
-    const max = Math.max(entries[0][1], hidden.length ? hidden[0][1] : 0);
-
-    function buildRow(label, value) {
-        const row = document.createElement('div');
-        row.className = 'bar-row';
-
-        const nameEl = document.createElement('span');
-        nameEl.className = 'bar-name';
-        nameEl.textContent = label;
-
-        const track = document.createElement('div');
-        track.className = 'bar-track';
-        const fill = document.createElement('div');
-        fill.className = 'bar-fill';
-        fill.style.width = Math.max(4, Math.round((value / max) * 100)) + '%';
-        bindTooltip(fill, `${label}: ${value} servicio${value === 1 ? '' : 's'}`);
-        track.appendChild(fill);
-
-        const valueEl = document.createElement('span');
-        valueEl.className = 'bar-value';
-        valueEl.textContent = value;
-
-        row.appendChild(nameEl);
-        row.appendChild(track);
-        row.appendChild(valueEl);
-        return row;
-    }
-
-    entries.forEach(([label, value]) => container.appendChild(buildRow(label, value)));
-
-    if (hidden.length > 0) {
-        const extraWrap = document.createElement('div');
-        extraWrap.className = 'bar-list-extra';
-        extraWrap.hidden = true;
-        hidden.forEach(([label, value]) => extraWrap.appendChild(buildRow(label, value)));
-        container.appendChild(extraWrap);
-
-        const toggleBtn = document.createElement('button');
-        toggleBtn.type = 'button';
-        toggleBtn.className = 'bar-list-toggle';
-        toggleBtn.textContent = `Ver ${hidden.length} más`;
-        toggleBtn.addEventListener('click', () => {
-            const willShow = extraWrap.hidden;
-            extraWrap.hidden = !willShow;
-            toggleBtn.textContent = willShow ? 'Ver menos' : `Ver ${hidden.length} más`;
-        });
-        container.appendChild(toggleBtn);
-    }
-}
-
 /* ── Render: barra apilada (categórica, parte-todo) ───── */
-const COLORES_TIPO = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
-
 function renderStackedBar(rows) {
-    const container = document.getElementById('chart_tipo');
-    const legend = document.getElementById('legend_tipo');
-    const emptyEl = document.getElementById('empty_tipo');
-    container.textContent = '';
-    legend.textContent = '';
-
-    const mapa = contarPor(rows, 'tipo_atencion');
-    const total = rows.length;
-
-    if (total === 0) {
-        emptyEl.hidden = false;
-        return;
-    }
-    emptyEl.hidden = true;
-
-    const entries = Array.from(mapa.entries()).sort((a, b) => b[1] - a[1]);
-    entries.forEach(([label, value], i) => {
-        const pct = (value / total) * 100;
-        const color = COLORES_TIPO[i % COLORES_TIPO.length];
-
-        const seg = document.createElement('div');
-        seg.className = 'stacked-seg';
-        seg.style.width = pct + '%';
-        seg.style.background = color;
-        if (pct >= 12) {
-            seg.textContent = Math.round(pct) + '%';
-        }
-        bindTooltip(seg, `${label}: ${value} servicio${value === 1 ? '' : 's'} (${pct.toFixed(1)}%)`);
-        container.appendChild(seg);
-
-        const legendItem = document.createElement('div');
-        legendItem.className = 'viz-legend-item';
-        const swatch = document.createElement('span');
-        swatch.className = 'viz-legend-swatch';
-        swatch.style.background = color;
-        const text = document.createElement('span');
-        text.textContent = `${label} — ${value}`;
-        legendItem.appendChild(swatch);
-        legendItem.appendChild(text);
-        legend.appendChild(legendItem);
-    });
+    const vuelos = rows.filter(cuentaVuelo);
+    renderStackedBarMapa(contarPor(vuelos, 'tipo_atencion'), vuelos.length);
 }
 
 /* ── Render: meter de cumplimiento ────────────────────── */
 function renderMeter(rows) {
     const conRespuesta = rows.filter(r => r.cumple_tiempo !== null);
-    const fillEl = document.getElementById('meter_fill');
-    const valueEl = document.getElementById('meter_value');
-    const captionEl = document.getElementById('meter_caption');
-
-    if (conRespuesta.length === 0) {
-        fillEl.style.width = '0%';
-        valueEl.textContent = '—';
-        captionEl.textContent = 'Sin datos suficientes.';
-        return;
-    }
-    const cumplen = conRespuesta.filter(r => r.cumple_tiempo === true).length;
-    const pct = Math.round((cumplen / conRespuesta.length) * 100);
-    fillEl.style.width = pct + '%';
-    valueEl.textContent = pct + '%';
-    captionEl.textContent = `${cumplen} de ${conRespuesta.length} servicios cumplieron el tiempo objetivo.`;
+    renderMeterValores(conRespuesta.filter(r => r.cumple_tiempo === true).length, conRespuesta.length);
 }
 
 /* ── Render: KPIs ──────────────────────────────────────── */
 function renderKpis(rows) {
-    document.getElementById('kpi_total').textContent = rows.length;
+    document.getElementById('kpi_total').textContent = rows.filter(cuentaVuelo).length;
 
     const conRespuesta = rows.filter(r => r.cumple_tiempo !== null);
     const cumpEl = document.getElementById('kpi_cumplimiento');
@@ -640,7 +388,7 @@ function contarPorCodigosDemora(rows) {
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(tieneDemora);
-    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true });
+    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true, descripciones: window.DESCRIPCIONES_DEMORA });
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }
@@ -655,7 +403,7 @@ function renderPivot(rows) {
     tbody.textContent = '';
     tfoot.textContent = '';
 
-    document.getElementById('pivot_badge').textContent = rows.length + ' servicios';
+    document.getElementById('pivot_badge').textContent = rows.filter(cuentaVuelo).length + ' vuelos';
 
     const getValue = pivotValueGetter(pivotMetric);
 
@@ -762,8 +510,9 @@ function renderPivot(rows) {
 function renderDashboard() {
     const rows = filtrarDatos();
     renderKpis(rows);
-    renderBarList('chart_base', 'empty_base', contarPor(rows, 'base'));
-    renderBarList('chart_aerolinea', 'empty_aerolinea', contarPor(rows, 'aerolinea'), 8);
+    const vuelos = rows.filter(cuentaVuelo);
+    renderBarList('chart_base', 'empty_base', contarPor(vuelos, 'base'));
+    renderBarList('chart_aerolinea', 'empty_aerolinea', contarPor(vuelos, 'aerolinea'), 8);
     renderStackedBar(rows);
     renderMeter(rows);
     renderDemoras(rows);

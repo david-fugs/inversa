@@ -162,8 +162,13 @@ class FlightServicesController extends Controller {
         ]);
     }
 
-    /** Panel analítico (tipo BI) con KPIs, gráficos y tabla dinámica, filtrable en el cliente */
+    /** Entrada del Panel Analítico: abre primero la pestaña de AVIANCA. */
     public function dashboard(): void {
+        $this->redirect('flight-services/dashboard-aerolinea/avianca');
+    }
+
+    /** Panel general (tipo BI) con KPIs, gráficos y tabla dinámica, filtrable en el cliente */
+    public function dashboardGeneral(): void {
         $rol  = Session::get('user_rol');
         $base = Session::get('user_base_asociada');
 
@@ -195,6 +200,7 @@ class FlightServicesController extends Controller {
                 'pax_cancelado'   => (int)$s['pax_cancelado'],
                 'demora_llegando' => $s['demora_llegando'] !== null ? (int)$s['demora_llegando'] : null,
                 'codigo_demora'   => $s['codigo_demora'] ?: null,
+                'cuenta_vuelo'    => Facturacion::cuentaComoVuelo($s),
             ];
         }
         sort($basesUniques);
@@ -217,6 +223,7 @@ class FlightServicesController extends Controller {
         $this->view('flight_services/dashboard', [
             'pageTitle'         => 'Panel Analítico',
             'breadcrumbs'       => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Panel Analítico' => null],
+            'codigosDemoraDesc' => $this->descripcionesCodigosDemora(),
             'chartDataJson'     => json_encode($chartData, JSON_UNESCAPED_UNICODE),
             'basesUniques'      => $basesUniques,
             'aerolineasUniques' => $aerolineasUniques,
@@ -227,20 +234,33 @@ class FlightServicesController extends Controller {
     /** Separa un texto de códigos de demora guardado con cualquier formato
      *  ("A - B", "A,B y C", "A-B", "A/B"...) en códigos individuales en mayúsculas. */
     private static function separarCodigosDemora(string $raw): array {
-        $partes = preg_split('/\s*(?:[,;\/+-]|\s+y\s+)\s*/iu', $raw) ?: [];
+        return Facturacion::separarCodigosDemora($raw);
+    }
+
+    /** Descripción de cada código de demora del catálogo (código => texto).
+     *  Con $aerolinea solo los de esa aerolínea; si un código tiene varias
+     *  descripciones (una por aerolínea) se unen con " / ". */
+    private function descripcionesCodigosDemora(?string $aerolinea = null): array {
         $out = [];
-        foreach ($partes as $p) {
-            $p = strtoupper(trim($p));
-            if ($p !== '') $out[$p] = true;
+        foreach ($this->codigoDemoraModel->getAll() as $cd) {
+            if ($aerolinea !== null && strtoupper(trim((string)$cd['airline_nombre'])) !== strtoupper($aerolinea)) continue;
+            $cod  = strtoupper(trim($cd['codigo']));
+            $desc = trim((string)$cd['descripcion']);
+            if ($desc === '') continue;
+            if (!isset($out[$cod])) {
+                $out[$cod] = $desc;
+            } elseif (!in_array($desc, explode(' / ', $out[$cod]), true)) {
+                $out[$cod] .= ' / ' . $desc;
+            }
         }
-        return array_keys($out);
+        return $out;
     }
 
     /** Paneles por aerolínea (pestañas del Panel Analítico): qué se muestra en cada uno. */
     private const PANEL_AEROLINEAS = [
         'avianca' => [
             'nombre' => 'AVIANCA', 'logo' => 'logo_avianca.png', 'color' => '#E30613',
-            'tarjetas'  => ['vuelos'],
+            'tarjetas'  => ['vuelos', 'pax'],
             'combinada' => ['ventiladores', 'sillas', 'rampa', 'gpu', 'acu'],
             'combinada_titulo' => 'Servicios por mes',
         ],
@@ -271,7 +291,16 @@ class FlightServicesController extends Controller {
             return;
         }
         $opciones = $this->model->getDistinctBasesYAerolineas($this->panelBaseScope());
-        $metricas = (new Facturacion())->metricasPanel();
+        $facturacion = new Facturacion();
+        $metricas = $facturacion->metricasPanel();
+        $descripciones = $this->descripcionesCodigosDemora($cfg['nombre']);
+        $codigos = array_merge(
+            array_keys($descripciones),
+            $facturacion->getCodigosDemoraUsados($cfg['nombre'], $this->panelBaseScope())
+        );
+        $codigos = array_unique($codigos);
+        natcasesort($codigos);
+        $codigos = array_values($codigos);
         $etiquetas = [];
         foreach (array_merge($cfg['tarjetas'], $cfg['combinada']) as $k) {
             $etiquetas[$k] = $metricas[$k][0];
@@ -283,6 +312,9 @@ class FlightServicesController extends Controller {
             'cfg'          => $cfg,
             'etiquetas'    => $etiquetas,
             'basesUniques' => $opciones['bases'],
+            'aniosUniques' => $facturacion->getAnios($cfg['nombre'], $this->panelBaseScope()),
+            'codigosDemoraUniques' => $codigos,
+            'codigosDemoraDesc'    => $descripciones,
         ]);
     }
 
@@ -297,16 +329,29 @@ class FlightServicesController extends Controller {
         $bases = $_GET['base'] ?? [];
         $bases = array_values(array_filter(array_map('trim', array_map('strval', is_array($bases) ? $bases : [$bases])), fn($v) => $v !== ''));
 
+        $codigos = $_GET['codigo_demora'] ?? [];
+        $codigos = array_values(array_filter(
+            array_map(fn($v) => strtoupper(trim((string)$v)), is_array($codigos) ? $codigos : [$codigos]),
+            fn($v) => $v !== ''
+        ));
+
         $facturacion = new Facturacion();
         $servicios = $facturacion->getServicios([
             'aerolineas'   => [$cfg['nombre']],
             'bases'        => $bases,
+            'anio'         => (int)($_GET['anio'] ?? 0),
+            'mes'          => (int)($_GET['mes'] ?? 0),
             'fecha_inicio' => $fecha('fecha_inicio'),
             'fecha_fin'    => $fecha('fecha_fin'),
         ], $this->panelBaseScope());
 
+        if ($codigos) {
+            $servicios = array_values(array_filter($servicios, fn($s) =>
+                array_intersect(self::separarCodigosDemora((string)($s['codigo_demora'] ?? '')), $codigos) !== []));
+        }
+
         $salida = $facturacion->seriesMensuales($servicios, array_merge($cfg['tarjetas'], $cfg['combinada']));
-        $salida['total_vuelos'] = count($servicios);
+        $salida += $facturacion->resumenGeneral($servicios);
         $this->json($salida);
     }
 

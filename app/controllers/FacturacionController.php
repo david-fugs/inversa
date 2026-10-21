@@ -101,6 +101,17 @@ class FacturacionController extends Controller {
         $r = $this->resumen();
         $f = $r['filtros'];
 
+        // "Ocultar conceptos en 0" de la pantalla: el Excel muestra lo mismo.
+        if (($_GET['ocultar_ceros'] ?? '') === '1') {
+            foreach ($r['airlines'] as &$aerolinea) {
+                foreach ($aerolinea['secciones'] as &$sec) {
+                    $sec['conceptos'] = array_values(array_filter($sec['conceptos'], fn($c) => $c['cantidad'] > 0));
+                }
+                unset($sec);
+            }
+            unset($aerolinea);
+        }
+
         // Hoja 1: los mismos servicios (y columnas) que el Excel de
         // /flight-services, con los filtros de esta pantalla.
         $base = $this->baseScope();

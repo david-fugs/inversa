@@ -47,6 +47,14 @@ class Facturacion extends Model
             $where[] = 'COALESCE(a.nombre, fs.airline_custom_nombre) IN (' . implode(',', array_fill(0, count($aerolineas), '?')) . ')';
             array_push($params, ...$aerolineas);
         }
+        if ((int)($filtros['anio'] ?? 0) > 0) {
+            $where[] = 'fs.anio = ?';
+            $params[] = (int)$filtros['anio'];
+        }
+        if ((int)($filtros['mes'] ?? 0) > 0) {
+            $where[] = 'fs.mes = ?';
+            $params[] = (int)$filtros['mes'];
+        }
         if (($filtros['fecha_inicio'] ?? '') !== '') {
             $where[] = "STR_TO_DATE(CONCAT(fs.anio, '-', fs.mes, '-', fs.dia), '%Y-%m-%d') >= ?";
             $params[] = $filtros['fecha_inicio'];
@@ -58,7 +66,7 @@ class Facturacion extends Model
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $rows = $this->db->fetchAll(
-            "SELECT fs.id, fs.anio, fs.mes, fs.pax_saliendo, fs.base, fs.tipo_atencion, fs.despacho, fs.pax_cancelado, fs.demora_llegando,
+            "SELECT fs.id, fs.anio, fs.mes, fs.dia, fs.pax_saliendo, fs.cumple_tiempo, fs.tiempo_transito, fs.codigo_demora, fs.base, fs.tipo_atencion, fs.despacho, fs.pax_cancelado, fs.demora_llegando,
                     fs.fracciones_adc_gpu, fs.acu, fs.fracciones_hora_acu, fs.fracciones_15min_acu,
                     fs.ventiladores_activo, fs.ventiladores, fs.sillas_ruedas, fs.rampa_escalera,
                     fs.remolque_aeronave, fs.remolque_equipajes, fs.potable, fs.drenaje,
@@ -86,7 +94,18 @@ class Facturacion extends Model
             $gpu[$r['flight_service_id']][] = $r;
         }
 
+        // Filas "Agregar otro ACU": se suman a las fracciones del ACU principal,
+        // igual que las filas adicionales de GPU.
+        $acu = [];
+        foreach ($this->db->fetchAll("SELECT flight_service_id, fracciones_hora, fracciones_15min FROM flight_service_acu_fracciones WHERE flight_service_id IN ($ph)", $ids) as $r) {
+            $acu[$r['flight_service_id']][] = $r;
+        }
+
         foreach ($rows as &$s) {
+            foreach ($acu[$s['id']] ?? [] as $a) {
+                $s['fracciones_hora_acu']  = (float)$s['fracciones_hora_acu']  + (float)($a['fracciones_hora'] ?? 0);
+                $s['fracciones_15min_acu'] = (float)$s['fracciones_15min_acu'] + (float)($a['fracciones_15min'] ?? 0);
+            }
             $s['adicionales'] = $adic[$s['id']] ?? [];
             $fr = (float)($s['fracciones_adc_gpu'] ?? 0);
             foreach ($gpu[$s['id']] ?? [] as $g) {
@@ -126,11 +145,45 @@ class Facturacion extends Model
 
     // ───────────────────── Paneles por aerolínea ─────────────────────
 
+    /** Años con servicios de una aerolínea (más reciente primero). */
+    public function getAnios(string $aerolinea, ?string $baseScope): array
+    {
+        $where = 'COALESCE(a.nombre, fs.airline_custom_nombre) = ?';
+        $params = [$aerolinea];
+        if ($baseScope !== null) { $where .= ' AND fs.base = ?'; $params[] = $baseScope; }
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT fs.anio FROM flight_services fs
+             LEFT JOIN airlines a ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             WHERE {$where} ORDER BY fs.anio DESC",
+            $params
+        );
+        return array_map('intval', array_column($rows, 'anio'));
+    }
+
+    /** Códigos de demora (individuales) usados en los servicios de una aerolínea. */
+    public function getCodigosDemoraUsados(string $aerolinea, ?string $baseScope): array
+    {
+        $where = "COALESCE(a.nombre, fs.airline_custom_nombre) = ? AND fs.codigo_demora IS NOT NULL AND fs.codigo_demora != ''";
+        $params = [$aerolinea];
+        if ($baseScope !== null) { $where .= ' AND fs.base = ?'; $params[] = $baseScope; }
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT fs.codigo_demora FROM flight_services fs
+             LEFT JOIN airlines a ON fs.airline_id = a.id AND fs.airline_id != 'otra'
+             WHERE {$where}",
+            $params
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            foreach (self::separarCodigosDemora((string)$r['codigo_demora']) as $c) $out[$c] = true;
+        }
+        return array_keys($out);
+    }
+
     /** Métricas mensuales de los paneles Avianca / Clic / Satena: clave => [etiqueta, fn(servicio)]. */
     public function metricasPanel(): array
     {
         return [
-            'vuelos'       => ['Vuelos',                          fn($s) => 1],
+            'vuelos'       => ['Vuelos',                          fn($s) => self::uno(self::cuentaComoVuelo($s))],
             'pax'          => ['Pasajeros',                       fn($s) => (int)$s['pax_saliendo']],
             'ventiladores' => ['Ventiladores',                    fn($s) => self::uno((int)$s['ventiladores_activo'] === 1 || (int)$s['ventiladores'] > 0)],
             'sillas'       => ['Sillas de ruedas',                fn($s) => (int)$s['sillas_ruedas']],
@@ -140,6 +193,85 @@ class Facturacion extends Model
             'remolque'     => ['Remolque avión',                  fn($s) => (int)$s['remolque_aeronave']],
             'drenaje'      => ['Drenaje',                         fn($s) => (int)$s['drenaje']],
             'potable'      => ['Agua potable',                    fn($s) => (int)$s['potable']],
+        ];
+    }
+
+    /** Bases de SATENA cuyos servicios no cuentan como vuelos (sí cuentan en el resto de métricas). */
+    private const BASES_SATENA_SIN_VUELOS = ['PPN', 'VVC'];
+
+    /** ¿El servicio cuenta como vuelo? En SATENA, PPN y VVC no. */
+    public static function cuentaComoVuelo(array $s): bool
+    {
+        return !(self::norm((string)($s['airline_nombre'] ?? '')) === 'SATENA'
+            && in_array(self::norm((string)($s['base'] ?? '')), self::BASES_SATENA_SIN_VUELOS, true));
+    }
+
+    /** Separa un texto de códigos de demora ("A - B", "A,B y C", "A/B"...) en códigos en mayúsculas. */
+    public static function separarCodigosDemora(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/\s*(?:[,;\/+-]|\s+y\s+)\s*/iu', $raw) ?: [] as $p) {
+            $p = strtoupper(trim($p));
+            if ($p !== '') $out[$p] = true;
+        }
+        return array_keys($out);
+    }
+
+    /**
+     * Indicadores y distribuciones del panel (mismos que el Panel general):
+     * vuelos, cumplimiento, tránsito, pax, demoras y conteos por base / tipo
+     * de atención / código de demora. Las bases sin vuelos no suman como vuelo.
+     */
+    public function resumenGeneral(array $servicios): array
+    {
+        $vuelos = 0; $pax = 0;
+        $cumplen = 0; $conRespuesta = 0;
+        $sumTransito = 0; $conTransito = 0;
+        $conDemora = 0; $sumDemora = 0;
+        $porBase = []; $porTipo = [];
+        $demorasCodigo = []; $demorasBase = [];
+
+        foreach ($servicios as $s) {
+            $base = $s['base'] ?: '—';
+            if (self::cuentaComoVuelo($s)) {
+                $vuelos++;
+                $porBase[$base] = ($porBase[$base] ?? 0) + 1;
+                $tipo = $s['tipo_atencion'] ?: '—';
+                $porTipo[$tipo] = ($porTipo[$tipo] ?? 0) + 1;
+            }
+            $pax += (int)$s['pax_saliendo'];
+            if ($s['cumple_tiempo'] !== null) {
+                $conRespuesta++;
+                if ((int)$s['cumple_tiempo'] === 1) $cumplen++;
+            }
+            if ($s['tiempo_transito'] !== null) {
+                $conTransito++;
+                $sumTransito += (int)$s['tiempo_transito'];
+            }
+            $codigo = trim((string)($s['codigo_demora'] ?? ''));
+            if ($codigo !== '') {
+                $conDemora++;
+                $sumDemora += (int)$s['demora_llegando'];
+                $demorasBase[$base] = ($demorasBase[$base] ?? 0) + 1;
+                foreach (self::separarCodigosDemora($codigo) ?: ['Sin código'] as $c) {
+                    $demorasCodigo[$c] = ($demorasCodigo[$c] ?? 0) + 1;
+                }
+            }
+        }
+        return [
+            'kpis' => [
+                'vuelos'           => $vuelos,
+                'cumple_total'     => $conRespuesta,
+                'cumple_si'        => $cumplen,
+                'transito_prom'    => $conTransito ? (int)round($sumTransito / $conTransito) : null,
+                'pax'              => $pax,
+                'con_demora'       => $conDemora,
+                'demora_prom'      => $conDemora ? (int)round($sumDemora / $conDemora) : null,
+            ],
+            'por_base'        => $porBase,
+            'por_tipo'        => $porTipo,
+            'demoras_codigo'  => $demorasCodigo,
+            'demoras_base'    => $demorasBase,
         ];
     }
 
@@ -401,7 +533,8 @@ class Facturacion extends Model
             ['Hora Hombre',                                fn($s) => self::adic($s, 'Hora hombre')],
             ['Arrancador Ad',                              fn($s) => self::adic($s, 'Arrancador ASU') + (int)$s['air_starter']],
             ['Cinta transportadora Conveyor',              fn($s) => self::adic($s, 'Cinta transportadora / Conveyor')],
-            ['Push Back (Remolque de aeronave)',           fn($s) => (int)$s['remolque_aeronave'] + self::adic($s, 'Remolque')],
+            ['Remolque de aeronave',                       fn($s) => (int)$s['remolque_aeronave']],
+            ['Remolque adicional',                         fn($s) => self::adic($s, 'Remolque')],
         ];
     }
 
