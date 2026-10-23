@@ -9,7 +9,7 @@
             <div class="modal-body">
                 <p class="text-muted" style="font-size:13px;">
                     Los documentos asociados a cada lote van <strong>al inicio</strong> del PDF combinado, antes de los comprobantes de pago.
-                    Si falta alguno, puede subirlo aquí.
+                    Si falta alguno, puede subirlo aquí. También puede definir el orden de los comprobantes de pago.
                 </p>
                 <div id="docsContenedor"><div class="text-center text-muted py-4">Cargando...</div></div>
             </div>
@@ -91,7 +91,98 @@
         return form;
     }
 
+    // Orden de los comprobantes de pago dentro del PDF (arrastrar, flechas o invertir).
+    var listas = {};   // loteId -> <ul> con los comprobantes en el orden elegido
+
+    function seccionOrden(lote) {
+        var wrap = el('div', 'mt-3 pt-2 border-top');
+        var head = el('div', 'd-flex justify-content-between align-items-center mb-1');
+        head.appendChild(el('strong', 'small', 'Orden de los comprobantes de pago'));
+        var inv = el('button', 'btn btn-sm btn-outline-secondary');
+        inv.type = 'button';
+        inv.innerHTML = '<i class="bi bi-arrow-down-up"></i> Cambiar orden';
+        inv.title = 'Invertir el orden (de abajo hacia arriba / de arriba hacia abajo)';
+        head.appendChild(inv);
+        wrap.appendChild(head);
+        wrap.appendChild(el('small', 'text-muted d-block mb-1', 'Arrastre cada PDF o use las flechas. Se une de arriba hacia abajo.'));
+
+        var ul = el('ul', 'list-group list-group-flush');
+        ul.appendChild(el('li', 'list-group-item small text-muted', 'Cargando...'));
+        wrap.appendChild(ul);
+        listas[lote.id] = ul;
+
+        inv.addEventListener('click', function () {
+            Array.prototype.slice.call(ul.children).reverse().forEach(function (li) { ul.appendChild(li); });
+        });
+
+        var arrastrado = null;
+        ul.addEventListener('dragstart', function (e) {
+            arrastrado = e.target.closest('li[data-id]');
+            if (arrastrado) e.dataTransfer.effectAllowed = 'move';
+        });
+        ul.addEventListener('dragover', function (e) {
+            var li = e.target.closest('li[data-id]');
+            if (!arrastrado || !li || li === arrastrado) return;
+            e.preventDefault();
+            var r = li.getBoundingClientRect();
+            ul.insertBefore(arrastrado, e.clientY < r.top + r.height / 2 ? li : li.nextSibling);
+        });
+        ul.addEventListener('dragend', function () { arrastrado = null; });
+        ul.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-mover]');
+            if (!b) return;
+            var li = b.closest('li');
+            if (b.dataset.mover === 'up' && li.previousElementSibling) ul.insertBefore(li, li.previousElementSibling);
+            if (b.dataset.mover === 'down' && li.nextElementSibling) ul.insertBefore(li.nextElementSibling, li);
+        });
+
+        fetch(BASE_URL + '/pagos/lotes/' + lote.id + '/orden-pdf')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                ul.innerHTML = '';
+                if (!d.ok || !d.items.length) {
+                    ul.appendChild(el('li', 'list-group-item small text-muted', 'Este lote no tiene comprobantes de pago.'));
+                    delete listas[lote.id];
+                    inv.style.display = 'none';
+                    return;
+                }
+                d.items.forEach(function (it) {
+                    var li = el('li', 'list-group-item d-flex align-items-center gap-2 py-1');
+                    li.draggable = true;
+                    li.dataset.id = it.id;
+                    li.style.cursor = 'grab';
+                    li.appendChild(el('i', 'bi bi-grip-vertical text-muted'));
+                    var txt = el('span', 'flex-grow-1 small');
+                    txt.appendChild(el('strong', '', it.proveedor + ' · ' + it.producto));
+                    txt.appendChild(el('span', 'text-muted ms-2', it.nombre));
+                    li.appendChild(txt);
+                    var ver = el('a', 'btn btn-icon btn-outline-primary btn-sm');
+                    ver.href = it.url; ver.target = '_blank'; ver.title = 'Ver ' + it.nombre;
+                    ver.innerHTML = '<i class="bi bi-eye-fill"></i>';
+                    li.appendChild(ver);
+                    [['up', 'bi-chevron-up'], ['down', 'bi-chevron-down']].forEach(function (m) {
+                        var b = el('button', 'btn btn-icon btn-light btn-sm');
+                        b.type = 'button'; b.dataset.mover = m[0];
+                        b.innerHTML = '<i class="bi ' + m[1] + '"></i>';
+                        li.appendChild(b);
+                    });
+                    ul.appendChild(li);
+                });
+            })
+            .catch(function () { ul.innerHTML = ''; ul.appendChild(el('li', 'list-group-item small text-danger', 'No se pudo cargar el orden.')); });
+        return wrap;
+    }
+
+    function guardarOrdenes() {
+        return Promise.all(Object.keys(listas).map(function (loteId) {
+            var fd = new FormData();
+            Array.prototype.forEach.call(listas[loteId].querySelectorAll('li[data-id]'), function (li) { fd.append('ids[]', li.dataset.id); });
+            return fetch(BASE_URL + '/pagos/lotes/' + loteId + '/orden-pdf', { method: 'POST', body: fd });
+        }));
+    }
+
     function pintar(data) {
+        listas = {};
         cont.innerHTML = '';
         data.lotes.forEach(function (lote) {
             var card = el('div', 'border rounded p-3 mb-3');
@@ -118,6 +209,8 @@
                 });
                 card.appendChild(fila);
             });
+
+            card.appendChild(seccionOrden(lote));
 
             var det = el('details', 'mt-2');
             if (!lote.documentos.length) det.open = true;
@@ -178,6 +271,13 @@
     });
 
     confirmar.addEventListener('click', function () {
+        confirmar.disabled = true;
+        guardarOrdenes()
+            .catch(function () { alert('No se pudo guardar el orden; se usará el último guardado.'); })
+            .then(function () { confirmar.disabled = false; unir(); });
+    });
+
+    function unir() {
         modal.hide();
         var a = document.createElement('a');
         a.href = '#';
@@ -189,6 +289,6 @@
         document.body.appendChild(a);
         a.click();
         setTimeout(function () { a.remove(); }, 60000);
-    });
+    }
 })();
 </script>

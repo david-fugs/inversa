@@ -188,7 +188,9 @@ $router->get('/pagos/lotes/nuevo/cerrar',    'PagosController', 'cerrarTodosNuev
 $router->get('/pagos/lotes/nuevo/exportar',   'PagosController', 'exportarExcelNuevo');
 $router->get('/pagos/lotes/nuevo/comprobantes', 'PagosController', 'comprobantesNuevo');
 $router->get('/pagos/lotes/{id}/comprobantes', 'PagosController', 'comprobantesLote');
-$router->get('/pagos/lotes/{id}/modal',       'PagosController', 'loteModal');
+$router->get('/pagos/lotes/{id}/orden-pdf',   'PagosController', 'ordenPdfLote');
+$router->post('/pagos/lotes/{id}/orden-pdf',  'PagosController', 'guardarOrdenPdf');
+$router->get('/pagos/lotes/{id}/modal',      'PagosController', 'loteModal');
 $router->get('/pagos/lotes/{id}/cerrar',      'PagosController', 'cerrarLote');
 $router->get('/pagos/lotes/{id}/delete',      'PagosController', 'eliminarLote');
 $router->get('/pagos/lotes/{id}/combinado',   'PagosController', 'descargarCombinado');

@@ -837,6 +837,48 @@ class PagosController extends Controller {
         return $pagos;
     }
 
+    /** Comprobantes de un lote en el orden del PDF combinado (orden_pdf; los sin orden, al final). */
+    private function comprobantesOrdenados(int $loteId): array {
+        $items = [];
+        foreach ($this->pagosPorCreacion($loteId) as $p) {
+            foreach ($p['comprobantes'] as $c) {
+                $c['_pago'] = $p;
+                $items[] = $c;
+            }
+        }
+        $clave = fn($c) => (int)$c['orden_pdf'] > 0 ? (int)$c['orden_pdf'] : PHP_INT_MAX;
+        usort($items, fn($a, $b) => [$clave($a), (int)$a['pago_id'], (int)$a['orden'], (int)$a['id']]
+            <=> [$clave($b), (int)$b['pago_id'], (int)$b['orden'], (int)$b['id']]);
+        return $items;
+    }
+
+    public function ordenPdfLote(string $id): void {
+        $this->soloGestion(true);
+        $lote = $this->loteModel->findById((int)$id);
+        if (!$lote) {
+            $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
+        }
+        $items = array_map(fn($c) => [
+            'id'        => (int)$c['id'],
+            'nombre'    => $c['archivo_original'],
+            'proveedor' => $c['_pago']['proveedor_nombre'],
+            'producto'  => $c['_pago']['numero_producto'],
+            'url'       => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
+        ], $this->comprobantesOrdenados((int)$lote['id']));
+        $this->json(['ok' => true, 'items' => $items]);
+    }
+
+    public function guardarOrdenPdf(string $id): void {
+        $this->soloGestion(true);
+        $lote = $this->loteModel->findById((int)$id);
+        if (!$lote) {
+            $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
+        }
+        $ids = array_map('intval', (array)($_POST['ids'] ?? []));
+        (new PagoComprobante())->guardarOrdenPdf((int)$lote['id'], $ids);
+        $this->json(['ok' => true]);
+    }
+
     private function comprobantesJson(array $lotes, string $nombreBase): array {
         $items = [];
         // Egresos / legalizaciones primero, luego los comprobantes de cada pago.
@@ -847,13 +889,11 @@ class PagosController extends Controller {
             ];
         }
         foreach ($lotes as $lote) {
-            foreach ($this->pagosPorCreacion((int)$lote['id']) as $p) {
-                foreach ($p['comprobantes'] as $c) {
-                    $items[] = [
-                        'url'    => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
-                        'nombre' => $c['archivo_original'],
-                    ];
-                }
+            foreach ($this->comprobantesOrdenados((int)$lote['id']) as $c) {
+                $items[] = [
+                    'url'    => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
+                    'nombre' => $c['archivo_original'],
+                ];
             }
         }
         return [
@@ -932,12 +972,10 @@ class PagosController extends Controller {
             $nombres[$ruta] = $a['archivo_original'];
         }
         foreach ($lotes as $lote) {
-            foreach ($this->pagosPorCreacion((int)$lote['id']) as $p) {
-                foreach ($p['comprobantes'] as $c) {
-                    $ruta =PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
-                    $rutas[] = $ruta;
-                    $nombres[$ruta] = $c['archivo_original'];
-                }
+            foreach ($this->comprobantesOrdenados((int)$lote['id']) as $c) {
+                $ruta = PAGOS_COMPROBANTES_PATH . '/' . $c['archivo'];
+                $rutas[] = $ruta;
+                $nombres[$ruta] = $c['archivo_original'];
             }
         }
 

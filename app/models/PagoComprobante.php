@@ -32,6 +32,18 @@ class PagoComprobante extends Model {
         );
     }
 
+    /** Guarda el orden del PDF combinado: $ids en el orden deseado (solo comprobantes del lote). */
+    public function guardarOrdenPdf(int $loteId, array $ids): void {
+        $pos = 1;
+        foreach ($ids as $id) {
+            $this->db->query(
+                "UPDATE pago_comprobantes pc JOIN pagos pg ON pg.id = pc.pago_id
+                 SET pc.orden_pdf = ? WHERE pc.id = ? AND pg.lote_pago_id = ?",
+                [$pos++, (int)$id, $loteId]
+            );
+        }
+    }
+
     public function findById(int $id): array|false {
         return $this->db->fetchOne("SELECT * FROM pago_comprobantes WHERE id = ?", [$id]);
     }
