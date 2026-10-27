@@ -232,12 +232,25 @@ class UsersController extends Controller {
             return;
         }
 
-        $servicioId = trim((string)($_POST['servicio_id'] ?? ''));
-        if ($servicioId !== '' && !ctype_digit($servicioId)) {
-            $this->redirectWith('users', 'error', 'El ID del vuelo debe ser un número.');
+        // Hasta 4 IDs de vuelo separados por comas (vacío = todos los vuelos).
+        $texto = trim((string)($_POST['servicio_id'] ?? ''));
+        $ids = [];
+        if ($texto !== '') {
+            foreach (explode(',', $texto) as $parte) {
+                $parte = trim($parte);
+                if ($parte === '') continue;
+                if (!ctype_digit($parte) || (int)$parte < 1) {
+                    $this->redirectWith('users', 'error', 'Los IDs de vuelo deben ser números separados por comas.');
+                    return;
+                }
+                $ids[(int)$parte] = (int)$parte;
+            }
+        }
+        if (count($ids) > 4) {
+            $this->redirectWith('users', 'error', 'Máximo 4 IDs de vuelo por usuario.');
             return;
         }
-        $this->userModel->concederPermisoEdicion($userId, $servicioId === '' ? null : (int)$servicioId);
+        $this->userModel->concederPermisoEdicion($userId, $ids ? implode(',', $ids) : null);
         $this->redirectWith('users', 'success', 'Permiso de edición actualizado.');
     }
 

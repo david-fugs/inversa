@@ -385,10 +385,21 @@ function contarPorCodigosDemora(rows) {
     return mapa;
 }
 
+function detallePorCodigoDemora(rows) {
+    const out = {};
+    rows.forEach(r => {
+        const codigos = separarCodigos(r.codigo_demora);
+        if (codigos.length === 0) codigos.push('Sin código');
+        codigos.forEach(c => (out[c] = out[c] || []).push({ id: r.id, vuelo: r.vuelo, saliendo: r.saliendo, codigo: r.codigo_demora, obs: r.obs }));
+    });
+    return out;
+}
+
 /* ── Render: demoras por código, por aerolínea y por base ── */
 function renderDemoras(rows) {
     const conDemora = rows.filter(tieneDemora);
-    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true, descripciones: window.DESCRIPCIONES_DEMORA });
+    const detalle = detallePorCodigoDemora(conDemora);
+    renderBarList('chart_demoras', 'empty_demoras', contarPorCodigosDemora(conDemora), { maxItems: 10, expandable: true, descripciones: window.DESCRIPCIONES_DEMORA, detalle: c => detalle[c] });
     renderBarList('chart_demoras_aerolinea', 'empty_demoras_aerolinea', contarPor(conDemora, 'aerolinea'));
     renderBarList('chart_demoras_base', 'empty_demoras_base', contarPor(conDemora, 'base'));
 }
@@ -435,6 +446,13 @@ function renderPivot(rows) {
         if (matriz[r.base] && matriz[r.base][col] !== undefined) matriz[r.base][col] += getValue(r);
     });
 
+    // Cancelados por base (tipo de atención "Cancelado")
+    const canceladosBase = {};
+    bases.forEach(b => canceladosBase[b] = 0);
+    rows.forEach(r => {
+        if (cuentaVuelo(r) && r.tipo_atencion === 'Cancelado' && canceladosBase[r.base] !== undefined) canceladosBase[r.base]++;
+    });
+
     let maxCell = 0;
     bases.forEach(b => columnas.forEach(c => { maxCell = Math.max(maxCell, matriz[b][c]); }));
 
@@ -451,6 +469,9 @@ function renderPivot(rows) {
     const thTotal = document.createElement('th');
     thTotal.textContent = 'Total';
     trHead.appendChild(thTotal);
+    const thCanc = document.createElement('th');
+    thCanc.textContent = 'Total Cancelados';
+    trHead.appendChild(thCanc);
     thead.appendChild(trHead);
 
     // Filas
@@ -484,6 +505,11 @@ function renderPivot(rows) {
         tdTotal.textContent = totalFila;
         tr.appendChild(tdTotal);
 
+        const tdCanc = document.createElement('td');
+        tdCanc.className = 'pivot-total';
+        tdCanc.textContent = canceladosBase[b];
+        tr.appendChild(tdCanc);
+
         tbody.appendChild(tr);
     });
 
@@ -503,6 +529,9 @@ function renderPivot(rows) {
     const tdGranTotal = document.createElement('td');
     tdGranTotal.textContent = granTotal;
     trFoot.appendChild(tdGranTotal);
+    const tdGranCanc = document.createElement('td');
+    tdGranCanc.textContent = bases.reduce((sum, b) => sum + canceladosBase[b], 0);
+    trFoot.appendChild(tdGranCanc);
     tfoot.appendChild(trFoot);
 }
 
@@ -522,7 +551,10 @@ function renderDashboard() {
 filterInputs.fechaInicio.addEventListener('change', renderDashboard);
 filterInputs.fechaFin.addEventListener('change', renderDashboard);
 filterInputs.base.addEventListener('change', renderDashboard);
-filterInputs.aerolinea.addEventListener('change', renderDashboard);
+filterInputs.aerolinea.addEventListener('change', () => {
+    filtrarCodigosPorAerolineas(getAerolineasSeleccionadas());
+    renderDashboard();
+});
 document.getElementById('filter_codigo_demora').addEventListener('change', renderDashboard);
 
 document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
@@ -531,6 +563,7 @@ document.getElementById('btn_limpiar_filtros').addEventListener('click', () => {
     filterInputs.base.value = '';
     limpiarAerolineas();
     limpiarCodigosDemora();
+    filtrarCodigosPorAerolineas([]);
     renderDashboard();
 });
 

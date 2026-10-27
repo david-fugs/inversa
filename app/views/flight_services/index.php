@@ -106,7 +106,7 @@ window.addEventListener('load', function () {
     const esSupervisorRampa = <?= json_encode($esSupervisorRampa) ?>;
     const puedeEditar       = <?= json_encode($puedeEditar) ?>;
     const servicioEditable  = <?= json_encode(Session::get('user_puede_editar_servicio_id')) ?>;
-    const puedeEditarFila   = (id) => !esVisualizador && !esSupervisorRampa && (!esColaborador || (puedeEditar && (servicioEditable === null || Number(servicioEditable) === Number(id))));
+    const puedeEditarFila   = (id) => !esVisualizador && !esSupervisorRampa && (!esColaborador || (puedeEditar && (servicioEditable === null || [].concat(servicioEditable).some(v => Number(v) === Number(id)))));
     const puedeEliminarFila = !esVisualizador && !esColaborador && !esSupervisorRampa;
     const meses = <?= json_encode(FlightService::$meses, JSON_UNESCAPED_UNICODE) ?>;
 

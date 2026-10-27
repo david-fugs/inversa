@@ -66,7 +66,7 @@ class Facturacion extends Model
         $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $rows = $this->db->fetchAll(
-            "SELECT fs.id, fs.anio, fs.mes, fs.dia, fs.pax_saliendo, fs.cumple_tiempo, fs.tiempo_transito, fs.codigo_demora, fs.base, fs.tipo_atencion, fs.despacho, fs.pax_cancelado, fs.demora_llegando,
+            "SELECT fs.id, fs.anio, fs.mes, fs.dia, fs.pax_saliendo, fs.cumple_tiempo, fs.tiempo_transito, fs.codigo_demora, fs.base, fs.tipo_atencion, fs.despacho, fs.pax_cancelado, fs.demora_llegando, fs.vuelo_llegando, fs.vuelo_saliendo, fs.observacion_demora,
                     fs.fracciones_adc_gpu, fs.acu, fs.fracciones_hora_acu, fs.fracciones_15min_acu,
                     fs.ventiladores_activo, fs.ventiladores, fs.sillas_ruedas, fs.rampa_escalera,
                     fs.remolque_aeronave, fs.remolque_equipajes, fs.potable, fs.drenaje,
@@ -234,7 +234,7 @@ class Facturacion extends Model
         $sumTransito = 0; $conTransito = 0;
         $conDemora = 0; $sumDemora = 0;
         $porBase = []; $porTipo = [];
-        $demorasCodigo = []; $demorasBase = [];
+        $demorasCodigo = []; $demorasBase = []; $demorasDetalle = [];
 
         foreach ($servicios as $s) {
             $base = $s['base'] ?: '—';
@@ -258,8 +258,16 @@ class Facturacion extends Model
                 $conDemora++;
                 $sumDemora += (int)$s['demora_llegando'];
                 $demorasBase[$base] = ($demorasBase[$base] ?? 0) + 1;
+                $detalle = [
+                    'id'       => (int)$s['id'],
+                    'vuelo'    => (string)($s['vuelo_llegando'] ?? ''),
+                    'saliendo' => (string)($s['vuelo_saliendo'] ?? ''),
+                    'codigo'   => $codigo,
+                    'obs'      => (string)($s['observacion_demora'] ?? ''),
+                ];
                 foreach (self::separarCodigosDemora($codigo) ?: ['Sin código'] as $c) {
                     $demorasCodigo[$c] = ($demorasCodigo[$c] ?? 0) + 1;
+                    $demorasDetalle[$c][] = $detalle;
                 }
             }
         }
@@ -277,6 +285,7 @@ class Facturacion extends Model
             'por_tipo'        => $porTipo,
             'demoras_codigo'  => $demorasCodigo,
             'demoras_base'    => $demorasBase,
+            'demoras_detalle' => $demorasDetalle,
         ];
     }
 

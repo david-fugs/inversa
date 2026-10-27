@@ -116,10 +116,10 @@ class User extends Model {
     /**
      * Conceder permiso de edición, opcionalmente limitado a un servicio de vuelo
      */
-    public function concederPermisoEdicion(int $id, ?int $servicioId): void {
+    public function concederPermisoEdicion(int $id, ?string $servicioIds): void {
         $this->db->query(
             "UPDATE users SET puede_editar = 1, puede_editar_servicio_id = ? WHERE id = ?",
-            [$servicioId, $id]
+            [$servicioIds, $id]
         );
     }
 

@@ -52,7 +52,7 @@
                             <td class="text-center">
                                 <?php if ($u['rol_nombre'] === 'Colaborador'): ?>
                                     <?php if ($u['puede_editar']): ?>
-                                        <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> Sí<?= !empty($u['puede_editar_servicio_id']) ? ' (vuelo #' . (int)$u['puede_editar_servicio_id'] . ')' : '' ?></span>
+                                        <span class="cumple-si"><i class="bi bi-check-circle-fill"></i> Sí<?= !empty($u['puede_editar_servicio_id']) ? ' (vuelo #' . htmlspecialchars(str_replace(',', ', #', (string)$u['puede_editar_servicio_id'])) . ')' : '' ?></span>
                                     <?php else: ?>
                                         <span class="cumple-no"><i class="bi bi-x-circle-fill"></i> No</span>
                                     <?php endif; ?>
@@ -106,9 +106,9 @@
             </div>
             <div class="modal-body">
                 <p class="mb-3">Usuario: <strong id="permisoEdicionNombre"></strong></p>
-                <label for="permisoServicioId" class="form-label">ID del vuelo (opcional)</label>
-                <input type="number" min="1" class="form-control" name="servicio_id" id="permisoServicioId" placeholder="Vacío = puede editar todos los vuelos">
-                <div class="form-text">Si indica un ID, el usuario solo podrá editar ese servicio en Servicios de Vuelo.</div>
+                <label for="permisoServicioId" class="form-label">ID(s) del vuelo (opcional, máximo 4)</label>
+                <input type="text" class="form-control" name="servicio_id" id="permisoServicioId" placeholder="Ej: 1,2,3,4 (vacío = puede editar todos los vuelos)" pattern="\s*\d+(\s*,\s*\d+){0,3}\s*,?\s*" title="Hasta 4 IDs numéricos separados por comas">
+                <div class="form-text">Si indica IDs separados por comas, el usuario solo podrá editar esos servicios en Servicios de Vuelo.</div>
             </div>
             <div class="modal-footer">
                 <button type="submit" name="accion" value="quitar" class="btn btn-outline-danger me-auto" id="btnQuitarPermiso">Quitar permiso</button>

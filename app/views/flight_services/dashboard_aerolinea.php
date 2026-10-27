@@ -309,7 +309,7 @@ window.addEventListener('load', function () {
         renderStackedBarMapa(mapa(datos.por_tipo), k.vuelos);
         renderMeterValores(k.cumple_si, k.cumple_total);
         renderBarList('chart_demoras', 'empty_demoras', mapa(datos.demoras_codigo),
-            { maxItems: 10, expandable: true, descripciones: window.DESCRIPCIONES_DEMORA });
+            { maxItems: 10, expandable: true, descripciones: window.DESCRIPCIONES_DEMORA, detalle: c => (datos.demoras_detalle || {})[c] });
         renderBarList('chart_demoras_base', 'empty_demoras_base', mapa(datos.demoras_base));
     }
 

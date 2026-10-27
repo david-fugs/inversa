@@ -31,7 +31,8 @@
 }
 /* Con descripción de código de demora al lado del código */
 .bar-row.has-desc { grid-template-columns: minmax(150px, 45%) 1fr 40px; }
-.bar-row.has-desc .bar-name { white-space: normal; line-height: 1.25; }
+.bar-row.clickable { cursor: pointer; border-radius: 4px; }
+.bar-row.clickable:hover { background: var(--grid); }
 .bar-row .bar-name .bar-code { color: var(--ink-primary); font-weight: 700; }
 .bar-row .bar-name .bar-desc { font-weight: 400; color: var(--ink-secondary); }
 .bar-track { background: var(--grid); border-radius: 4px; height: 20px; position: relative; }
@@ -145,10 +146,53 @@ function seqStep(ratio) {
  * relevante, p.ej. códigos de demora individuales).
  * Con descripciones (código => texto) cada etiqueta muestra al lado
  * la descripción del código. */
+/* Modal con vuelo, código y observación de cada registro contado en un código de demora. */
+function mostrarDetalleDemora(codigo, desc, items) {
+    let modal = document.getElementById('modal_detalle_demora');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal_detalle_demora';
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.innerHTML = '<div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">'
+            + '<div class="modal-header"><h5 class="modal-title"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>'
+            + '<div class="modal-body"></div></div></div>';
+        document.body.appendChild(modal);
+    }
+    modal.querySelector('.modal-title').textContent = 'Código ' + codigo + (desc ? ' - ' + desc : '') + ' (' + items.length + ')';
+    const body = modal.querySelector('.modal-body');
+    body.textContent = '';
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
+    table.innerHTML = '<thead><tr><th>#</th><th>Vuelo</th><th>Código demora</th><th>Observación</th></tr></thead>';
+    const tb = document.createElement('tbody');
+    items.forEach(it => {
+        const tr = document.createElement('tr');
+        const tdId = document.createElement('td');
+        tdId.textContent = it.id;
+        const td1 = document.createElement('td');
+        const a = document.createElement('a');
+        a.href = BASE_URL + '/flight-services/view/' + it.id;
+        a.target = '_blank';
+        a.textContent = it.vuelo || it.saliendo || ('#' + it.id);
+        td1.appendChild(a);
+        const td2 = document.createElement('td');
+        td2.textContent = it.codigo;
+        const td3 = document.createElement('td');
+        td3.textContent = it.obs || 'Sin observación';
+        if (!it.obs) td3.className = 'text-muted';
+        tr.append(tdId, td1, td2, td3);
+        tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    body.appendChild(table);
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
 function renderBarList(containerId, emptyId, mapa, opts) {
     if (typeof opts === 'number') opts = { maxItems: opts };
     opts = opts || {};
-    const { maxItems, expandable, descripciones } = opts;
+    const { maxItems, expandable, descripciones, detalle } = opts;
 
     const container = document.getElementById(containerId);
     const emptyEl = document.getElementById(emptyId);
@@ -178,7 +222,12 @@ function renderBarList(containerId, emptyId, mapa, opts) {
     function buildRow(label, value) {
         const desc = descripciones ? descripciones[label] : '';
         const row = document.createElement('div');
-        row.className = 'bar-row' + (desc ? ' has-desc' : '');
+        row.className = 'bar-row' + (descripciones ? ' has-desc' : '');
+        const items = detalle ? detalle(label) : null;
+        if (items && items.length) {
+            row.classList.add('clickable');
+            row.addEventListener('click', () => mostrarDetalleDemora(label, desc, items));
+        }
 
         const nameEl = document.createElement('span');
         nameEl.className = 'bar-name';
@@ -239,10 +288,10 @@ function renderBarList(containerId, emptyId, mapa, opts) {
 /* ── Render: barra apilada (categórica, parte-todo) ───── */
 const COLORES_TIPO = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
 
-function renderStackedBarMapa(mapa, total) {
-    const container = document.getElementById('chart_tipo');
-    const legend = document.getElementById('legend_tipo');
-    const emptyEl = document.getElementById('empty_tipo');
+function renderStackedBarMapa(mapa, total, ids = ['chart_tipo', 'legend_tipo', 'empty_tipo']) {
+    const container = document.getElementById(ids[0]);
+    const legend = document.getElementById(ids[1]);
+    const emptyEl = document.getElementById(ids[2]);
     container.textContent = '';
     legend.textContent = '';
 

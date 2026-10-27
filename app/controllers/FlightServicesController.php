@@ -44,6 +44,19 @@ class FlightServicesController extends Controller {
         $this->baseModel     = new Base();
         $this->baseDestinoModel = new BaseDestino();
         $this->codigoDemoraModel = new CodigoDemora();
+        $this->refrescarPermisosEdicion();
+    }
+
+    /** Relee de la BD el permiso de edición del usuario en sesión, para que un
+     *  cambio hecho desde /users aplique sin cerrar sesión. */
+    private function refrescarPermisosEdicion(): void {
+        $uid = Session::get('user_id');
+        if (!$uid) return;
+        $u = (new User())->findById((int)$uid);
+        if (!$u) return;
+        $ids = trim((string)($u['puede_editar_servicio_id'] ?? ''));
+        Session::set('user_puede_editar', (int)($u['puede_editar'] ?? 0));
+        Session::set('user_puede_editar_servicio_id', $ids !== '' ? array_map('intval', explode(',', $ids)) : null);
     }
 
     /** Listado principal. Los registros se cargan por AJAX (ver método
@@ -201,6 +214,10 @@ class FlightServicesController extends Controller {
                 'pax_cancelado'   => $cuentaVuelo ? (int)$s['pax_cancelado'] : 0,
                 'demora_llegando' => $s['demora_llegando'] !== null ? (int)$s['demora_llegando'] : null,
                 'codigo_demora'   => $s['codigo_demora'] ?: null,
+                'id'              => (int)$s['id'],
+                'vuelo'           => $s['codigo_demora'] ? (string)($s['vuelo_llegando'] ?? '') : '',
+                'saliendo'        => $s['codigo_demora'] ? (string)($s['vuelo_saliendo'] ?? '') : '',
+                'obs'             => $s['codigo_demora'] ? (string)($s['observacion_demora'] ?? '') : '',
                 'cuenta_vuelo'    => $cuentaVuelo,
             ];
         }
@@ -221,7 +238,23 @@ class FlightServicesController extends Controller {
         natcasesort($codigosDemoraUniques);
         $codigosDemoraUniques = array_values($codigosDemoraUniques);
 
+        // Código => aerolíneas a las que pertenece (catálogo + servicios), para filtrar el select.
+        $codigosPorAerolinea = [];
+        foreach ($this->codigoDemoraModel->getAll() as $cd) {
+            if (empty($cd['airline_nombre'])) continue;
+            $codigosPorAerolinea[strtoupper(trim($cd['codigo']))][$cd['airline_nombre']] = true;
+        }
+        foreach ($services as $s) {
+            foreach (self::separarCodigosDemora((string)($s['codigo_demora'] ?? '')) as $cod) {
+                $codigosPorAerolinea[$cod][$s['airline_nombre']] = true;
+            }
+        }
+        foreach ($codigosPorAerolinea as $cod => $aeros) {
+            $codigosPorAerolinea[$cod] = array_keys($aeros);
+        }
+
         $this->view('flight_services/dashboard', [
+            'codigosDemoraPorAerolinea' => $codigosPorAerolinea,
             'pageTitle'         => 'Panel Analítico',
             'breadcrumbs'       => ['Servicios de Vuelo' => BASE_URL . '/flight-services', 'Panel Analítico' => null],
             'codigosDemoraDesc' => $this->descripcionesCodigosDemora(),
@@ -295,10 +328,13 @@ class FlightServicesController extends Controller {
         $facturacion = new Facturacion();
         $metricas = $facturacion->metricasPanel();
         $descripciones = $this->descripcionesCodigosDemora($cfg['nombre']);
-        $codigos = array_merge(
-            array_keys($descripciones),
-            $facturacion->getCodigosDemoraUsados($cfg['nombre'], $this->panelBaseScope())
-        );
+        // Solo los códigos del catálogo de esta aerolínea (igual que /codigo-demoras).
+        $codigos = [];
+        foreach ($this->codigoDemoraModel->getAll() as $cd) {
+            if (strtoupper(trim((string)$cd['airline_nombre'])) === strtoupper($cfg['nombre'])) {
+                $codigos[] = strtoupper(trim($cd['codigo']));
+            }
+        }
         $codigos = array_unique($codigos);
         natcasesort($codigos);
         $codigos = array_values($codigos);
@@ -452,7 +488,7 @@ class FlightServicesController extends Controller {
         if ($rol !== 'Colaborador') return true;
         if (!Session::get('user_puede_editar')) return false;
         $limite = Session::get('user_puede_editar_servicio_id');
-        return $limite === null || (int)$limite === $id;
+        return $limite === null || in_array($id, array_map('intval', (array)$limite), true);
     }
 
     /** Formulario editar */
@@ -1444,7 +1480,7 @@ XML;
      *  y Vuelos de la sección (cantidades como números reales). Misma forma
      *  que buildResumenSheetXml para que downloadExcel la use igual. */
     private function buildFacturacionResumenSheet(array $resumen, string $subtitulo): array {
-        $headers    = ['Aerolínea', 'Sección', 'Concepto', 'Cantidad', 'Vuelos de la sección'];
+        $headers    = ['Aerolínea', 'Sección', 'Concepto', 'Cantidad'];
         $totalCols  = count($headers);
         $mergeCells = ['A1:' . $this->excelColLetter($totalCols) . '1', 'A2:' . $this->excelColLetter($totalCols) . '2'];
         $text = fn(int $r, int $c, string $v, int $style) =>
@@ -1454,22 +1490,32 @@ XML;
         $xml .= '<row r="2" ht="22" customHeight="1">' . $text(2, 1, $subtitulo, self::XLSX_STYLE_SUBTITLE) . '</row>';
 
         $headerRow = 4;
+
+        // Título a la derecha de la tabla (fuera de los encabezados): una línea
+        // por aerolínea con su cantidad de vuelos, en las columnas G:J.
+        $lateral = [];
+        foreach ($resumen['airlines'] ?? [] as $k => $a) {
+            $fila = $headerRow + $k;
+            $lateral[$fila] = $text($fila, 7, 'Cantidad de vuelos de ' . $a['nombre'] . ': ' . (int)$a['vuelos'], self::XLSX_STYLE_DATA_HIGHLIGHT);
+            $mergeCells[] = 'G' . $fila . ':J' . $fila;
+        }
+
         $xml .= '<row r="' . $headerRow . '" ht="30" customHeight="1">';
         foreach ($headers as $i => $h) $xml .= $text($headerRow, $i + 1, $h, self::XLSX_STYLE_COL_HEADER);
-        $xml .= '</row>';
+        $xml .= ($lateral[$headerRow] ?? '') . '</row>';
 
         $rowNum = $headerRow + 1;
         $n = 0;
         foreach ($resumen['airlines'] ?? [] as $a) {
             foreach ($a['secciones'] as $sec) {
-                foreach ($sec['conceptos'] as $c) {
+                foreach ($sec['conceptos'] as $ci => $c) {
                     $style = $n++ % 2 === 0 ? self::XLSX_STYLE_DATA_EVEN : self::XLSX_STYLE_DATA_ODD;
                     $xml .= '<row r="' . $rowNum . '">'
                         . $text($rowNum, 1, (string)$a['nombre'], $style)
                         . $text($rowNum, 2, (string)$sec['titulo'], $style)
                         . $text($rowNum, 3, (string)$c['concepto'], $style)
                         . '<c r="D' . $rowNum . '" s="' . $style . '"><v>' . (float)$c['cantidad'] . '</v></c>'
-                        . '<c r="E' . $rowNum . '" s="' . $style . '"><v>' . (int)$sec['vuelos'] . '</v></c>'
+                        . ($lateral[$rowNum] ?? '')
                         . '</row>';
                     $rowNum++;
                 }
