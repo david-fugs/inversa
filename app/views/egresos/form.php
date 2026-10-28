@@ -3,6 +3,7 @@
 $tipos   = EgresoDocumento::TIPOS;
 $accion  = $doc ? BASE_URL . '/pagos/egresos/' . $doc['id'] . '/edit' : BASE_URL . '/pagos/egresos/nuevo';
 $sel     = array_map('intval', (array)($old['lote_ids'] ?? []));
+$selPagos = array_map('intval', (array)($old['pago_ids'] ?? []));
 ?>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/pagos/egresos" class="btn btn-light">
@@ -45,6 +46,18 @@ $sel     = array_map('intval', (array)($old['lote_ids'] ?? []));
                     <?php endforeach; ?>
                 </select>
                 <small class="text-muted">Opcional. Si no lo asocia a un lote, el documento aparecerá con una alerta en el listado.</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="pagos" class="form-label">Pagos</label>
+                <select class="form-select select2" id="pagos" name="pagos[]" multiple data-placeholder="Seleccione uno o varios pagos (opcional)" style="width:100%">
+                    <?php foreach ($pagos as $p): ?>
+                        <option value="<?= (int)$p['id'] ?>" <?= in_array((int)$p['id'], $selPagos, true) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($p['lote_consecutivo'] . ' · ' . $p['proveedor_nombre'] . ' · ' . $p['numero_producto'] . ' · $' . number_format((float)$p['valor'], 2)) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <small class="text-muted">Opcional. Un mismo documento puede cubrir varios pagos. El lote de cada pago se asocia automáticamente.</small>
             </div>
 
             <?php if ($doc && !empty($doc['archivos'])): ?>

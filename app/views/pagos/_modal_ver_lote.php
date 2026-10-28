@@ -25,6 +25,7 @@
             </div>
             <div class="modal-footer">
                 <a href="#" class="btn btn-outline-primary" id="vldPdf"><i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF Combinado</a>
+                <button type="button" class="btn btn-outline-primary" id="vldPagosEsp"><i class="bi bi-ui-checks"></i> Descargar con pagos específicos</button>
                 <a href="#" class="btn btn-outline-success" id="vldExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</a>
                 <a href="#" class="btn btn-success" id="vldCerrar" data-confirm="¿Cerrar este lote? Ya no podrá agregar más pagos."><i class="bi bi-lock-fill"></i> Cerrar Lote</a>
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
@@ -62,6 +63,9 @@
                 pdf.href = data.combinado;
                 pdf.dataset.combinar = data.comprobantes;
                 pdf.style.display = hayPagos ? '' : 'none';
+                var esp = document.getElementById('vldPagosEsp');
+                esp.dataset.pagosEspecificos = data.lote.id;
+                esp.style.display = hayPagos ? '' : 'none';
                 var excel = document.getElementById('vldExcel');
                 excel.href = data.exportar;
                 excel.style.display = hayPagos ? '' : 'none';
@@ -86,10 +90,13 @@
                         var a = document.createElement('a');
                         a.href = c.url;
                         a.target = '_blank';
-                        a.className = 'btn btn-icon btn-outline-primary btn-sm';
                         a.title = 'Ver ' + c.nombre;
-                        a.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i>';
-                        tdc.appendChild(a);
+                        a.style.fontSize = '12px';
+                        a.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i> ';
+                        a.appendChild(document.createTextNode(c.nombre));
+                        var d = document.createElement('div');
+                        d.appendChild(a);
+                        tdc.appendChild(d);
                     });
                     tr.appendChild(tdc);
                     body.appendChild(tr);

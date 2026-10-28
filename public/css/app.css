@@ -819,10 +819,15 @@ a:hover { color: var(--color-primary-dark); }
 #tableServices thead th { font-size: 11px; letter-spacing: 0; padding-right: 20px; }
 #tableServices .badge { font-size: 11px; padding: 3px 7px; }
 #tableServices .btn-icon { width: 28px; height: 28px; padding: 0; }
+#tableServices th:nth-child(11), #tableServices td:nth-child(11) { width: 1%; white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+#tableServices th:nth-child(11) { font-size: 10px; padding-right: 14px; }
+@media (max-width: 1300px) {
+  /* Oculta Tránsito (9) para dejar espacio a Cumple, Archivo y Acciones */
+  #tableServices th:nth-child(9), #tableServices td:nth-child(9) { display: none; }
+}
 @media (max-width: 1900px) {
-  /* Oculta Tipo Avión (7) y Archivo (11) */
-  #tableServices th:nth-child(7), #tableServices td:nth-child(7),
-  #tableServices th:nth-child(11), #tableServices td:nth-child(11) { display: none; }
+  /* Oculta Tipo Avión (7); Archivo (11) siempre visible y angosto */
+  #tableServices th:nth-child(7), #tableServices td:nth-child(7) { display: none; }
 }
 @media (max-width: 1500px) {
   /* Oculta Matrícula (6) y Tipo Atención (8) */

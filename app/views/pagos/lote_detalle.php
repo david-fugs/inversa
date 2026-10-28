@@ -167,9 +167,12 @@
                     <small class="text-muted"><?= date('d/m/Y', strtotime($d['fecha'])) ?></small>
                     <?php foreach ($d['archivos'] as $a): ?>
                         <a href="<?= BASE_URL ?>/pagos/egresos/archivos/<?= $a['id'] ?>/file" target="_blank"
-                           class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($a['archivo_original']) ?>">
-                            <i class="bi bi-file-earmark-pdf-fill"></i>
+                           class="btn btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($a['archivo_original']) ?>">
+                            <i class="bi bi-file-earmark-pdf-fill"></i> <?= htmlspecialchars($a['archivo_original']) ?>
                         </a>
+                    <?php endforeach; ?>
+                    <?php foreach ($d['pagos'] as $p): ?>
+                        <span class="badge bg-secondary"><?= htmlspecialchars($p['proveedor_nombre'] . ' · ' . $p['numero_producto']) ?></span>
                     <?php endforeach; ?>
                     <a href="<?= BASE_URL ?>/pagos/egresos/<?= $d['id'] ?>/edit" class="btn btn-icon btn-outline-secondary btn-sm" title="Editar documento">
                         <i class="bi bi-pencil-fill"></i>
@@ -192,4 +195,5 @@ endif; ?>
 
 <script>document.body.dataset.recargarDocs = '1';</script>
 <?php require __DIR__ . '/_modal_documentos_pdf.php'; ?>
+<?php require __DIR__ . '/_modal_pagos_especificos.php'; ?>
 <?php require __DIR__ . '/_modal_ver_lote.php'; ?>

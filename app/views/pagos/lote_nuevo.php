@@ -94,10 +94,11 @@
                                     </td>
                                     <td>
                                         <?php foreach ($p['comprobantes'] as $c): ?>
-                                            <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
-                                               class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
-                                                <i class="bi bi-file-earmark-pdf-fill"></i>
-                                            </a>
+                                            <div style="font-size:12px;">
+                                                <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> <?= htmlspecialchars($c['archivo_original']) ?>
+                                                </a>
+                                            </div>
                                         <?php endforeach; ?>
                                     </td>
                                     <td class="text-center">
@@ -128,10 +129,11 @@
                                     <td><span class="badge bg-success">Aprobado</span></td>
                                     <td>
                                         <?php foreach ($p['comprobantes'] as $c): ?>
-                                            <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank"
-                                               class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
-                                                <i class="bi bi-file-earmark-pdf-fill"></i>
-                                            </a>
+                                            <div style="font-size:12px;">
+                                                <a href="<?= BASE_URL ?>/pagos/comprobantes/<?= $c['id'] ?>/file" target="_blank" title="Ver <?= htmlspecialchars($c['archivo_original']) ?>">
+                                                    <i class="bi bi-file-earmark-pdf-fill"></i> <?= htmlspecialchars($c['archivo_original']) ?>
+                                                </a>
+                                            </div>
                                         <?php endforeach; ?>
                                     </td>
                                     <td class="text-center text-muted">Asignado</td>
@@ -228,6 +230,7 @@ include __DIR__ . '/_pago_form.php';
             </div>
             <div class="modal-footer">
                 <a href="#" class="btn btn-outline-primary" id="verLotePdf"><i class="bi bi-file-earmark-pdf-fill"></i> Descargar PDF Combinado</a>
+                <button type="button" class="btn btn-outline-primary" id="verLotePagosEsp"><i class="bi bi-ui-checks"></i> Descargar con pagos específicos</button>
                 <a href="#" class="btn btn-outline-success" id="verLoteExcel"><i class="bi bi-file-earmark-excel-fill"></i> Exportar a Excel</a>
                 <a href="#" class="btn btn-success" id="verLoteCerrar" data-confirm="¿Cerrar este lote? Ya no podrá agregar más pagos."><i class="bi bi-lock-fill"></i> Cerrar Lote</a>
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cerrar</button>
@@ -360,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('verLotePdf').href = data.combinado;
                 document.getElementById('verLotePdf').dataset.combinar = data.comprobantes;
                 document.getElementById('verLoteExcel').href = data.exportar;
+                document.getElementById('verLotePagosEsp').dataset.pagosEspecificos = data.lote.id;
+                document.getElementById('verLotePagosEsp').style.display = data.pagos.length ? '' : 'none';
                 var hayPagos = data.pagos.length > 0;
                 var cerrar = document.getElementById('verLoteCerrar');
                 cerrar.href = BASE_URL + '/pagos/lotes/' + data.lote.id + '/cerrar?volver=nuevo';
@@ -383,10 +388,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         var a = document.createElement('a');
                         a.href = c.url;
                         a.target = '_blank';
-                        a.className = 'btn btn-icon btn-outline-primary btn-sm';
                         a.title = 'Ver ' + c.nombre;
-                        a.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i>';
-                        tdc.appendChild(a);
+                        a.style.fontSize = '12px';
+                        a.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i> ';
+                        a.appendChild(document.createTextNode(c.nombre));
+                        var d = document.createElement('div');
+                        d.appendChild(a);
+                        tdc.appendChild(d);
                     });
                     tr.appendChild(tdc);
                     var tda = document.createElement('td');
@@ -452,3 +460,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <?php require __DIR__ . '/_modal_documentos_pdf.php'; ?>
+<?php require __DIR__ . '/_modal_pagos_especificos.php'; ?>

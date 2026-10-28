@@ -12,7 +12,7 @@ class EgresoDocumento extends Model {
         'legalizacion_anticipo' => 'Legalización de anticipo',
     ];
 
-    public function create(string $tipo, string $fecha, int $userId, array $loteIds): int {
+    public function create(string $tipo, string $fecha, int $userId, array $loteIds, array $pagoIds = []): int {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
         try {
@@ -22,6 +22,7 @@ class EgresoDocumento extends Model {
             );
             $id = (int)$this->db->lastInsertId();
             $this->setLotes($id, $loteIds);
+            $this->setPagos($id, $pagoIds);
             $pdo->commit();
             return $id;
         } catch (Throwable $e) {
@@ -30,12 +31,13 @@ class EgresoDocumento extends Model {
         }
     }
 
-    public function updateBasico(int $id, string $tipo, string $fecha, array $loteIds): void {
+    public function updateBasico(int $id, string $tipo, string $fecha, array $loteIds, array $pagoIds = []): void {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
         try {
             $this->db->query("UPDATE egresos_documentos SET tipo = ?, fecha = ? WHERE id = ?", [$tipo, $fecha, $id]);
             $this->setLotes($id, $loteIds);
+            $this->setPagos($id, $pagoIds);
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -49,6 +51,46 @@ class EgresoDocumento extends Model {
         foreach (array_unique(array_filter(array_map('intval', $loteIds))) as $loteId) {
             $this->db->query("INSERT INTO egresos_lotes (documento_id, lote_pago_id) VALUES (?, ?)", [$id, $loteId]);
         }
+    }
+
+    /** Reemplaza el conjunto de pagos asociados; el lote de cada pago también queda asociado. */
+    private function setPagos(int $id, array $pagoIds): void {
+        $this->db->query("DELETE FROM egresos_pagos WHERE documento_id = ?", [$id]);
+        $pagoIds = array_values(array_unique(array_filter(array_map('intval', $pagoIds))));
+        if (!$pagoIds) return;
+        $ph = implode(',', array_fill(0, count($pagoIds), '?'));
+        foreach ($this->db->fetchAll(
+            "SELECT id, lote_pago_id FROM pagos WHERE id IN ($ph) AND lote_pago_id IS NOT NULL",
+            $pagoIds
+        ) as $p) {
+            $this->db->query("INSERT INTO egresos_pagos (documento_id, pago_id) VALUES (?, ?)", [$id, (int)$p['id']]);
+            $this->db->query("INSERT IGNORE INTO egresos_lotes (documento_id, lote_pago_id) VALUES (?, ?)", [$id, (int)$p['lote_pago_id']]);
+        }
+    }
+
+    /** Pagos con lote, para el selector del formulario. */
+    public function pagosAsociables(): array {
+        return $this->db->fetchAll(
+            "SELECT pg.id, pg.numero_producto, pg.valor, l.consecutivo AS lote_consecutivo, pv.nombre AS proveedor_nombre
+             FROM pagos pg
+             JOIN lotes_pago l ON l.id = pg.lote_pago_id
+             JOIN proveedores pv ON pv.id = pg.proveedor_id
+             ORDER BY l.consecutivo DESC, pg.orden ASC"
+        );
+    }
+
+    /** Archivos de los documentos asociados a alguno de los pagos dados (sin repetir, en orden de documento). */
+    public function getArchivosPorPagos(array $pagoIds): array {
+        $pagoIds = array_values(array_unique(array_filter(array_map('intval', $pagoIds))));
+        if (!$pagoIds) return [];
+        $ph = implode(',', array_fill(0, count($pagoIds), '?'));
+        return $this->db->fetchAll(
+            "SELECT a.* FROM egresos_archivos a
+             JOIN egresos_documentos d ON d.id = a.documento_id
+             WHERE a.documento_id IN (SELECT documento_id FROM egresos_pagos WHERE pago_id IN ($ph))
+             ORDER BY d.fecha ASC, d.id ASC, a.orden ASC, a.id ASC",
+            $pagoIds
+        );
     }
 
     public function addArchivo(int $docId, string $archivo, string $original, int $orden): int {
@@ -118,7 +160,7 @@ class EgresoDocumento extends Model {
         return $this->adjuntar($docs);
     }
 
-    /** Agrega a cada documento 'lotes' (id, consecutivo) y 'archivos'. */
+    /** Agrega a cada documento 'lotes' (id, consecutivo), 'pagos' y 'archivos'. */
     private function adjuntar(array $docs): array {
         if (!$docs) return [];
         $ids = array_column($docs, 'id');
@@ -139,7 +181,20 @@ class EgresoDocumento extends Model {
         ) as $r) {
             $archivos[$r['documento_id']][] = $r;
         }
+        $pagos = [];
+        foreach ($this->db->fetchAll(
+            "SELECT ep.documento_id, pg.id, pg.numero_producto, pg.valor, pv.nombre AS proveedor_nombre, l.consecutivo AS lote_consecutivo
+             FROM egresos_pagos ep
+             JOIN pagos pg ON pg.id = ep.pago_id
+             JOIN proveedores pv ON pv.id = pg.proveedor_id
+             LEFT JOIN lotes_pago l ON l.id = pg.lote_pago_id
+             WHERE ep.documento_id IN ($ph) ORDER BY pg.id",
+            $ids
+        ) as $r) {
+            $pagos[$r['documento_id']][] = $r;
+        }
         foreach ($docs as &$d) {
+            $d['pagos']    = $pagos[$d['id']] ?? [];
             $d['lotes']    = $lotes[$d['id']] ?? [];
             $d['archivos'] = $archivos[$d['id']] ?? [];
         }

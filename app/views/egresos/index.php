@@ -32,13 +32,13 @@ $tipos = EgresoDocumento::TIPOS;
             <table class="table" style="width:100%">
                 <thead>
                     <tr>
-                        <th>#</th><th>Tipo</th><th>Fecha</th><th>Lotes</th><th>Archivos</th>
+                        <th>#</th><th>Tipo</th><th>Fecha</th><th>Lotes</th><th>Pagos</th><th>Archivos</th>
                         <th>Registrado por</th><th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($documentos)): ?>
-                        <tr><td colspan="7" class="text-center text-muted">Aún no hay documentos registrados.</td></tr>
+                        <tr><td colspan="8" class="text-center text-muted">Aún no hay documentos registrados.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($documentos as $d): ?>
                         <tr>
@@ -62,12 +62,23 @@ $tipos = EgresoDocumento::TIPOS;
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </td>
+                            <td style="max-width:240px;">
+                                <?php if (empty($d['pagos'])): ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                                <?php foreach ($d['pagos'] as $p): ?>
+                                    <span class="badge bg-secondary" title="Lote <?= htmlspecialchars((string)$p['lote_consecutivo']) ?> · $<?= number_format((float)$p['valor'], 2) ?>">
+                                        <?= htmlspecialchars($p['proveedor_nombre'] . ' · ' . $p['numero_producto']) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </td>
                             <td>
                                 <?php foreach ($d['archivos'] as $a): ?>
-                                    <a href="<?= BASE_URL ?>/pagos/egresos/archivos/<?= $a['id'] ?>/file" target="_blank"
-                                       class="btn btn-icon btn-outline-primary btn-sm" title="Ver <?= htmlspecialchars($a['archivo_original']) ?>">
-                                        <i class="bi bi-file-earmark-pdf-fill"></i>
-                                    </a>
+                                    <div>
+                                        <a href="<?= BASE_URL ?>/pagos/egresos/archivos/<?= $a['id'] ?>/file" target="_blank" title="Ver <?= htmlspecialchars($a['archivo_original']) ?>">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i> <?= htmlspecialchars($a['archivo_original']) ?>
+                                        </a>
+                                    </div>
                                 <?php endforeach; ?>
                             </td>
                             <td><?= htmlspecialchars($d['registrado_por']) ?></td>

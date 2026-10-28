@@ -67,13 +67,26 @@
         file.type = 'file'; file.name = 'archivos[]'; file.multiple = true; file.accept = 'application/pdf,.pdf';
         c3.appendChild(file);
 
+        var c5 = el('div', 'col-12');
+        if (lote.pagos && lote.pagos.length) {
+            c5.appendChild(el('label', 'form-label small mb-1', 'Pagos que cubre (opcional)'));
+            lote.pagos.forEach(function (p) {
+                var lbl = el('label', 'd-block small');
+                var chk = el('input', 'form-check-input me-1');
+                chk.type = 'checkbox'; chk.name = 'pagos[]'; chk.value = p.id;
+                lbl.appendChild(chk);
+                lbl.appendChild(document.createTextNode(p.label));
+                c5.appendChild(lbl);
+            });
+        }
+
         var c4 = el('div', 'col-12 d-flex align-items-center gap-2');
         var btn = el('button', 'btn btn-sm btn-outline-primary', 'Subir documento');
         btn.type = 'submit';
         var msg = el('small', 'text-danger');
         c4.appendChild(btn); c4.appendChild(msg);
 
-        [c1, c2, c3, c4].forEach(function (c) { form.appendChild(c); });
+        [c1, c2, c3, c5, c4].forEach(function (c) { form.appendChild(c); });
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -202,10 +215,15 @@
                 fila.appendChild(el('span', 'badge bg-primary', d.tipo_label));
                 fila.appendChild(el('small', 'text-muted', d.fecha));
                 d.archivos.forEach(function (a) {
-                    var link = el('a', 'btn btn-icon btn-outline-primary btn-sm');
+                    var link = el('a', 'btn btn-outline-primary btn-sm');
                     link.href = a.url; link.target = '_blank'; link.title = 'Ver ' + a.nombre;
-                    link.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i>';
+                    link.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i> ';
+                    link.appendChild(document.createTextNode(a.nombre));
                     fila.appendChild(link);
+                });
+                (d.pagos || []).forEach(function (id) {
+                    var p = (lote.pagos || []).filter(function (x) { return x.id === id; })[0];
+                    if (p) fila.appendChild(el('span', 'badge bg-secondary', p.label));
                 });
                 card.appendChild(fila);
             });

@@ -809,7 +809,9 @@ class PagosController extends Controller {
         if (!$lote) {
             $this->json(['ok' => false, 'error' => 'Lote no encontrado.'], 404);
         }
-        $this->json($this->comprobantesJson([$lote], 'lote_' . $lote['consecutivo']));
+        // ?pagos=1,2,3 → solo esos pagos (y los egresos/legalizaciones asociados a ellos).
+        $pagoIds = isset($_GET['pagos']) ? array_values(array_filter(array_map('intval', explode(',', (string)$_GET['pagos'])))) : null;
+        $this->json($this->comprobantesJson([$lote], 'lote_' . $lote['consecutivo'] . ($pagoIds !== null ? '_pagos' : ''), $pagoIds));
     }
 
     public function comprobantesNuevo(): void {
@@ -879,10 +881,11 @@ class PagosController extends Controller {
         $this->json(['ok' => true]);
     }
 
-    private function comprobantesJson(array $lotes, string $nombreBase): array {
+    private function comprobantesJson(array $lotes, string $nombreBase, ?array $pagoIds = null): array {
         $items = [];
+        $egresos = $pagoIds === null ? $this->archivosEgresosDeLotes($lotes) : $this->egresoModel->getArchivosPorPagos($pagoIds);
         // Egresos / legalizaciones primero, luego los comprobantes de cada pago.
-        foreach ($this->archivosEgresosDeLotes($lotes) as $a) {
+        foreach ($egresos as $a) {
             $items[] = [
                 'url'    => BASE_URL . '/pagos/egresos/archivos/' . $a['id'] . '/file',
                 'nombre' => $a['archivo_original'],
@@ -890,6 +893,7 @@ class PagosController extends Controller {
         }
         foreach ($lotes as $lote) {
             foreach ($this->comprobantesOrdenados((int)$lote['id']) as $c) {
+                if ($pagoIds !== null && !in_array((int)$c['pago_id'], $pagoIds, true)) continue;
                 $items[] = [
                     'url'    => BASE_URL . '/pagos/comprobantes/' . $c['id'] . '/file',
                     'nombre' => $c['archivo_original'],

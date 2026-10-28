@@ -48,7 +48,7 @@ class EgresosController extends Controller {
     // ───────────────────────────── Crear / editar ──────────────────────
 
     public function createForm(): void {
-        $this->renderForm(null, [], ['tipo' => '', 'fecha' => date('Y-m-d'), 'lote_ids' => []]);
+        $this->renderForm(null, [], ['tipo' => '', 'fecha' => date('Y-m-d'), 'lote_ids' => [], 'pago_ids' => []]);
     }
 
     public function store(): void {
@@ -66,7 +66,7 @@ class EgresosController extends Controller {
             return;
         }
 
-        $docId = $this->docModel->create($data['tipo'], $data['fecha'], (int)Session::get('user_id'), $data['lote_ids']);
+        $docId = $this->docModel->create($data['tipo'], $data['fecha'], (int)Session::get('user_id'), $data['lote_ids'], $data['pago_ids']);
         if (!$this->guardarArchivos($docId, $archivos)) {
             $this->redirectWith('pagos/egresos', 'error', 'El documento se creó pero algún archivo no se pudo guardar.');
             return;
@@ -84,6 +84,7 @@ class EgresosController extends Controller {
             'tipo'     => $doc['tipo'],
             'fecha'    => $doc['fecha'],
             'lote_ids' => array_column($doc['lotes'], 'id'),
+            'pago_ids' => array_column($doc['pagos'], 'id'),
         ]);
     }
 
@@ -104,7 +105,7 @@ class EgresosController extends Controller {
             return;
         }
 
-        $this->docModel->updateBasico($doc['id'], $data['tipo'], $data['fecha'], $data['lote_ids']);
+        $this->docModel->updateBasico($doc['id'], $data['tipo'], $data['fecha'], $data['lote_ids'], $data['pago_ids']);
         if ($archivos && !$this->guardarArchivos((int)$doc['id'], $archivos)) {
             $this->redirectWith('pagos/egresos', 'error', 'Algún archivo no se pudo guardar.');
             return;
@@ -191,7 +192,11 @@ class EgresosController extends Controller {
             $this->json(['ok' => false, 'error' => reset($errores)], 422);
         }
 
-        $docId = $this->docModel->create($tipo, $fecha, (int)Session::get('user_id'), [(int)$lote['id']]);
+        // Solo se aceptan pagos que pertenezcan a este lote.
+        $pagosLote = array_map('intval', array_column((new Pago())->getByLote((int)$lote['id']), 'id'));
+        $pagoIds   = array_values(array_intersect(array_map('intval', (array)($_POST['pagos'] ?? [])), $pagosLote));
+
+        $docId = $this->docModel->create($tipo, $fecha, (int)Session::get('user_id'), [(int)$lote['id']], $pagoIds);
         if (!$this->guardarArchivos($docId, $archivos)) {
             $this->json(['ok' => false, 'error' => 'No se pudo guardar algún archivo.'], 500);
         }
@@ -200,6 +205,7 @@ class EgresosController extends Controller {
 
     private function documentosJson(array $lotes): array {
         $salida = [];
+        $pagoModel = new Pago();
         foreach ($lotes as $lote) {
             $docs = [];
             foreach ($this->docModel->getByLote((int)$lote['id']) as $d) {
@@ -208,6 +214,7 @@ class EgresosController extends Controller {
                     'tipo'       => $d['tipo'],
                     'tipo_label' => EgresoDocumento::TIPOS[$d['tipo']] ?? $d['tipo'],
                     'fecha'      => date('d/m/Y', strtotime($d['fecha'])),
+                    'pagos'      => array_map('intval', array_column($d['pagos'], 'id')),
                     'archivos'   => array_map(fn($a) => [
                         'nombre' => $a['archivo_original'],
                         'url'    => BASE_URL . '/pagos/egresos/archivos/' . $a['id'] . '/file',
@@ -218,6 +225,10 @@ class EgresosController extends Controller {
                 'id'          => (int)$lote['id'],
                 'consecutivo' => $lote['consecutivo'],
                 'documentos'  => $docs,
+                'pagos'       => array_map(fn($p) => [
+                    'id'    => (int)$p['id'],
+                    'label' => $p['proveedor_nombre'] . ' · ' . $p['numero_producto'] . ' · $' . number_format((float)$p['valor'], 2),
+                ], $pagoModel->getByLote((int)$lote['id'])),
             ];
         }
         return [
@@ -235,6 +246,7 @@ class EgresosController extends Controller {
             'breadcrumbs' => ['Egresos / Legalizaciones' => BASE_URL . '/pagos/egresos', $doc ? 'Editar' : 'Nuevo' => null],
             'doc'         => $doc,
             'lotes'       => $this->loteModel->getAll(),
+            'pagos'       => $this->docModel->pagosAsociables(),
             'errors'      => $errors,
             'old'         => $old,
         ], 'pagos');
@@ -246,6 +258,7 @@ class EgresosController extends Controller {
             'tipo'     => (string)($_POST['tipo'] ?? ''),
             'fecha'    => (string)($_POST['fecha'] ?? ''),
             'lote_ids' => array_values(array_filter(array_map('intval', (array)$loteIds))),
+            'pago_ids' => array_values(array_filter(array_map('intval', (array)($_POST['pagos'] ?? [])))),
         ];
     }
 
