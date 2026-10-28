@@ -426,15 +426,25 @@ function renderPivot(rows) {
     document.getElementById('pivot_table').style.display = '';
     emptyEl.hidden = true;
 
-    // Top 6 aerolíneas por volumen, resto agrupado en "Otras"
-    const totalesAerolinea = contarPor(rows, 'aerolinea');
+    // Aerolíneas del catálogo: top 6 por volumen, el resto agrupado en "Resto".
+    // Los servicios con aerolínea "Otra (especificar)" van en su propia columna "Otra".
+    const COL_OTRA = 'Otra';
+    const filasOtra = rows.filter(r => r.aerolinea_otra);
+    const totalesAerolinea = contarPor(rows.filter(r => !r.aerolinea_otra), 'aerolinea');
     let aerolineas = Array.from(totalesAerolinea.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]);
-    let hayOtras = false;
+    let hayResto = false;
     if (aerolineas.length > 6) {
         aerolineas = aerolineas.slice(0, 6);
-        hayOtras = true;
+        hayResto = true;
     }
-    const columnas = hayOtras ? [...aerolineas, 'Otras'] : aerolineas;
+    const columnas = [...aerolineas];
+    if (hayResto) columnas.push('Resto');
+    if (filasOtra.length) columnas.push(COL_OTRA);
+
+    // Detalle de las aerolíneas escritas a mano, para el tooltip del encabezado "Otra"
+    const nombresOtra = {};
+    filasOtra.forEach(r => { if (cuentaVuelo(r)) nombresOtra[r.aerolinea] = (nombresOtra[r.aerolinea] || 0) + 1; });
+    const detalleOtra = Object.entries(nombresOtra).sort((a, b) => b[1] - a[1]).map(e => e[0] + ': ' + e[1]).join(' | ');
 
     const bases = Array.from(new Set(rows.map(r => r.base))).sort();
 
@@ -442,7 +452,7 @@ function renderPivot(rows) {
     const matriz = {};
     bases.forEach(b => { matriz[b] = {}; columnas.forEach(c => matriz[b][c] = 0); });
     rows.forEach(r => {
-        const col = columnas.includes(r.aerolinea) ? r.aerolinea : 'Otras';
+        const col = r.aerolinea_otra ? COL_OTRA : (columnas.includes(r.aerolinea) ? r.aerolinea : 'Resto');
         if (matriz[r.base] && matriz[r.base][col] !== undefined) matriz[r.base][col] += getValue(r);
     });
 
@@ -464,6 +474,7 @@ function renderPivot(rows) {
     columnas.forEach(c => {
         const th = document.createElement('th');
         th.textContent = c;
+        if (c === COL_OTRA && detalleOtra) th.title = 'Aerolíneas escritas a mano: ' + detalleOtra;
         trHead.appendChild(th);
     });
     const thTotal = document.createElement('th');

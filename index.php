@@ -169,6 +169,10 @@ $router->get('/pagos/egresos/nuevo',          'EgresosController', 'createForm')
 $router->post('/pagos/egresos/nuevo',         'EgresosController', 'store');
 $router->get('/pagos/egresos/archivos/{id}/file',   'EgresosController', 'archivo');
 $router->get('/pagos/egresos/archivos/{id}/delete', 'EgresosController', 'deleteArchivo');
+$router->get('/pagos/egresos/{id}/legalizaciones',  'EgresosController', 'legalizacionesEgreso');
+$router->post('/pagos/egresos/{id}/legalizaciones', 'EgresosController', 'guardarLegalizacionesEgreso');
+$router->post('/pagos/egresos/{id}/legalizaciones/subir', 'EgresosController', 'subirLegalizacionEgreso');
+$router->get('/pagos/egresos/{id}/comprobantes', 'EgresosController', 'comprobantesEgreso');
 $router->get('/pagos/egresos/{id}/edit',      'EgresosController', 'editForm');
 $router->post('/pagos/egresos/{id}/edit',     'EgresosController', 'update');
 $router->get('/pagos/egresos/{id}/delete',    'EgresosController', 'delete');

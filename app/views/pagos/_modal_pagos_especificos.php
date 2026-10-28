@@ -99,6 +99,7 @@
             var fila = el('div', 'd-flex flex-wrap align-items-center gap-2 mb-2');
             fila.appendChild(el('span', 'badge bg-primary', d.tipo_label));
             fila.appendChild(el('small', 'text-muted', d.fecha));
+            if (d.egreso_id) fila.appendChild(el('small', 'text-muted', '(egreso #' + d.egreso_id + ')'));
             d.archivos.forEach(function (a) {
                 var link = el('a', 'btn btn-outline-primary btn-sm');
                 link.href = a.url; link.target = '_blank';
@@ -141,13 +142,24 @@
         file.type = 'file'; file.name = 'archivos[]'; file.multiple = true; file.accept = 'application/pdf,.pdf';
         c3.appendChild(file);
 
+        var cE = el('div', 'col-12');
+        cE.style.display = 'none';
+        cE.appendChild(el('label', 'form-label small', 'Comprobante de egreso asociado'));
+        var selE = el('select', 'form-select form-select-sm');
+        selE.name = 'egreso_id';
+        var opE = el('option', '', '-- Seleccione --'); opE.value = ''; selE.appendChild(opE);
+        (lote.egresos || []).forEach(function (e) { var o = el('option', '', e.label); o.value = e.id; selE.appendChild(o); });
+        cE.appendChild(selE);
+        if (!(lote.egresos || []).length) cE.appendChild(el('small', 'text-danger d-block', 'Este lote no tiene comprobante de egreso: suba primero el comprobante de egreso.'));
+        tipo.addEventListener('change', function () { cE.style.display = tipo.value === 'legalizacion_anticipo' ? '' : 'none'; });
+
         var c4 = el('div', 'col-12 d-flex align-items-center gap-2');
         var btn = el('button', 'btn btn-sm btn-outline-primary', 'Subir documento');
         btn.type = 'submit';
         var msg = el('small', 'text-danger');
         c4.appendChild(btn); c4.appendChild(msg);
 
-        [c1, c2, c3, c4].forEach(function (c) { form.appendChild(c); });
+        [c1, c2, c3, cE, c4].forEach(function (c) { form.appendChild(c); });
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();

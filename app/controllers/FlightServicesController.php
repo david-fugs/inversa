@@ -207,6 +207,7 @@ class FlightServicesController extends Controller {
                 'dia'             => (int)$s['dia'],
                 'base'            => $s['base'],
                 'aerolinea'       => $s['airline_nombre'],
+                'aerolinea_otra'  => (string)$s['airline_id'] === 'otra',
                 'tipo_atencion'   => $s['tipo_atencion'],
                 'cumple_tiempo'   => $s['cumple_tiempo'] === null ? null : (bool)$s['cumple_tiempo'],
                 'tiempo_transito' => $s['tiempo_transito'] !== null ? (int)$s['tiempo_transito'] : null,
