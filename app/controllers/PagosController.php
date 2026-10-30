@@ -7,7 +7,7 @@
 
 class PagosController extends Controller {
 
-    private const ARCHIVO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+    private const ARCHIVO_MAX_BYTES = 6 * 1024 * 1024; // 6 MB
 
     /** Roles del flujo de revisión: el creador solo registra/edita sus pagos,
      *  el revisor los aprueba o rechaza; el resto (Admin/Operador Pagos) arma lotes. */
@@ -97,7 +97,7 @@ class PagosController extends Controller {
             return 'Error al subir el archivo "' . $file['name'] . '".';
         }
         if ($file['size'] > self::ARCHIVO_MAX_BYTES) {
-            return 'El archivo "' . $file['name'] . '" supera el tamaño máximo permitido (2 MB).';
+            return 'El archivo "' . $file['name'] . '" supera el tamaño máximo permitido (6 MB).';
         }
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $mime      = @finfo_file(finfo_open(FILEINFO_MIME_TYPE), $file['tmp_name']);

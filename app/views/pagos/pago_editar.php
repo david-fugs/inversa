@@ -127,7 +127,7 @@
                 <?php if (isset($errors['comprobante_pdf'])): ?>
                     <div class="invalid-feedback"><?= $errors['comprobante_pdf'] ?></div>
                 <?php endif; ?>
-                <small class="text-muted">Déjelo vacío para conservar los comprobantes actuales. Si sube archivos nuevos, reemplazan a todos los actuales. Puede seleccionar varios. Tamaño máximo 2 MB por archivo.</small>
+                <small class="text-muted">Déjelo vacío para conservar los comprobantes actuales. Si sube archivos nuevos, reemplazan a todos los actuales. Puede seleccionar varios. Tamaño máximo 6 MB por archivo.</small>
             </div>
 
             <hr class="divider">

@@ -112,7 +112,7 @@
                 <?php if (isset($errors['comprobante_pdf'])): ?>
                     <div class="invalid-feedback"><?= $errors['comprobante_pdf'] ?></div>
                 <?php endif; ?>
-                <small class="text-muted">Puede seleccionar varios archivos PDF. Tamaño máximo 2 MB por archivo.</small>
+                <small class="text-muted">Puede seleccionar varios archivos PDF. Tamaño máximo 6 MB por archivo.</small>
             </div>
 
             <hr class="divider">
