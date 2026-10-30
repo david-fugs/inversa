@@ -72,6 +72,7 @@ class Facturacion extends Model
                     fs.remolque_aeronave, fs.remolque_equipajes, fs.potable, fs.drenaje,
                     fs.air_starter, fs.pay_mower, fs.aseo_aeronaves, fs.equipos_carga_descargue,
                     fs.atencion_pasajeros, fs.equipajes_transportados,
+                    fs.anfitrion, fs.anfitrion_minutos,
                     COALESCE(a.nombre, fs.airline_custom_nombre) AS airline_nombre,
                     COALESCE(at.tipo, fs.aircraft_type_custom)   AS aircraft_tipo
              FROM flight_services fs
@@ -196,6 +197,7 @@ class Facturacion extends Model
             'gpu'          => ['Planta eléctrica GPU (fracciones)', fn($s) => $s['fracciones_gpu']],
             'acu'          => ['Aire ACU (fracciones)',           fn($s) => (float)$s['fracciones_15min_acu']],
             'remolque'     => ['Remolque avión',                  fn($s) => (int)$s['remolque_aeronave']],
+            'remolque_eq'  => ['Remolque de equipajes',           fn($s) => (int)$s['remolque_equipajes']],
             'drenaje'      => ['Drenaje',                         fn($s) => (int)$s['drenaje']],
             'potable'      => ['Agua potable',                    fn($s) => (int)$s['potable']],
         ];
@@ -360,9 +362,18 @@ class Facturacion extends Model
                 }
                 $salida[] = ['titulo' => $sec['titulo'], 'vuelos' => $vuelos, 'conceptos' => $conceptos];
             }
+            $vuelosAnf = 0; $minAnf = 0;
+            foreach ($rows as $s) {
+                if ((int)($s['anfitrion'] ?? 0) === 1) {
+                    $vuelosAnf++;
+                    $minAnf += (int)($s['anfitrion_minutos'] ?? 0);
+                }
+            }
             $airlines[] = [
                 'nombre'    => $nombre,
                 'vuelos'    => count($rows),
+                'anfitrion_vuelos'   => $vuelosAnf,
+                'anfitrion_minutos'  => $minAnf,
                 'secciones' => $salida,
             ];
         }

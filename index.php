@@ -118,6 +118,7 @@ $router->get('/flight-services/edit/{id}',    'FlightServicesController', 'editF
 $router->post('/flight-services/edit/{id}',   'FlightServicesController', 'update');
 $router->get('/flight-services/delete/{id}',  'FlightServicesController', 'delete');
 $router->post('/flight-services/upload-file/{id}', 'FlightServicesController', 'uploadFile');
+$router->post('/flight-services/anfitrion/{id}', 'FlightServicesController', 'saveAnfitrion');
 $router->get('/flight-services/delete-file/{id}',  'FlightServicesController', 'deleteFile');
 $router->get('/flight-services/file/{id}',         'FlightServicesController', 'downloadFile');
 

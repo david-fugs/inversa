@@ -669,6 +669,16 @@ class FlightService extends Model
         return $stmt->rowCount() > 0;
     }
 
+    /** Guardar el anfitrión del servicio (inicio/fin en 'Y-m-d H:i:s'; minutos ya calculados) */
+    public function setAnfitrion(int $id, bool $anfitrion, ?string $inicio, ?string $fin, ?int $minutos): bool
+    {
+        $this->db->query(
+            "UPDATE flight_services SET anfitrion = ?, anfitrion_inicio = ?, anfitrion_fin = ?, anfitrion_minutos = ? WHERE id = ?",
+            [$anfitrion ? 1 : 0, $anfitrion ? $inicio : null, $anfitrion ? $fin : null, $anfitrion ? $minutos : null, $id]
+        );
+        return true;
+    }
+
     /** Quitar el archivo PDF adjunto (deja las columnas en NULL) */
     public function clearArchivo(int $id): bool
     {

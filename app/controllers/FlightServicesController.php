@@ -308,7 +308,7 @@ class FlightServicesController extends Controller {
         'satena' => [
             'nombre' => 'SATENA', 'logo' => 'logo_satena.png', 'color' => '#2F5597',
             'tarjetas'  => ['vuelos', 'pax'],
-            'combinada' => ['gpu', 'remolque', 'drenaje', 'potable'],
+            'combinada' => ['gpu', 'remolque', 'remolque_eq', 'drenaje', 'potable'],
             'combinada_titulo' => 'Servicios por mes',
         ],
     ];
@@ -649,6 +649,45 @@ class FlightServicesController extends Controller {
         $this->model->setArchivo($serviceId, $storedName, $nombreOriginal !== '' ? $nombreOriginal : 'archivo.pdf');
 
         $this->redirectWith('flight-services/view/' . $serviceId, 'success', 'Archivo PDF subido correctamente.');
+    }
+
+    /** Guardar si el vuelo tuvo anfitrión y, de ser así, su fecha/hora de
+     *  inicio y fin (se calcula el total de minutos). Mismo permiso que el
+     *  archivo adjunto. */
+    public function saveAnfitrion(string $id): void {
+        $serviceId = (int)$id;
+        $volver    = 'flight-services/view/' . $serviceId;
+        if (!$this->puedeGestionarArchivo()) {
+            $this->redirectWith('flight-services', 'error', 'No tiene permiso para registrar el anfitrión.');
+            return;
+        }
+        if (!$this->model->findById($serviceId)) {
+            $this->redirectWith('flight-services', 'error', 'Servicio no encontrado.');
+            return;
+        }
+
+        $anfitrion = (string)$this->input('anfitrion', 'No') === 'Si';
+        $inicio = $fin = null;
+        $minutos = null;
+        if ($anfitrion) {
+            $fmt = 'Y-m-d\TH:i';
+            $ini = DateTime::createFromFormat($fmt, trim((string)$this->input('anfitrion_inicio', '')));
+            $end = DateTime::createFromFormat($fmt, trim((string)$this->input('anfitrion_fin', '')));
+            if (!$ini || !$end) {
+                $this->redirectWith($volver, 'error', 'Indique la fecha y hora de inicio y de fin del anfitrión.');
+                return;
+            }
+            if ($end <= $ini) {
+                $this->redirectWith($volver, 'error', 'La fecha fin del anfitrión debe ser posterior a la de inicio.');
+                return;
+            }
+            $inicio  = $ini->format('Y-m-d H:i:s');
+            $fin     = $end->format('Y-m-d H:i:s');
+            $minutos = (int)round(($end->getTimestamp() - $ini->getTimestamp()) / 60);
+        }
+
+        $this->model->setAnfitrion($serviceId, $anfitrion, $inicio, $fin, $minutos);
+        $this->redirectWith($volver, 'success', 'Anfitrión guardado correctamente.');
     }
 
     /** Eliminar el PDF adjunto de un servicio de vuelo */
@@ -1520,6 +1559,23 @@ XML;
                         . '</row>';
                     $rowNum++;
                 }
+            }
+            // Anfitrión: total de vuelos y tiempo (horas y minutos) de la aerolínea.
+            $minAnf = (int)($a['anfitrion_minutos'] ?? 0);
+            foreach ([
+                'Total vuelos con anfitrión'   => (int)($a['anfitrion_vuelos'] ?? 0),
+                'Total horas anfitrión'        => intdiv($minAnf, 60),
+                'Total minutos anfitrión'      => $minAnf % 60,
+            ] as $concepto => $cantidad) {
+                $style = $n++ % 2 === 0 ? self::XLSX_STYLE_DATA_EVEN : self::XLSX_STYLE_DATA_ODD;
+                $xml .= '<row r="' . $rowNum . '">'
+                    . $text($rowNum, 1, (string)$a['nombre'], $style)
+                    . $text($rowNum, 2, 'Anfitrión', $style)
+                    . $text($rowNum, 3, $concepto, $style)
+                    . '<c r="D' . $rowNum . '" s="' . $style . '"><v>' . $cantidad . '</v></c>'
+                    . ($lateral[$rowNum] ?? '')
+                    . '</row>';
+                $rowNum++;
             }
         }
 

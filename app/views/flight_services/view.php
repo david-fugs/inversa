@@ -289,6 +289,67 @@ $puedeGestionarArchivo = in_array($rolActual, ['Administrador', 'Líder SVC'], t
     </div>
 </div>
 
+<!-- Anfitrión (mismo permiso que el Archivo Adjunto) -->
+<?php if ($puedeGestionarArchivo):
+    $anfSi  = !empty($service['anfitrion']);
+    $anfIni = !empty($service['anfitrion_inicio']) ? date('Y-m-d\TH:i', strtotime($service['anfitrion_inicio'])) : '';
+    $anfFin = !empty($service['anfitrion_fin'])    ? date('Y-m-d\TH:i', strtotime($service['anfitrion_fin']))    : '';
+    $anfMin = (int)($service['anfitrion_minutos'] ?? 0);
+?>
+<div class="col-md-6">
+    <div class="card h-100">
+        <div class="card-header"><h5><i class="bi bi-person-badge-fill"></i> Anfitrión</h5></div>
+        <div class="card-body">
+            <form method="POST" action="<?= BASE_URL ?>/flight-services/anfitrion/<?= $service['id'] ?>">
+                <div class="mb-2">
+                    <label class="form-label" for="anfitrion_sel" style="font-size:13px;">¿Tuvo anfitrión?</label>
+                    <select name="anfitrion" id="anfitrion_sel" class="form-select" style="max-width:160px;">
+                        <option value="No" <?= $anfSi ? '' : 'selected' ?>>No</option>
+                        <option value="Si" <?= $anfSi ? 'selected' : '' ?>>Sí</option>
+                    </select>
+                </div>
+                <div id="anfitrion_fechas" <?= $anfSi ? '' : 'hidden' ?>>
+                    <div class="row g-2">
+                        <div class="col-sm-6">
+                            <label class="form-label" for="anfitrion_inicio" style="font-size:13px;">Fecha inicio</label>
+                            <input type="datetime-local" name="anfitrion_inicio" id="anfitrion_inicio" class="form-control" value="<?= $anfIni ?>">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="anfitrion_fin" style="font-size:13px;">Fecha fin</label>
+                            <input type="datetime-local" name="anfitrion_fin" id="anfitrion_fin" class="form-control" value="<?= $anfFin ?>">
+                        </div>
+                    </div>
+                    <p class="mt-2 mb-0" style="font-size:13px;">
+                        Total tiempo:
+                        <strong id="anfitrion_total"><?= $anfSi && $anfMin > 0 ? intdiv($anfMin, 60) . ' h ' . ($anfMin % 60) . ' min' : '—' ?></strong>
+                    </p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm mt-3"><i class="bi bi-save"></i> Guardar</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const sel = document.getElementById('anfitrion_sel'),
+          box = document.getElementById('anfitrion_fechas'),
+          ini = document.getElementById('anfitrion_inicio'),
+          fin = document.getElementById('anfitrion_fin'),
+          tot = document.getElementById('anfitrion_total');
+    function actualizar() {
+        const si = sel.value === 'Si';
+        box.hidden = !si;
+        ini.required = fin.required = si;
+        const m = (new Date(fin.value) - new Date(ini.value)) / 60000;
+        tot.textContent = (ini.value && fin.value && m > 0)
+            ? Math.floor(m / 60) + ' h ' + Math.round(m % 60) + ' min' : '—';
+    }
+    [sel, ini, fin].forEach(e => e.addEventListener('input', actualizar));
+    actualizar();
+})();
+</script>
+<?php endif; ?>
+
 <!-- Observaciones -->
 <?php if (!empty($service['equipo_gse_inoperativo']) || !empty($service['observaciones'])): ?>
 <div class="col-12">

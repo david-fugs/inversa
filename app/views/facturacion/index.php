@@ -256,7 +256,10 @@ window.addEventListener('load', function () {
         ultimo.airlines.forEach(a => {
             html += '<div class="card mb-3"><div class="card-header"><h5 class="mb-0"><i class="bi bi-airplane-fill"></i> '
                 + esc(a.nombre) + '</h5><span class="badge badge-primary">' + fmt(a.vuelos) + ' vuelos</span></div>'
-                + '<div class="card-body p-0">';
+                + '<div class="card-body p-0">'
+                + '<div class="fact-section-title" style="background:#C9D6EE"><span>Anfitrión</span><span>'
+                + fmt(a.anfitrion_vuelos) + ' vuelos con anfitrión · '
+                + Math.floor(a.anfitrion_minutos / 60) + ' h ' + (a.anfitrion_minutos % 60) + ' min</span></div>';
             a.secciones.forEach(sec => {
                 const max = Math.max(...sec.conceptos.map(c => c.cantidad), 0);
                 html += '<div class="fact-section-title"><span>' + esc(sec.titulo) + '</span><span>' + fmt(sec.vuelos) + ' vuelos</span></div>'
