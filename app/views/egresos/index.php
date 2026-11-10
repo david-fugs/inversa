@@ -2,6 +2,11 @@
 /** Listado de Egresos / Legalizaciones. Requiere: $documentos, $tipoFiltro, $sinLote, $pagina, $totalPaginas. */
 $tipos = EgresoDocumento::TIPOS;
 ?>
+<style>
+/* Columnas Lotes / Pagos: una línea por etiqueta, con "..." y el nombre completo al pasar el mouse. */
+.cell-trunc { max-width: 190px; }
+.trunc-badge { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; margin-bottom: 2px; }
+</style>
 <div class="page-actions">
     <a href="<?= BASE_URL ?>/pagos/egresos/nuevo" class="btn btn-primary">
         <i class="bi bi-plus-lg"></i> Nuevo Documento
@@ -63,39 +68,39 @@ $tipos = EgresoDocumento::TIPOS;
                             <td <?= $nivel ? 'style="border-left:4px solid #0d6efd;"' : '' ?>><?= (int)$d['id'] ?></td>
                             <td <?= $nivel ? 'style="padding-left:28px;"' : '' ?>>
                                 <?php if ($nivel): ?><i class="bi bi-arrow-return-right text-primary"></i><?php endif; ?>
-                                <span class="badge <?= $d['tipo'] === 'comprobante_egreso' ? 'bg-primary' : 'bg-info text-dark' ?>">
+                                <span class="badge <?= $d['tipo'] === 'comprobante_egreso' ? 'bg-primary' : ($d['tipo'] === 'comprobante_pago' ? 'bg-success' : 'bg-info text-dark') ?>">
                                     <?= htmlspecialchars($tipos[$d['tipo']] ?? $d['tipo']) ?>
                                 </span>
-                                <?php if ($d['tipo'] === 'legalizacion_anticipo'): ?>
+                                <?php if (EgresoDocumento::esHijo($d['tipo'])): ?>
                                     <?php if ($d['egreso_id']): ?>
                                         <?php if (!$nivel): ?><small class="d-block text-muted">Egreso #<?= (int)$d['egreso_id'] ?></small><?php endif; ?>
                                     <?php else: ?>
                                         <small class="d-block text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Sin egreso asociado</small>
                                     <?php endif; ?>
                                 <?php elseif (!empty($d['legalizaciones'])): ?>
-                                    <small class="d-block text-muted"><?= count($d['legalizaciones']) ?> legalización(es): #<?= implode(', #', $d['legalizaciones']) ?></small>
+                                    <small class="d-block text-muted"><?= count($d['legalizaciones']) ?> documento(s) asociado(s): #<?= implode(', #', $d['legalizaciones']) ?></small>
                                 <?php endif; ?>
                             </td>
                             <td><?= date('d/m/Y', strtotime($d['fecha'])) ?></td>
-                            <td>
+                            <td class="cell-trunc">
                                 <?php if (empty($d['lotes'])): ?>
                                     <span class="badge bg-danger" title="Este documento no se incluirá en ningún PDF combinado">
                                         <i class="bi bi-exclamation-triangle-fill"></i> Sin lote asociado
                                     </span>
                                 <?php else: ?>
                                     <?php foreach ($d['lotes'] as $l): ?>
-                                        <a href="<?= BASE_URL ?>/pagos/lotes/<?= (int)$l['id'] ?>" class="badge bg-success text-decoration-none">
+                                        <a href="<?= BASE_URL ?>/pagos/lotes/<?= (int)$l['id'] ?>" class="badge bg-success text-decoration-none trunc-badge" title="<?= htmlspecialchars($l['consecutivo']) ?>">
                                             <?= htmlspecialchars($l['consecutivo']) ?>
                                         </a>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </td>
-                            <td style="max-width:240px;">
+                            <td class="cell-trunc">
                                 <?php if (empty($d['pagos'])): ?>
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
                                 <?php foreach ($d['pagos'] as $p): ?>
-                                    <span class="badge bg-secondary" title="Lote <?= htmlspecialchars((string)$p['lote_consecutivo']) ?> · $<?= number_format((float)$p['valor'], 2) ?>">
+                                    <span class="badge bg-secondary trunc-badge" title="<?= htmlspecialchars($p['proveedor_nombre'] . ' · ' . $p['numero_producto'] . ' · Lote ' . (string)$p['lote_consecutivo'] . ' · $' . number_format((float)$p['valor'], 2)) ?>">
                                         <?= htmlspecialchars($p['proveedor_nombre'] . ' · ' . $p['numero_producto']) ?>
                                     </span>
                                 <?php endforeach; ?>
@@ -151,24 +156,32 @@ $tipos = EgresoDocumento::TIPOS;
             </div>
             <div class="modal-body">
                 <p class="text-muted" style="font-size:13px;">
-                    Marque las legalizaciones de anticipo que pertenecen a este comprobante de egreso. Solo aparecen las que aún no tienen egreso y las ya asociadas a este.
+                    Marque las legalizaciones de anticipo y comprobantes que pertenecen a este comprobante de egreso. Solo aparecen las que aún no tienen egreso y las ya asociadas a este.
                     Las nuevas toman los lotes y pagos del egreso si no tienen propios.
                 </p>
                 <div id="legLista"><div class="text-center text-muted py-4">Cargando...</div></div>
                 <small class="text-danger" id="legMsg"></small>
 
                 <form id="legSubir" class="row g-2 align-items-end border-top pt-3 mt-3" novalidate>
-                    <div class="col-12"><strong class="small">Subir una legalización nueva para este egreso</strong></div>
-                    <div class="col-md-4">
+                    <div class="col-12"><strong class="small">Subir una legalización o comprobante nuevo para este egreso</strong></div>
+                    <div class="col-md-3">
+                        <label class="form-label small" for="legTipo">Tipo</label>
+                        <select class="form-select form-select-sm" id="legTipo" name="tipo">
+                            <?php foreach (EgresoDocumento::TIPOS_HIJOS as $k): ?>
+                                <option value="<?= $k ?>"><?= htmlspecialchars($tipos[$k]) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label small" for="legFecha">Fecha</label>
                         <input type="date" class="form-control form-control-sm" id="legFecha" name="fecha" value="<?= date('Y-m-d') ?>">
                     </div>
-                    <div class="col-md-8">
+                    <div class="col-md-6">
                         <label class="form-label small" for="legArchivos">Archivos PDF</label>
                         <input type="file" class="form-control form-control-sm" id="legArchivos" name="archivos[]" accept="application/pdf,.pdf" multiple>
                     </div>
                     <div class="col-12 d-flex align-items-center gap-2">
-                        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-upload"></i> Subir legalización</button>
+                        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-upload"></i> Subir</button>
                         <small class="text-danger" id="legSubirMsg"></small>
                     </div>
                 </form>
@@ -239,7 +252,7 @@ $tipos = EgresoDocumento::TIPOS;
                 if (!d.items.length) {
                     var v = document.createElement('div');
                     v.className = 'alert alert-warning py-2';
-                    v.textContent = 'No hay legalizaciones de anticipo disponibles. Suba una con el formulario de abajo.';
+                    v.textContent = 'No hay legalizaciones ni comprobantes disponibles. Suba uno con el formulario de abajo.';
                     lista.appendChild(v);
                     return;
                 }
@@ -251,7 +264,7 @@ $tipos = EgresoDocumento::TIPOS;
                     chk.value = it.id; chk.checked = it.asociada || (marcadas || []).indexOf(String(it.id)) !== -1;
                     lbl.appendChild(chk);
                     var t = document.createElement('strong');
-                    t.textContent = '#' + it.id + ' · ' + it.fecha;
+                    t.textContent = '#' + it.id + ' · ' + it.tipo + ' · ' + it.fecha;
                     lbl.appendChild(t);
                     var n = document.createElement('span');
                     n.className = 'text-muted ms-2';

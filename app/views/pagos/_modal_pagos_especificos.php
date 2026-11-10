@@ -151,7 +151,7 @@
         (lote.egresos || []).forEach(function (e) { var o = el('option', '', e.label); o.value = e.id; selE.appendChild(o); });
         cE.appendChild(selE);
         if (!(lote.egresos || []).length) cE.appendChild(el('small', 'text-danger d-block', 'Este lote no tiene comprobante de egreso: suba primero el comprobante de egreso.'));
-        tipo.addEventListener('change', function () { cE.style.display = tipo.value === 'legalizacion_anticipo' ? '' : 'none'; });
+        tipo.addEventListener('change', function () { cE.style.display = ['legalizacion_anticipo','comprobante_pago'].indexOf(tipo.value) !== -1 ? '' : 'none'; });
 
         var c4 = el('div', 'col-12 d-flex align-items-center gap-2');
         var btn = el('button', 'btn btn-sm btn-outline-primary', 'Subir documento');

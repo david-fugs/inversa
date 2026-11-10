@@ -829,7 +829,10 @@ class PagosController extends Controller {
                 }
             }
         }
-        return array_values($archivos);
+        $archivos = array_values($archivos);
+        $clave = fn($a) => (int)($a['orden_pdf'] ?? 0) > 0 ? (int)$a['orden_pdf'] : PHP_INT_MAX;
+        usort($archivos, fn($a, $b) => $clave($a) <=> $clave($b));   // estable: conserva el orden de documento
+        return $archivos;
     }
 
     /** Pagos de un lote en el orden en que se crearon (para los PDF combinados). */

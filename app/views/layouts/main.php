@@ -60,6 +60,29 @@
         </div>
         <?php endif; ?>
 
+        <?php if (in_array(Session::get('user_rol'), ['Administrador', 'Operador'], true)): ?>
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/control-aceites" class="nav-link">
+                <i class="bi bi-droplet-half"></i>
+                <span>Control Aceites</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/combustibles-equipos" class="nav-link">
+                <i class="bi bi-fuel-pump-fill"></i>
+                <span>Combustibles Equipos</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/equipos" class="nav-link">
+                <i class="bi bi-gear-wide-connected"></i>
+                <span>Equipos</span>
+            </a>
+        </div>
+        <?php endif; ?>
+
         <?php if (Session::get('user_rol') === 'Administrador'): ?>
         <p class="nav-section-title">Catálogos</p>
 

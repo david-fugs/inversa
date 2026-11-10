@@ -141,7 +141,7 @@ $selPagos = array_map('intval', (array)($old['pago_ids'] ?? []));
             (function () {
                 var tipo = document.getElementById('tipo');
                 var grupo = document.getElementById('grupoEgreso');
-                function mostrar() { grupo.style.display = tipo.value === 'legalizacion_anticipo' ? '' : 'none'; }
+                function mostrar() { grupo.style.display = ['legalizacion_anticipo','comprobante_pago'].indexOf(tipo.value) !== -1 ? '' : 'none'; }
                 tipo.addEventListener('change', mostrar);
                 mostrar();
             })();

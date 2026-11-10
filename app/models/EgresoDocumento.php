@@ -10,13 +10,21 @@ class EgresoDocumento extends Model {
     public const TIPOS = [
         'comprobante_egreso'   => 'Comprobante de egreso',
         'legalizacion_anticipo' => 'Legalización de anticipo',
+        'comprobante_pago'     => 'Comprobante de pago',
     ];
+
+    /** Tipos que cuelgan de un comprobante de egreso (se comportan igual). */
+    public const TIPOS_HIJOS = ['legalizacion_anticipo', 'comprobante_pago'];
+
+    public static function esHijo(?string $tipo): bool {
+        return in_array($tipo, self::TIPOS_HIJOS, true);
+    }
 
     public function create(string $tipo, string $fecha, int $userId, array $loteIds, array $pagoIds = [], ?int $egresoId = null): int {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
         try {
-            $egresoId = $tipo === 'legalizacion_anticipo' ? $egresoId : null;
+            $egresoId = self::esHijo($tipo) ? $egresoId : null;
             [$loteIds, $pagoIds] = $this->heredar($egresoId, $loteIds, $pagoIds);
             $this->db->query(
                 "INSERT INTO egresos_documentos (tipo, egreso_id, fecha, user_id) VALUES (?, ?, ?, ?)",
@@ -37,7 +45,7 @@ class EgresoDocumento extends Model {
         $pdo = $this->db->getConnection();
         $pdo->beginTransaction();
         try {
-            $egresoId = $tipo === 'legalizacion_anticipo' ? $egresoId : null;
+            $egresoId = self::esHijo($tipo) ? $egresoId : null;
             [$loteIds, $pagoIds] = $this->heredar($egresoId, $loteIds, $pagoIds);
             $this->db->query("UPDATE egresos_documentos SET tipo = ?, egreso_id = ?, fecha = ? WHERE id = ?", [$tipo, $egresoId, $fecha, $id]);
             $this->setLotes($id, $loteIds);
@@ -78,7 +86,7 @@ class EgresoDocumento extends Model {
     public function legalizacionesParaEgreso(int $egresoId): array {
         $docs = $this->db->fetchAll(
             "SELECT d.* FROM egresos_documentos d
-             WHERE d.tipo = 'legalizacion_anticipo' AND (d.egreso_id IS NULL OR d.egreso_id = ?)
+             WHERE d.tipo IN ('legalizacion_anticipo','comprobante_pago') AND (d.egreso_id IS NULL OR d.egreso_id = ?)
              ORDER BY d.fecha DESC, d.id DESC",
             [$egresoId]
         );
@@ -100,7 +108,7 @@ class EgresoDocumento extends Model {
             [$loteIds, $pagoIds] = $this->heredar($egresoId, [], []);
             foreach ($ids as $id) {
                 $stmt = $this->db->query(
-                    "UPDATE egresos_documentos SET egreso_id = ? WHERE id = ? AND tipo = 'legalizacion_anticipo' AND (egreso_id IS NULL OR egreso_id = ?)",
+                    "UPDATE egresos_documentos SET egreso_id = ? WHERE id = ? AND tipo IN ('legalizacion_anticipo','comprobante_pago') AND (egreso_id IS NULL OR egreso_id = ?)",
                     [$egresoId, $id, $egresoId]
                 );
                 if (!$stmt->rowCount()) continue;
@@ -156,7 +164,7 @@ class EgresoDocumento extends Model {
             "SELECT a.* FROM egresos_archivos a
              JOIN egresos_documentos d ON d.id = a.documento_id
              WHERE a.documento_id IN ($ph)
-             ORDER BY COALESCE(d.egreso_id, d.id) ASC, (d.egreso_id IS NOT NULL) ASC, d.fecha ASC, d.id ASC, a.orden ASC, a.id ASC",
+             ORDER BY (a.orden_pdf = 0) ASC, a.orden_pdf ASC, COALESCE(d.egreso_id, d.id) ASC, (d.egreso_id IS NOT NULL) ASC, d.fecha ASC, d.id ASC, a.orden ASC, a.id ASC",
             $docIds
         );
     }
@@ -210,6 +218,14 @@ class EgresoDocumento extends Model {
             [$docId, $archivo, $original, $orden]
         );
         return (int)$this->db->lastInsertId();
+    }
+
+    /** Guarda el orden en que los archivos de egresos van en el PDF combinado (1..n; 0 = sin orden). */
+    public function guardarOrdenArchivos(array $ids): void {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        foreach ($ids as $i => $id) {
+            $this->db->query("UPDATE egresos_archivos SET orden_pdf = ? WHERE id = ?", [$i + 1, $id]);
+        }
     }
 
     public function siguienteOrdenArchivo(int $docId): int {

@@ -17,11 +17,6 @@ class EgresosController extends Controller {
     public function __construct() {
         parent::__construct();
         Session::requireAuth();
-        // Creador y Revisor de pagos no acceden a este módulo.
-        if (in_array(Session::get('user_rol'), ['Creador Pagos', 'Revisor Pagos'], true)) {
-            $this->redirectWith(Session::get('user_rol') === 'Creador Pagos' ? 'pagos/lotes/nuevo' : 'pagos/revision', 'error', 'No tiene permiso para esta acción.');
-            exit;
-        }
         $this->docModel  = new EgresoDocumento();
         $this->loteModel = new LotePago();
     }
@@ -159,6 +154,12 @@ class EgresosController extends Controller {
         exit;
     }
 
+    /** Guarda el orden de los archivos de egresos para el PDF combinado. */
+    public function guardarOrdenArchivos(): void {
+        $this->docModel->guardarOrdenArchivos((array)($_POST['ids'] ?? []));
+        $this->json(['ok' => true]);
+    }
+
     /** Legalizaciones asociables a un comprobante de egreso (libres o ya suyas). */
     public function legalizacionesEgreso(string $id): void {
         if (!$this->docModel->esComprobanteEgreso((int)$id)) {
@@ -166,6 +167,7 @@ class EgresosController extends Controller {
         }
         $items = array_map(fn($d) => [
             'id'       => (int)$d['id'],
+            'tipo'     => EgresoDocumento::TIPOS[$d['tipo']] ?? $d['tipo'],
             'fecha'    => date('d/m/Y', strtotime($d['fecha'])),
             'archivos' => array_column($d['archivos'], 'archivo_original'),
             'asociada' => (int)$d['egreso_id'] === (int)$id,
@@ -191,7 +193,9 @@ class EgresosController extends Controller {
             $this->json(['ok' => false, 'error' => reset($errores)], 422);
         }
         // Sin lotes ni pagos propios: hereda los del egreso.
-        $docId = $this->docModel->create('legalizacion_anticipo', $fecha, (int)Session::get('user_id'), [], [], (int)$id);
+        $tipo = (string)($_POST['tipo'] ?? 'legalizacion_anticipo');
+        if (!EgresoDocumento::esHijo($tipo)) $tipo = 'legalizacion_anticipo';
+        $docId = $this->docModel->create($tipo, $fecha, (int)Session::get('user_id'), [], [], (int)$id);
         if (!$this->guardarArchivos($docId, $archivos)) {
             $this->json(['ok' => false, 'error' => 'No se pudo guardar algún archivo.'], 500);
         }
@@ -256,7 +260,7 @@ class EgresosController extends Controller {
         }
         // La legalización debe ir asociada a un comprobante de egreso de este lote.
         $egresoId = null;
-        if ($tipo === 'legalizacion_anticipo') {
+        if (EgresoDocumento::esHijo($tipo)) {
             $egresoId = (int)($_POST['egreso_id'] ?? 0);
             $delLote  = array_column(array_filter($this->docModel->getByLote((int)$lote['id']), fn($d) => $d['tipo'] === 'comprobante_egreso'), 'id');
             if (!in_array($egresoId, array_map('intval', $delLote), true)) {
@@ -297,8 +301,10 @@ class EgresosController extends Controller {
                     'fecha'      => date('d/m/Y', strtotime($d['fecha'])),
                     'pagos'      => array_map('intval', array_column($d['pagos'], 'id')),
                     'archivos'   => array_map(fn($a) => [
-                        'nombre' => $a['archivo_original'],
-                        'url'    => BASE_URL . '/pagos/egresos/archivos/' . $a['id'] . '/file',
+                        'id'        => (int)$a['id'],
+                        'orden_pdf' => (int)$a['orden_pdf'],
+                        'nombre'    => $a['archivo_original'],
+                        'url'       => BASE_URL . '/pagos/egresos/archivos/' . $a['id'] . '/file',
                     ], $d['archivos']),
                 ];
             }
@@ -351,7 +357,7 @@ class EgresosController extends Controller {
 
     private function validar(array $data, ?int $selfId = null): array {
         $errors = [];
-        if (($data['tipo'] ?? '') === 'legalizacion_anticipo'
+        if (EgresoDocumento::esHijo($data['tipo'] ?? '')
             && (!$data['egreso_id'] || $data['egreso_id'] === $selfId || !$this->docModel->esComprobanteEgreso($data['egreso_id']))) {
             $errors['egreso_id'] = 'Seleccione el comprobante de egreso al que pertenece la legalización.';
         }

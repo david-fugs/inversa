@@ -65,19 +65,19 @@
         </div>
 
         <div class="nav-item">
-            <a href="<?= BASE_URL ?>/pagos/egresos" class="nav-link">
-                <i class="bi bi-receipt-cutoff"></i>
-                <span>Egresos / Legalizaciones</span>
-            </a>
-        </div>
-
-        <div class="nav-item">
             <a href="<?= BASE_URL ?>/proveedores" class="nav-link">
                 <i class="bi bi-person-vcard-fill"></i>
                 <span>Proveedores</span>
             </a>
         </div>
         <?php endif; ?>
+
+        <div class="nav-item">
+            <a href="<?= BASE_URL ?>/pagos/egresos" class="nav-link">
+                <i class="bi bi-receipt-cutoff"></i>
+                <span>Egresos</span>
+            </a>
+        </div>
 
         <?php if (Session::get('user_rol') === 'Admin Pagos'): ?>
         <p class="nav-section-title">Administración</p>

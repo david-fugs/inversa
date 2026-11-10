@@ -165,9 +165,36 @@ $router->get('/proveedores/import/{id}/delete',    'ProveedorImportController', 
 
 // ─── Pagos: Lotes de pago ───────────────────────────────────────────────
 $router->get('/pagos',                        'PagosController', 'index');
+// ─── Equipos ───
+$router->get('/equipos',              'EquiposController', 'index');
+$router->get('/equipos/nuevo',        'EquiposController', 'createForm');
+$router->post('/equipos/nuevo',       'EquiposController', 'store');
+$router->get('/equipos/{id}/edit',    'EquiposController', 'editForm');
+$router->post('/equipos/{id}/edit',   'EquiposController', 'update');
+$router->get('/equipos/{id}/delete',  'EquiposController', 'delete');
+
+// ─── Control de aceites ───
+$router->get('/control-aceites',              'ControlAceitesController', 'index');
+$router->get('/control-aceites/export-excel', 'ControlAceitesController', 'exportExcel');
+$router->get('/control-aceites/nuevo',        'ControlAceitesController', 'createForm');
+$router->post('/control-aceites/nuevo',       'ControlAceitesController', 'store');
+$router->get('/control-aceites/{id}/edit',    'ControlAceitesController', 'editForm');
+$router->post('/control-aceites/{id}/edit',   'ControlAceitesController', 'update');
+$router->get('/control-aceites/{id}/delete',  'ControlAceitesController', 'delete');
+
+// ─── Combustibles de equipos ───
+$router->get('/combustibles-equipos',              'CombustiblesEquiposController', 'index');
+$router->get('/combustibles-equipos/export-excel', 'CombustiblesEquiposController', 'exportExcel');
+$router->get('/combustibles-equipos/nuevo',        'CombustiblesEquiposController', 'createForm');
+$router->post('/combustibles-equipos/nuevo',       'CombustiblesEquiposController', 'store');
+$router->get('/combustibles-equipos/{id}/edit',    'CombustiblesEquiposController', 'editForm');
+$router->post('/combustibles-equipos/{id}/edit',   'CombustiblesEquiposController', 'update');
+$router->get('/combustibles-equipos/{id}/delete',  'CombustiblesEquiposController', 'delete');
+
 $router->get('/pagos/egresos',                'EgresosController', 'index');
 $router->get('/pagos/egresos/nuevo',          'EgresosController', 'createForm');
 $router->post('/pagos/egresos/nuevo',         'EgresosController', 'store');
+$router->post('/pagos/egresos/archivos/orden', 'EgresosController', 'guardarOrdenArchivos');
 $router->get('/pagos/egresos/archivos/{id}/file',   'EgresosController', 'archivo');
 $router->get('/pagos/egresos/archivos/{id}/delete', 'EgresosController', 'deleteArchivo');
 $router->get('/pagos/egresos/{id}/legalizaciones',  'EgresosController', 'legalizacionesEgreso');

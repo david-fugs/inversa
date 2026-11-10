@@ -76,7 +76,7 @@
         (lote.egresos || []).forEach(function (e) { var o = el('option', '', e.label); o.value = e.id; selE.appendChild(o); });
         cE.appendChild(selE);
         if (!(lote.egresos || []).length) cE.appendChild(el('small', 'text-danger d-block', 'Este lote no tiene comprobante de egreso: suba primero el comprobante de egreso.'));
-        sel.addEventListener('change', function () { cE.style.display = sel.value === 'legalizacion_anticipo' ? '' : 'none'; });
+        sel.addEventListener('change', function () { cE.style.display = ['legalizacion_anticipo','comprobante_pago'].indexOf(sel.value) !== -1 ? '' : 'none'; });
 
         var c5 = el('div', 'col-12');
         if (lote.pagos && lote.pagos.length) {
@@ -115,30 +115,8 @@
         return form;
     }
 
-    // Orden de los comprobantes de pago dentro del PDF (arrastrar, flechas o invertir).
-    var listas = {};   // loteId -> <ul> con los comprobantes en el orden elegido
-
-    function seccionOrden(lote) {
-        var wrap = el('div', 'mt-3 pt-2 border-top');
-        var head = el('div', 'd-flex justify-content-between align-items-center mb-1');
-        head.appendChild(el('strong', 'small', 'Orden de los comprobantes de pago'));
-        var inv = el('button', 'btn btn-sm btn-outline-secondary');
-        inv.type = 'button';
-        inv.innerHTML = '<i class="bi bi-arrow-down-up"></i> Cambiar orden';
-        inv.title = 'Invertir el orden (de abajo hacia arriba / de arriba hacia abajo)';
-        head.appendChild(inv);
-        wrap.appendChild(head);
-        wrap.appendChild(el('small', 'text-muted d-block mb-1', 'Arrastre cada PDF o use las flechas. Se une de arriba hacia abajo.'));
-
-        var ul = el('ul', 'list-group list-group-flush');
-        ul.appendChild(el('li', 'list-group-item small text-muted', 'Cargando...'));
-        wrap.appendChild(ul);
-        listas[lote.id] = ul;
-
-        inv.addEventListener('click', function () {
-            Array.prototype.slice.call(ul.children).reverse().forEach(function (li) { ul.appendChild(li); });
-        });
-
+    // Arrastrar o usar flechas dentro de un <ul> con <li data-id>.
+    function sortable(ul) {
         var arrastrado = null;
         ul.addEventListener('dragstart', function (e) {
             arrastrado = e.target.closest('li[data-id]');
@@ -159,6 +137,74 @@
             if (b.dataset.mover === 'up' && li.previousElementSibling) ul.insertBefore(li, li.previousElementSibling);
             if (b.dataset.mover === 'down' && li.nextElementSibling) ul.insertBefore(li.nextElementSibling, li);
         });
+    }
+
+    // Orden de los comprobantes de pago dentro del PDF (arrastrar, flechas o invertir).
+    var listasDocs = {};  // loteId -> <ul> con los documentos de egreso en el orden elegido
+    var listas = {};   // loteId -> <ul> con los comprobantes en el orden elegido
+
+    function seccionOrden(lote) {
+        var wrap = el('div', 'mt-3 pt-2 border-top');
+        var head = el('div', 'd-flex justify-content-between align-items-center mb-1');
+        head.appendChild(el('strong', 'small', 'Orden de los comprobantes de pago'));
+        var inv = el('button', 'btn btn-sm btn-outline-secondary');
+        inv.type = 'button';
+        inv.innerHTML = '<i class="bi bi-arrow-down-up"></i> Cambiar orden';
+        inv.title = 'Invertir el orden (de abajo hacia arriba / de arriba hacia abajo)';
+        head.appendChild(inv);
+        wrap.appendChild(head);
+        wrap.appendChild(el('small', 'text-muted d-block mb-1', 'Arrastre cada PDF o use las flechas. Se une de arriba hacia abajo.'));
+
+        // Documentos (egreso, legalizaciones, comprobantes): van primero y se pueden ver antes de descargar.
+        var docsFijos = [];
+        (lote.documentos || []).forEach(function (d) {
+            (d.archivos || []).forEach(function (a) { docsFijos.push({ tipo: d.tipo_label || d.tipo || 'Documento', fecha: d.fecha, a: a }); });
+        });
+        docsFijos.sort(function (x, y) {
+            return (x.a.orden_pdf > 0 ? x.a.orden_pdf : 1e9) - (y.a.orden_pdf > 0 ? y.a.orden_pdf : 1e9);
+        });
+        if (docsFijos.length) {
+            wrap.appendChild(el('small', 'text-muted d-block mb-1', 'Documentos al inicio del PDF (arrastre o use las flechas):'));
+            var ulDocs = el('ul', 'list-group list-group-flush mb-2');
+            docsFijos.forEach(function (f) {
+                var li = el('li', 'list-group-item d-flex align-items-center gap-2 py-1 bg-light');
+                li.draggable = true;
+                li.dataset.id = f.a.id;
+                li.style.cursor = 'grab';
+                li.appendChild(el('i', 'bi bi-grip-vertical text-muted'));
+                var txt = el('span', 'flex-grow-1 small text-truncate');
+                txt.appendChild(el('strong', '', f.tipo));
+                txt.appendChild(el('span', 'text-muted ms-2', f.fecha + ' · ' + f.a.nombre));
+                txt.title = f.tipo + ' · ' + f.a.nombre;
+                li.appendChild(txt);
+                var ver = el('a', 'btn btn-icon btn-outline-primary btn-sm');
+                ver.href = f.a.url; ver.target = '_blank'; ver.title = 'Ver ' + f.a.nombre;
+                ver.innerHTML = '<i class="bi bi-eye-fill"></i>';
+                li.appendChild(ver);
+                [['up', 'bi-chevron-up'], ['down', 'bi-chevron-down']].forEach(function (m) {
+                    var b = el('button', 'btn btn-icon btn-light btn-sm');
+                    b.type = 'button'; b.dataset.mover = m[0];
+                    b.innerHTML = '<i class="bi ' + m[1] + '"></i>';
+                    li.appendChild(b);
+                });
+                ulDocs.appendChild(li);
+            });
+            sortable(ulDocs);
+            wrap.appendChild(ulDocs);
+            listasDocs[lote.id] = ulDocs;
+            wrap.appendChild(el('small', 'text-muted d-block mb-1', 'Comprobantes de pago:'));
+        }
+
+        var ul = el('ul', 'list-group list-group-flush');
+        ul.appendChild(el('li', 'list-group-item small text-muted', 'Cargando...'));
+        wrap.appendChild(ul);
+        listas[lote.id] = ul;
+
+        inv.addEventListener('click', function () {
+            Array.prototype.slice.call(ul.children).reverse().forEach(function (li) { ul.appendChild(li); });
+        });
+
+        sortable(ul);
 
         fetch(BASE_URL + '/pagos/lotes/' + lote.id + '/orden-pdf')
             .then(function (r) { return r.json(); })
@@ -198,15 +244,21 @@
     }
 
     function guardarOrdenes() {
-        return Promise.all(Object.keys(listas).map(function (loteId) {
+        var fdD = new FormData();
+        Object.keys(listasDocs).forEach(function (loteId) {
+            Array.prototype.forEach.call(listasDocs[loteId].querySelectorAll('li[data-id]'), function (li) { fdD.append('ids[]', li.dataset.id); });
+        });
+        var pDocs = fdD.has('ids[]') ? fetch(BASE_URL + '/pagos/egresos/archivos/orden', { method: 'POST', body: fdD }) : Promise.resolve();
+        return Promise.all([pDocs].concat(Object.keys(listas).map(function (loteId) {
             var fd = new FormData();
             Array.prototype.forEach.call(listas[loteId].querySelectorAll('li[data-id]'), function (li) { fd.append('ids[]', li.dataset.id); });
             return fetch(BASE_URL + '/pagos/lotes/' + loteId + '/orden-pdf', { method: 'POST', body: fd });
-        }));
+        })));
     }
 
     function pintar(data) {
         listas = {};
+        listasDocs = {};
         cont.innerHTML = '';
         data.lotes.forEach(function (lote) {
             var card = el('div', 'border rounded p-3 mb-3');
