@@ -165,6 +165,15 @@ $router->get('/proveedores/import/{id}/delete',    'ProveedorImportController', 
 
 // ─── Pagos: Lotes de pago ───────────────────────────────────────────────
 $router->get('/pagos',                        'PagosController', 'index');
+// ─── Indicador de disponibilidad ───
+$router->get('/indicador-disponibilidad',              'IndicadorDisponibilidadController', 'index');
+$router->get('/indicador-disponibilidad/export-excel', 'IndicadorDisponibilidadController', 'exportExcel');
+$router->get('/indicador-disponibilidad/nuevo',        'IndicadorDisponibilidadController', 'createForm');
+$router->post('/indicador-disponibilidad/nuevo',       'IndicadorDisponibilidadController', 'store');
+$router->get('/indicador-disponibilidad/{id}/edit',    'IndicadorDisponibilidadController', 'editForm');
+$router->post('/indicador-disponibilidad/{id}/edit',   'IndicadorDisponibilidadController', 'update');
+$router->get('/indicador-disponibilidad/{id}/delete',  'IndicadorDisponibilidadController', 'delete');
+
 // ─── Equipos ───
 $router->get('/equipos',              'EquiposController', 'index');
 $router->get('/equipos/nuevo',        'EquiposController', 'createForm');

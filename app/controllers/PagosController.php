@@ -238,6 +238,17 @@ class PagosController extends Controller {
         ], 'pagos');
     }
 
+    /** Documentos (egresos/legalizaciones/comprobantes) de los lotes creados en esta pantalla, sin repetir. */
+    private function documentosDeLotesNuevo(): array {
+        $docs = [];
+        foreach ($this->loteModel->getPorIds((array)Session::get('lotes_nuevo_ids', [])) as $l) {
+            foreach ($this->egresoModel->getByLote((int)$l['id']) as $d) {
+                $docs[(int)$d['id']] = $d;
+            }
+        }
+        return array_values($docs);
+    }
+
     private function renderNuevo(array $errors = [], array $old = []): void {
         if ($this->esCreador()) {
             $this->renderCreador($errors, $old);
@@ -249,6 +260,7 @@ class PagosController extends Controller {
             'pagosSinLote'  => $this->pagoModel->getSinLote((int)Session::get('user_id')),
             'pagosAsignados' => $this->pagosAsignadosNuevo(),
             'lotesAbiertos' => $this->loteModel->getPorIds((array)Session::get('lotes_nuevo_ids', [])),
+            'documentos'    => $this->documentosDeLotesNuevo(),
             'proveedores'   => $this->proveedorModel->getAll(),
             'bancos'        => $this->bancoModel->getAll(),
             'tiposProducto' => $this->tipoProductoModel->getAll(),

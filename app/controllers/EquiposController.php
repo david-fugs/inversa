@@ -29,7 +29,7 @@ class EquiposController extends Controller {
     }
 
     public function createForm(): void {
-        $this->renderForm(null, [], ['base_id' => '', 'nombre' => '', 'rpm' => '']);
+        $this->renderForm(null, [], ['base_id' => '', 'nombre' => '', 'rpm' => '', 'cantidad' => '1']);
     }
 
     public function store(): void {
@@ -75,7 +75,7 @@ class EquiposController extends Controller {
             return;
         }
         if ($this->equipoModel->enUso((int)$equipo['id'])) {
-            $this->redirectWith('equipos', 'error', 'No se puede eliminar: el equipo tiene registros de aceites o combustible.');
+            $this->redirectWith('equipos', 'error', 'No se puede eliminar: el equipo tiene registros de aceites, combustible o disponibilidad.');
             return;
         }
         $this->equipoModel->delete((int)$equipo['id']);
@@ -87,6 +87,7 @@ class EquiposController extends Controller {
             'base_id' => (int)($_POST['base_id'] ?? 0),
             'nombre'  => trim((string)($_POST['nombre'] ?? '')),
             'rpm'     => trim((string)($_POST['rpm'] ?? '')),
+            'cantidad' => trim((string)($_POST['cantidad'] ?? '')),
         ];
     }
 
@@ -104,6 +105,9 @@ class EquiposController extends Controller {
         }
         if (!ctype_digit($data['rpm']) || (int)$data['rpm'] <= 0) {
             $errors['rpm'] = 'Las RPM deben ser un número entero mayor a 0.';
+        }
+        if (!ctype_digit($data['cantidad']) || (int)$data['cantidad'] <= 0 || (int)$data['cantidad'] > 9999) {
+            $errors['cantidad'] = 'La cantidad debe ser un número entero entre 1 y 9999.';
         }
         return $errors;
     }

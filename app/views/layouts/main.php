@@ -76,6 +76,13 @@
         </div>
 
         <div class="nav-item">
+            <a href="<?= BASE_URL ?>/indicador-disponibilidad" class="nav-link">
+                <i class="bi bi-calendar-check"></i>
+                <span>Indicador Disponibilidad</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
             <a href="<?= BASE_URL ?>/equipos" class="nav-link">
                 <i class="bi bi-gear-wide-connected"></i>
                 <span>Equipos</span>

@@ -235,7 +235,7 @@ class EgresoDocumento extends Model {
 
     /** Filtro del listado: "Todos" muestra los documentos sin egreso padre (las legalizaciones van anidadas bajo su egreso). */
     private function filtroListado(?string $tipo, string $q = ''): array {
-        [$where, $params] = $tipo ? ['WHERE d.tipo = ?', [$tipo]] : ['WHERE d.egreso_id IS NULL', []];
+        [$where, $params] = $tipo ? ['WHERE d.tipo = ?', [$tipo]] : ["WHERE d.egreso_id IS NULL AND d.tipo <> 'comprobante_pago'", []];
         if ($q !== '') {
             // Por nombre de archivo: del propio documento o de sus legalizaciones (un egreso aparece si alguna legalización coincide).
             $like = '%' . addcslashes($q, '%_\\') . '%';
@@ -257,7 +257,7 @@ class EgresoDocumento extends Model {
     public function countSinLote(): int {
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) AS n FROM egresos_documentos d
-             WHERE NOT EXISTS (SELECT 1 FROM egresos_lotes el WHERE el.documento_id = d.id)"
+             WHERE d.tipo <> 'comprobante_pago' AND NOT EXISTS (SELECT 1 FROM egresos_lotes el WHERE el.documento_id = d.id)"
         );
         return (int)($row['n'] ?? 0);
     }
@@ -284,7 +284,7 @@ class EgresoDocumento extends Model {
             $rows = $this->db->fetchAll(
                 "SELECT d.*, u.nombre_completo AS registrado_por
                  FROM egresos_documentos d JOIN users u ON u.id = d.user_id
-                 WHERE d.egreso_id IN ($ph) ORDER BY d.fecha ASC, d.id ASC",
+                 WHERE d.egreso_id IN ($ph) AND d.tipo <> 'comprobante_pago' ORDER BY d.fecha ASC, d.id ASC",
                 $egresoIds
             );
             foreach ($this->adjuntar($rows) as $h) {

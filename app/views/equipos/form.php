@@ -38,6 +38,14 @@ $baseSel = (int)($old['base_id'] ?? 0);
                 <?php if (isset($errors['rpm'])): ?><div class="invalid-feedback"><?= htmlspecialchars($errors['rpm']) ?></div><?php endif; ?>
             </div>
 
+            <div class="mb-3">
+                <label for="cantidad" class="form-label">Cantidad de equipos <span class="required-mark">*</span></label>
+                <input type="number" min="1" max="9999" step="1" class="form-control <?= isset($errors['cantidad']) ? 'is-invalid' : '' ?>" id="cantidad" name="cantidad"
+                       value="<?= htmlspecialchars((string)($old['cantidad'] ?? '1')) ?>">
+                <div class="form-text">Unidades que tiene la base de este equipo (se usa en el Indicador de Disponibilidad).</div>
+                <?php if (isset($errors['cantidad'])): ?><div class="invalid-feedback"><?= htmlspecialchars($errors['cantidad']) ?></div><?php endif; ?>
+            </div>
+
             <hr class="divider">
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar</button>

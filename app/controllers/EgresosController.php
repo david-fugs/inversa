@@ -25,7 +25,7 @@ class EgresosController extends Controller {
 
     public function index(): void {
         $tipo = $_GET['tipo'] ?? '';
-        $tipo = isset(EgresoDocumento::TIPOS[$tipo]) ? $tipo : null;
+        $tipo = (isset(EgresoDocumento::TIPOS[$tipo]) && $tipo !== 'comprobante_pago') ? $tipo : null; // los comprobantes de pago no se listan
         $q    = trim((string)($_GET['q'] ?? ''));
 
         [$pagina, $totalPaginas, $offset] = $this->paginar($this->docModel->count($tipo, $q), self::POR_PAGINA);

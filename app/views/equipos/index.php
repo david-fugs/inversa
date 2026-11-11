@@ -14,7 +14,7 @@
             <table class="table data-table" style="width:100%">
                 <thead>
                     <tr>
-                        <th>#</th><th>Base</th><th>Nombre</th><th>RPM</th><th>Fecha Registro</th>
+                        <th>#</th><th>Base</th><th>Nombre</th><th>RPM</th><th>Cantidad</th><th>Fecha Registro</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -25,6 +25,7 @@
                             <td><span class="badge bg-success"><?= htmlspecialchars($e['base_nombre']) ?></span></td>
                             <td><strong><?= htmlspecialchars($e['nombre']) ?></strong></td>
                             <td><?= number_format((int)$e['rpm'], 0, ',', '.') ?></td>
+                            <td><?= (int)$e['cantidad'] ?></td>
                             <td><?= date('d/m/Y', strtotime($e['created_at'])) ?></td>
                             <td class="text-center">
                                 <div class="d-flex gap-1 justify-content-center">

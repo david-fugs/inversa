@@ -11,7 +11,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-wrapper">
-            <table class="table data-table" style="width:100%">
+            <table class="table data-table" style="width:100%" data-order='[[0,"desc"]]'>
                 <thead>
                     <tr>
                         <th>#</th>

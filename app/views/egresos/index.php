@@ -23,7 +23,7 @@ $tipos = EgresoDocumento::TIPOS;
 
 <ul class="nav nav-pills mb-3">
     <li class="nav-item"><a class="nav-link <?= $tipoFiltro === null ? 'active' : '' ?>" href="<?= BASE_URL ?>/pagos/egresos">Todos</a></li>
-    <?php foreach ($tipos as $k => $label): ?>
+    <?php foreach ($tipos as $k => $label): if ($k === 'comprobante_pago') continue; ?>
         <li class="nav-item"><a class="nav-link <?= $tipoFiltro === $k ? 'active' : '' ?>" href="<?= BASE_URL ?>/pagos/egresos?tipo=<?= $k ?>"><?= $label ?></a></li>
     <?php endforeach; ?>
 </ul>

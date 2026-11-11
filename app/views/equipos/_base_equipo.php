@@ -6,7 +6,10 @@ $equipoSel = (int)($old['equipo_id'] ?? 0);
 $equiposJs = array_map(fn($e) => [
     'id'    => (int)$e['id'],
     'base'  => (int)$e['base_id'],
-    'texto' => $e['nombre'] . '  ·  ' . number_format((int)$e['rpm'], 0, ',', '.') . ' RPM',
+    'texto' => !empty($mostrarCantidad)
+        ? $e['nombre'] . '  ·  Cantidad: ' . (int)$e['cantidad']
+        : $e['nombre'] . '  ·  ' . number_format((int)$e['rpm'], 0, ',', '.') . ' RPM',
+    'cantidad' => (int)$e['cantidad'],
 ], $equipos);
 ?>
 <div class="mb-3">
@@ -34,6 +37,7 @@ $equiposJs = array_map(fn($e) => [
 <script>
 window.addEventListener('load', function () {   // después de app.js (que inicializa los .select2 al cargar el DOM)
     var equipos = <?= json_encode($equiposJs, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+    window.equiposLista = equipos;
     var seleccionado = <?= $equipoSel ?>;
     var $base = $('#base_id'), $equipo = $('#equipo_id');
     var idioma = { noResults: function () { return 'No se encontraron equipos'; }, searching: function () { return 'Buscando...'; } };

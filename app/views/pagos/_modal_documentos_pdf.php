@@ -360,6 +360,9 @@
     });
 
     function unir() {
+        // Si se subieron documentos, la página se recarga al terminar la descarga (no al cerrar el modal, que la cancelaría).
+        var recargar = huboCambios && document.body.dataset.recargarDocs === '1';
+        huboCambios = false;
         modal.hide();
         var a = document.createElement('a');
         a.href = '#';
@@ -369,6 +372,15 @@
         a.style.cssText = 'position:fixed;left:-9999px;';
         a.textContent = 'Uniendo...';
         document.body.appendChild(a);
+        if (recargar) {
+            var obs = new MutationObserver(function () {
+                if (!a.classList.contains('disabled')) {
+                    obs.disconnect();
+                    setTimeout(function () { location.reload(); }, 1500);
+                }
+            });
+            obs.observe(a, { attributes: true, attributeFilter: ['class'] });
+        }
         a.click();
         setTimeout(function () { a.remove(); }, 60000);
     }
