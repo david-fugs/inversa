@@ -499,7 +499,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.value = '';
                 if (!existente) {
                     // Recarga para que la tarjeta de Egresos / Legalizaciones tome el lote nuevo.
-                    window.location.reload();
+                    // Sin "?nuevo=1": ese parámetro limpia los lotes de la sesión.
+                    window.location.href = BASE_URL + '/pagos/lotes/nuevo';
                     return;
                 }
                 bootstrap.Modal.getInstance(modalEl).hide();
