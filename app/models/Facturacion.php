@@ -152,10 +152,11 @@ class Facturacion extends Model
     // ───────────────────── Paneles por aerolínea ─────────────────────
 
     /** Años con servicios de una aerolínea (más reciente primero). */
-    public function getAnios(string $aerolinea, ?string $baseScope): array
+    public function getAnios(string|array $aerolinea, ?string $baseScope): array
     {
-        $where = 'COALESCE(a.nombre, fs.airline_custom_nombre) = ?';
-        $params = [$aerolinea];
+        $aerolineas = (array)$aerolinea;
+        $where = 'COALESCE(a.nombre, fs.airline_custom_nombre) IN (' . implode(',', array_fill(0, count($aerolineas), '?')) . ')';
+        $params = array_values($aerolineas);
         if ($baseScope !== null) { $where .= ' AND fs.base = ?'; $params[] = $baseScope; }
         $rows = $this->db->fetchAll(
             "SELECT DISTINCT fs.anio FROM flight_services fs

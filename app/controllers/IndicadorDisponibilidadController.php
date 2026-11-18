@@ -63,19 +63,42 @@ class IndicadorDisponibilidadController extends Controller {
         $dias = [];
         foreach ($filasPorDia as $dia => $lista) {
             $t = DisponibilidadRegistro::totales($lista);
-            $t['registros_dia'] = array_values(array_map(fn($x) => [
-                'id' => $x['registro_id'], 'base' => $x['base_nombre'], 'equipo' => $x['equipo_nombre'],
-                'cantidad' => $x['cantidad'], 'inoperativo' => $x['inoperativo'], 'correctivo' => $x['correctivo'],
-                'preventivo' => $x['preventivo'], 'disponibilidad' => $x['disponibilidad'], 'confiabilidad' => $x['confiabilidad'],
-            ], $lista));
+            // Mismo nombre en la misma base (distinto RPM) = una sola fila con las cantidades sumadas.
+            $agrupadas = [];
+            foreach ($lista as $x) {
+                $agrupadas[(string)$x['base_nombre'] . '|' . mb_strtolower(trim((string)$x['equipo_nombre']))][] = $x;
+            }
+            $t['registros_dia'] = [];
+            foreach ($agrupadas as $grupo) {
+                $g = DisponibilidadRegistro::totales($grupo);
+                $t['registros_dia'][] = [
+                    'ids' => array_values(array_filter(array_column($grupo, 'registro_id'))),
+                    'base' => $grupo[0]['base_nombre'], 'equipo' => $grupo[0]['equipo_nombre'],
+                    'cantidad' => $g['cantidad'], 'inoperativo' => $g['inoperativo'], 'correctivo' => $g['correctivo'],
+                    'preventivo' => $g['preventivo'], 'disponibilidad' => $g['disponibilidad'], 'confiabilidad' => $g['confiabilidad'],
+                ];
+            }
             $dias[$dia] = $t;
         }
-        $porEquipo = [];
+        // Equipos con el mismo nombre en la misma base (p. ej. con distinto RPM) se agrupan
+        // en una sola fila: se suman sus cantidades y sus novedades.
+        $grupos = [];
         foreach ($equipos as $e) {
-            $lista = $filasPorEquipo[(int)$e['id']] ?? [];
-            $t = DisponibilidadRegistro::totales($lista);
-            $t['dias'] = count($lista);
-            $t['equipo'] = $e;
+            $clave = (int)$e['base_id'] . '|' . mb_strtolower(trim((string)$e['nombre']));
+            if (!isset($grupos[$clave])) {
+                $grupos[$clave] = ['equipo' => $e, 'filas' => [], 'cantidad' => 0];
+                $grupos[$clave]['equipo']['cantidad'] = 0;
+            }
+            $grupos[$clave]['equipo']['cantidad'] += (int)$e['cantidad'];
+            foreach ($filasPorEquipo[(int)$e['id']] ?? [] as $fila) {
+                $grupos[$clave]['filas'][] = $fila;
+            }
+        }
+        $porEquipo = [];
+        foreach ($grupos as $g) {
+            $t = DisponibilidadRegistro::totales($g['filas']);
+            $t['dias'] = count(array_unique(array_column($g['filas'], 'dia')));
+            $t['equipo'] = $g['equipo'];
             $porEquipo[] = $t;
         }
 

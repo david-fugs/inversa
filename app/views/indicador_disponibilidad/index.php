@@ -259,17 +259,20 @@ window.addEventListener('load', function () {
                 celda(tr, pct(r.disponibilidad), color(r.disponibilidad)); celda(tr, pct(r.confiabilidad), color(r.confiabilidad));
                 var acc = document.createElement('td');
                 acc.className = 'text-end text-nowrap';
-                if (r.id) {
-                    var ed = document.createElement('a');
-                    ed.className = 'btn btn-icon btn-outline-primary btn-sm me-1'; ed.title = 'Editar';
-                    ed.href = BASE_URL + '/indicador-disponibilidad/' + r.id + '/edit';
-                    ed.innerHTML = '<i class="bi bi-pencil-fill"></i>';
-                    var del = document.createElement('a');
-                    del.className = 'btn btn-icon btn-danger btn-sm'; del.title = 'Eliminar';
-                    del.href = BASE_URL + '/indicador-disponibilidad/' + r.id + '/delete';
-                    del.addEventListener('click', function (e) { if (!confirm('¿Eliminar esta novedad?')) e.preventDefault(); });
-                    del.innerHTML = '<i class="bi bi-trash-fill"></i>';
-                    acc.appendChild(ed); acc.appendChild(del);
+                if (r.ids && r.ids.length) {
+                    r.ids.forEach(function (id, i) {
+                        var suf = r.ids.length > 1 ? ' (novedad ' + (i + 1) + ')' : '';
+                        var ed = document.createElement('a');
+                        ed.className = 'btn btn-icon btn-outline-primary btn-sm me-1'; ed.title = 'Editar' + suf;
+                        ed.href = BASE_URL + '/indicador-disponibilidad/' + id + '/edit';
+                        ed.innerHTML = '<i class="bi bi-pencil-fill"></i>';
+                        var del = document.createElement('a');
+                        del.className = 'btn btn-icon btn-danger btn-sm me-1'; del.title = 'Eliminar' + suf;
+                        del.href = BASE_URL + '/indicador-disponibilidad/' + id + '/delete';
+                        del.addEventListener('click', function (e) { if (!confirm('¿Eliminar esta novedad?')) e.preventDefault(); });
+                        del.innerHTML = '<i class="bi bi-trash-fill"></i>';
+                        acc.appendChild(ed); acc.appendChild(del);
+                    });
                 } else {
                     acc.className += ' text-muted small';
                     acc.textContent = 'sin novedad';

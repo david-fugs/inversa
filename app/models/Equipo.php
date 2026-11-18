@@ -29,10 +29,10 @@ class Equipo extends Model {
         );
     }
 
-    public function nombreExists(int $baseId, string $nombre, int $excludeId = 0): bool {
+    public function nombreExists(int $baseId, string $nombre, int $rpm, int $excludeId = 0): bool {
         return (bool)$this->db->fetchOne(
-            "SELECT id FROM equipos WHERE base_id = ? AND nombre = ? AND id <> ?",
-            [$baseId, $nombre, $excludeId]
+            "SELECT id FROM equipos WHERE base_id = ? AND nombre = ? AND rpm = ? AND id <> ?",
+            [$baseId, $nombre, $rpm, $excludeId]
         );
     }
 

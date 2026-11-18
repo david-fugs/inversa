@@ -100,11 +100,13 @@ class EquiposController extends Controller {
             $errors['nombre'] = 'El nombre del equipo es obligatorio.';
         } elseif (mb_strlen($data['nombre']) > 120) {
             $errors['nombre'] = 'El nombre no puede superar 120 caracteres.';
-        } elseif (!isset($errors['base_id']) && $this->equipoModel->nombreExists($data['base_id'], $data['nombre'], $selfId)) {
-            $errors['nombre'] = 'Ya existe un equipo con este nombre en la base.';
         }
         if (!ctype_digit($data['rpm']) || (int)$data['rpm'] <= 0) {
             $errors['rpm'] = 'Las RPM deben ser un número entero mayor a 0.';
+        } elseif (!isset($errors['nombre'], $errors['base_id']) && $data['nombre'] !== ''
+            && $this->equipoModel->nombreExists($data['base_id'], $data['nombre'], (int)$data['rpm'], $selfId)) {
+            // El mismo nombre se permite con distinto RPM.
+            $errors['rpm'] = 'Ya existe un equipo con este nombre y estas RPM en la base.';
         }
         if (!ctype_digit($data['cantidad']) || (int)$data['cantidad'] <= 0 || (int)$data['cantidad'] > 9999) {
             $errors['cantidad'] = 'La cantidad debe ser un número entero entre 1 y 9999.';

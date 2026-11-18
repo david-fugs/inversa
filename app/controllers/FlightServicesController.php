@@ -295,6 +295,8 @@ class FlightServicesController extends Controller {
     private const PANEL_AEROLINEAS = [
         'avianca' => [
             'nombre' => 'AVIANCA', 'logo' => 'logo_avianca.png', 'color' => '#E30613',
+            // Avianca hace parte de Regional Express: el panel suma ambas aerolíneas.
+            'incluye'   => ['AVIANCA', 'REGIONAL EXPRESS'],
             'tarjetas'  => ['vuelos', 'pax'],
             'combinada' => ['ventiladores', 'sillas', 'rampa', 'gpu', 'acu'],
             'combinada_titulo' => 'Servicios por mes',
@@ -328,11 +330,18 @@ class FlightServicesController extends Controller {
         $opciones = $this->model->getDistinctBasesYAerolineas($this->panelBaseScope());
         $facturacion = new Facturacion();
         $metricas = $facturacion->metricasPanel();
-        $descripciones = $this->descripcionesCodigosDemora($cfg['nombre']);
-        // Solo los códigos del catálogo de esta aerolínea (igual que /codigo-demoras).
+        $nombres = array_map('strtoupper', $cfg['incluye'] ?? [$cfg['nombre']]);
+        $descripciones = [];
+        foreach ($nombres as $n) {
+            foreach ($this->descripcionesCodigosDemora($n) as $cod => $desc) {
+                $descripciones[$cod] = isset($descripciones[$cod]) && $descripciones[$cod] !== $desc
+                    ? $descripciones[$cod] . ' / ' . $desc : $desc;
+            }
+        }
+        // Solo los códigos del catálogo de esta(s) aerolínea(s) (igual que /codigo-demoras).
         $codigos = [];
         foreach ($this->codigoDemoraModel->getAll() as $cd) {
-            if (strtoupper(trim((string)$cd['airline_nombre'])) === strtoupper($cfg['nombre'])) {
+            if (in_array(strtoupper(trim((string)$cd['airline_nombre'])), $nombres, true)) {
                 $codigos[] = strtoupper(trim($cd['codigo']));
             }
         }
@@ -350,7 +359,7 @@ class FlightServicesController extends Controller {
             'cfg'          => $cfg,
             'etiquetas'    => $etiquetas,
             'basesUniques' => $opciones['bases'],
-            'aniosUniques' => $facturacion->getAnios($cfg['nombre'], $this->panelBaseScope()),
+            'aniosUniques' => $facturacion->getAnios($cfg['incluye'] ?? [$cfg['nombre']], $this->panelBaseScope()),
             'codigosDemoraUniques' => $codigos,
             'codigosDemoraDesc'    => $descripciones,
         ]);
@@ -375,7 +384,7 @@ class FlightServicesController extends Controller {
 
         $facturacion = new Facturacion();
         $servicios = $facturacion->getServicios([
-            'aerolineas'   => [$cfg['nombre']],
+            'aerolineas'   => $cfg['incluye'] ?? [$cfg['nombre']],
             'bases'        => $bases,
             'anio'         => (int)($_GET['anio'] ?? 0),
             'mes'          => (int)($_GET['mes'] ?? 0),
