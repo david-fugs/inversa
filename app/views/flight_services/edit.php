@@ -866,8 +866,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const [hIS, mIS] = horaItineradaSalida.split(':').map(Number);
         const [hRS, mRS] = horaRealSalida.split(':').map(Number);
 
-        const minItineradaSalida = hIS * 60 + mIS;
-        const minRealSalida = hRS * 60 + mRS;
+        let minItineradaSalida = hIS * 60 + mIS;
+        let minRealSalida = hRS * 60 + mRS;
+
+        // Considerar cruce de medianoche: se mide todo desde la hora itinerada
+        // de llegada (la salida real = llegada real + tránsito real).
+        if (horaItinerada && horaReal) {
+            const [hIL, mIL] = horaItinerada.split(':').map(Number);
+            const [hRL, mRL] = horaReal.split(':').map(Number);
+            const minItinLleg = hIL * 60 + mIL;
+            minItineradaSalida = (((hIS * 60 + mIS) - minItinLleg) % 1440 + 1440) % 1440;
+            minRealSalida = ((hRL * 60 + mRL) - minItinLleg) + parseInt(tiempoInput.value, 10);
+        }
 
         // Demora solo si salió tarde Y el tránsito excede el estipulado
         const salioTarde = minRealSalida > minItineradaSalida;

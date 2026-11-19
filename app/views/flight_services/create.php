@@ -860,8 +860,19 @@
             const [hIS, mIS] = horaItineradaSalida.split(':').map(Number);
             const [hRS, mRS] = horaRealSalida.split(':').map(Number);
 
-            const minItineradaSalida = hIS * 60 + mIS;
-            const minRealSalida = hRS * 60 + mRS;
+            let minItineradaSalida = hIS * 60 + mIS;
+            let minRealSalida = hRS * 60 + mRS;
+
+            // Considerar cruce de medianoche: se mide todo desde la hora itinerada
+            // de llegada (la salida real = llegada real + tránsito real).
+            if (horaItineradaLlegada && horaRealLlegada) {
+                const [hIL, mIL] = horaItineradaLlegada.split(':').map(Number);
+                const [hRL, mRL] = horaRealLlegada.split(':').map(Number);
+                const minItinLleg = hIL * 60 + mIL;
+                const itinTransito = (((hIS * 60 + mIS) - minItinLleg) % 1440 + 1440) % 1440;
+                minItineradaSalida = itinTransito;
+                minRealSalida = ((hRL * 60 + mRL) - minItinLleg) + parseInt(tiempoInput.value, 10);
+            }
 
             const salioTarde = minRealSalida > minItineradaSalida;
             const excedeTransito = parseInt(tiempoInput.value, 10) > tiempoAUsar;
