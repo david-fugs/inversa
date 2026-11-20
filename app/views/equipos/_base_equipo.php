@@ -7,8 +7,8 @@ $equiposJs = array_map(fn($e) => [
     'id'    => (int)$e['id'],
     'base'  => (int)$e['base_id'],
     'texto' => !empty($mostrarCantidad)
-        ? $e['nombre'] . '  ·  Cantidad: ' . (int)$e['cantidad']
-        : $e['nombre'] . '  ·  ' . number_format((int)$e['rpm'], 0, ',', '.') . ' RPM',
+        ? $e['nombre'] . (!empty($e['acronimo']) ? ' (' . $e['acronimo'] . ')' : '') . '  ·  Cantidad: ' . (int)$e['cantidad']
+        : $e['nombre'] . (!empty($e['acronimo']) ? ' (' . $e['acronimo'] . ')' : '') . '  ·  ' . number_format((int)$e['rpm'], 0, ',', '.') . ' RPM',
     'cantidad' => (int)$e['cantidad'],
 ], $equipos);
 ?>

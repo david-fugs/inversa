@@ -29,7 +29,7 @@ class EquiposController extends Controller {
     }
 
     public function createForm(): void {
-        $this->renderForm(null, [], ['base_id' => '', 'nombre' => '', 'rpm' => '', 'cantidad' => '1']);
+        $this->renderForm(null, [], ['base_id' => '', 'nombre' => '', 'acronimo' => '', 'rpm' => '', 'cantidad' => '1']);
     }
 
     public function store(): void {
@@ -86,6 +86,7 @@ class EquiposController extends Controller {
         return [
             'base_id' => (int)($_POST['base_id'] ?? 0),
             'nombre'  => trim((string)($_POST['nombre'] ?? '')),
+            'acronimo' => mb_strtoupper(trim((string)($_POST['acronimo'] ?? ''))),
             'rpm'     => trim((string)($_POST['rpm'] ?? '')),
             'cantidad' => trim((string)($_POST['cantidad'] ?? '')),
         ];
@@ -100,6 +101,9 @@ class EquiposController extends Controller {
             $errors['nombre'] = 'El nombre del equipo es obligatorio.';
         } elseif (mb_strlen($data['nombre']) > 120) {
             $errors['nombre'] = 'El nombre no puede superar 120 caracteres.';
+        }
+        if (mb_strlen($data['acronimo']) > 30) {
+            $errors['acronimo'] = 'El acrónimo no puede superar 30 caracteres.';
         }
         if (!ctype_digit($data['rpm']) || (int)$data['rpm'] <= 0) {
             $errors['rpm'] = 'Las RPM deben ser un número entero mayor a 0.';

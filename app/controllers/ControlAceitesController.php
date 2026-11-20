@@ -37,10 +37,10 @@ class ControlAceitesController extends Controller {
     /** Excel con los mismos filtros de la pantalla. */
     public function exportExcel(): void {
         $registros = $this->model->listar($this->filtrosGet());
-        $headers = ['#', 'Fecha', 'Base', 'Equipo', 'RPM', 'Galones', 'Mantenimiento', 'Registrado por'];
+        $headers = ['#', 'Fecha', 'Base', 'Equipo', 'Acrónimo', 'RPM', 'Galones', 'Mantenimiento', 'Registrado por'];
         $rows = [];
         foreach ($registros as $r) {
-            $rows[] = [(int)$r['id'], date('d/m/Y', strtotime($r['fecha'])), $r['base_nombre'], $r['equipo_nombre'],
+            $rows[] = [(int)$r['id'], date('d/m/Y', strtotime($r['fecha'])), $r['base_nombre'], $r['equipo_nombre'], $r['equipo_acronimo'] ?? '',
                        (int)$r['rpm'], (float)$r['cantidad_galones'], ControlAceite::MANTENIMIENTOS[$r['mantenimiento']] ?? $r['mantenimiento'], $r['registrado_por']];
         }
         $this->enviarXlsx('Control Aceites', 'control_aceites', $headers, $rows);

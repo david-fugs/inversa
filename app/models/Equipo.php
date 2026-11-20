@@ -16,16 +16,16 @@ class Equipo extends Model {
 
     public function create(array $data): int {
         $this->db->query(
-            "INSERT INTO equipos (base_id, nombre, rpm, cantidad) VALUES (?, ?, ?, ?)",
-            [$data['base_id'], $data['nombre'], $data['rpm'], $data['cantidad']]
+            "INSERT INTO equipos (base_id, nombre, acronimo, rpm, cantidad) VALUES (?, ?, ?, ?, ?)",
+            [$data['base_id'], $data['nombre'], $data['acronimo'] !== '' ? $data['acronimo'] : null, $data['rpm'], $data['cantidad']]
         );
         return (int)$this->db->lastInsertId();
     }
 
     public function update(int $id, array $data): void {
         $this->db->query(
-            "UPDATE equipos SET base_id = ?, nombre = ?, rpm = ?, cantidad = ? WHERE id = ?",
-            [$data['base_id'], $data['nombre'], $data['rpm'], $data['cantidad'], $id]
+            "UPDATE equipos SET base_id = ?, nombre = ?, acronimo = ?, rpm = ?, cantidad = ? WHERE id = ?",
+            [$data['base_id'], $data['nombre'], $data['acronimo'] !== '' ? $data['acronimo'] : null, $data['rpm'], $data['cantidad'], $id]
         );
     }
 

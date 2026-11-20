@@ -84,7 +84,8 @@ class DisponibilidadRegistro extends Model {
                 }
                 $filas[] = [
                     'fecha' => $fecha, 'dia' => $dia, 'equipo_id' => (int)$e['id'],
-                    'base_nombre' => $e['base_nombre'], 'equipo_nombre' => $e['nombre'],
+                    'base_nombre' => $e['base_nombre'], // Si el equipo tiene acrónimo, se usa como nombre para unir equipos con distinto nombre.
+                    'equipo_nombre' => trim((string)($e['acronimo'] ?? '')) !== '' ? trim($e['acronimo']) : $e['nombre'],
                     'cantidad' => $cant, 'inoperativo' => $ino, 'correctivo' => $cor, 'preventivo' => $pre,
                     'disponibilidad' => self::pct($cant, $ino), 'confiabilidad' => self::pct($cant, $cor),
                     'registro_id' => $r ? (int)$r['id'] : null,

@@ -37,10 +37,10 @@ class CombustiblesEquiposController extends Controller {
     /** Excel con los mismos filtros de la pantalla. */
     public function exportExcel(): void {
         $registros = $this->model->listar($this->filtrosGet());
-        $headers = ['#', 'Fecha', 'Base', 'Equipo', 'RPM', 'Galones', 'Horómetro', 'Registrado por'];
+        $headers = ['#', 'Fecha', 'Base', 'Equipo', 'Acrónimo', 'RPM', 'Galones', 'Horómetro', 'Registrado por'];
         $rows = [];
         foreach ($registros as $r) {
-            $rows[] = [(int)$r['id'], date('d/m/Y', strtotime($r['fecha'])), $r['base_nombre'], $r['equipo_nombre'],
+            $rows[] = [(int)$r['id'], date('d/m/Y', strtotime($r['fecha'])), $r['base_nombre'], $r['equipo_nombre'], $r['equipo_acronimo'] ?? '',
                        (int)$r['rpm'], (float)$r['cantidad_galones'], $r['horometro'], $r['registrado_por']];
         }
         $this->enviarXlsx('Combustibles Equipos', 'combustibles_equipos', $headers, $rows);

@@ -45,7 +45,7 @@
             <table class="table data-table" style="width:100%">
                 <thead>
                     <tr>
-                        <th>#</th><th>Fecha</th><th>Base</th><th>Equipo</th><th>RPM</th><th>Galones</th><th>Mantenimiento</th>
+                        <th>#</th><th>Fecha</th><th>Base</th><th>Equipo</th><th>Acrónimo</th><th>RPM</th><th>Galones</th><th>Mantenimiento</th>
                         <th>Registrado por</th><th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -56,6 +56,7 @@
                             <td data-order="<?= htmlspecialchars($r['fecha']) ?>"><?= date('d/m/Y', strtotime($r['fecha'])) ?></td>
                             <td><span class="badge bg-success"><?= htmlspecialchars($r['base_nombre']) ?></span></td>
                             <td><strong><?= htmlspecialchars($r['equipo_nombre']) ?></strong></td>
+                            <td><?= !empty($r['equipo_acronimo']) ? '<span class="badge bg-secondary">' . htmlspecialchars($r['equipo_acronimo']) . '</span>' : '—' ?></td>
                             <td><?= number_format((int)$r['rpm'], 0, ',', '.') ?></td>
                             <td><?= number_format((float)$r['cantidad_galones'], 2, ',', '.') ?></td>
                             <td>

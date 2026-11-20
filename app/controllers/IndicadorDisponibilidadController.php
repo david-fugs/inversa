@@ -84,8 +84,12 @@ class IndicadorDisponibilidadController extends Controller {
         // en una sola fila: se suman sus cantidades y sus novedades.
         $grupos = [];
         foreach ($equipos as $e) {
-            $clave = (int)$e['base_id'] . '|' . mb_strtolower(trim((string)$e['nombre']));
+            // Con acrónimo se agrupa por acrónimo (aunque el nombre difiera); si no, por nombre.
+            $acr = trim((string)($e['acronimo'] ?? ''));
+            $nombreGrupo = $acr !== '' ? $acr : trim((string)$e['nombre']);
+            $clave = (int)$e['base_id'] . '|' . mb_strtolower($nombreGrupo);
             if (!isset($grupos[$clave])) {
+                $e['nombre'] = $nombreGrupo;
                 $grupos[$clave] = ['equipo' => $e, 'filas' => [], 'cantidad' => 0];
                 $grupos[$clave]['equipo']['cantidad'] = 0;
             }

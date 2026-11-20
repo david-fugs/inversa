@@ -16,7 +16,7 @@ class ControlAceite extends Model {
         if (!empty($f['desde']))   { $where[] = 'c.fecha >= ?';  $params[] = $f['desde']; }
         if (!empty($f['hasta']))   { $where[] = 'c.fecha <= ?';  $params[] = $f['hasta']; }
         return $this->db->fetchAll(
-            "SELECT c.*, b.nombre AS base_nombre, e.nombre AS equipo_nombre, e.rpm, u.nombre_completo AS registrado_por
+            "SELECT c.*, b.nombre AS base_nombre, e.nombre AS equipo_nombre, e.acronimo AS equipo_acronimo, e.rpm, u.nombre_completo AS registrado_por
              FROM control_aceites c
              JOIN bases b ON b.id = c.base_id
              JOIN equipos e ON e.id = c.equipo_id

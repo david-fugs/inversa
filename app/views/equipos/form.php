@@ -32,6 +32,14 @@ $baseSel = (int)($old['base_id'] ?? 0);
             </div>
 
             <div class="mb-3">
+                <label for="acronimo" class="form-label">Acrónimo / Siglas</label>
+                <input type="text" class="form-control <?= isset($errors['acronimo']) ? 'is-invalid' : '' ?>" id="acronimo" name="acronimo" maxlength="30"
+                       style="text-transform:uppercase" value="<?= htmlspecialchars((string)($old['acronimo'] ?? '')) ?>">
+                <div class="form-text">Opcional. Los equipos de la misma base con el mismo acrónimo se unen en el Indicador de Disponibilidad, aunque su nombre sea diferente.</div>
+                <?php if (isset($errors['acronimo'])): ?><div class="invalid-feedback"><?= htmlspecialchars($errors['acronimo']) ?></div><?php endif; ?>
+            </div>
+
+            <div class="mb-3">
                 <label for="rpm" class="form-label">RPM <span class="required-mark">*</span></label>
                 <input type="number" min="1" step="1" class="form-control <?= isset($errors['rpm']) ? 'is-invalid' : '' ?>" id="rpm" name="rpm"
                        value="<?= htmlspecialchars((string)($old['rpm'] ?? '')) ?>">
